@@ -1,0 +1,137 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 16px;
+}
+
+.header {
+  padding: 20px 4px 16px;
+}
+
+.header h1 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+.header p  { font-size: 0.825rem; color: var(--text2); }
+
+.msg {
+  background: rgba(30, 132, 73, 0.15);
+  border: 1px solid rgba(30, 132, 73, 0.35);
+  color: #2ecc71;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+}
+
+.seccion {
+  margin-bottom: 24px;
+}
+
+.seccion h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.buscador {
+  display: flex;
+  gap: 8px;
+}
+
+.buscador input { flex: 1; }
+
+.btnBuscar {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 1.1rem;
+}
+
+.noEncontrado {
+  font-size: 0.875rem;
+  color: var(--text2);
+  padding: 8px 0;
+}
+
+.resultadoCard, .solicitudCard, .familiarCard {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.resultadoCard > div, .solicitudCard > div, .familiarInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.username {
+  font-size: 0.8rem;
+  color: var(--text2);
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.aceptar {
+  background: var(--verde);
+  color: #fff;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 0.85rem;
+}
+
+.rechazar {
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  color: var(--text2);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 0.85rem;
+}
+
+.btnVincular {
+  background: var(--naranja);
+  color: #fff;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.familiarAvatar {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  background: var(--bg2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnDesvincular {
+  background: none;
+  color: var(--text2);
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+}
+
+.pb { height: 80px; }

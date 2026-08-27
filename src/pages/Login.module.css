@@ -1,0 +1,110 @@
+.wrap {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  gap: 28px;
+}
+
+.logo {
+  text-align: center;
+}
+
+.sos {
+  font-size: 4rem;
+  margin-bottom: 8px;
+  animation: pulso 2s ease-in-out infinite;
+}
+
+@keyframes pulso {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.logo h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.logo p {
+  font-size: 0.9rem;
+  color: var(--naranja);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.tab, .tabActive {
+  flex: 1;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: none;
+  color: var(--text2);
+  transition: all 0.2s;
+}
+
+.tabActive {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+.form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text2);
+}
+
+.error {
+  background: rgba(192, 57, 43, 0.15);
+  border: 1px solid rgba(192, 57, 43, 0.4);
+  color: #e74c3c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+}
+
+.btn {
+  background: var(--rojo);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+  transition: background 0.2s, transform 0.1s;
+  margin-top: 4px;
+}
+
+.btn:hover { background: var(--rojo-hover); }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }

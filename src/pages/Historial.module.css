@@ -1,0 +1,87 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 16px;
+}
+
+.header {
+  padding: 20px 4px 16px;
+}
+
+.header h1 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+.header p  { font-size: 0.825rem; color: var(--text2); }
+
+.vacio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alerta {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-left: 4px solid;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alertaTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.alertaInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alertaInfo strong { font-size: 0.95rem; }
+
+.alertaFecha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.78rem;
+  color: var(--text2);
+  gap: 1px;
+}
+
+.mapsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 132, 73, 0.15);
+  border: 1px solid rgba(30, 132, 73, 0.3);
+  color: #2ecc71;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.sinGps {
+  font-size: 0.8rem;
+  color: var(--text2);
+}
+
+.pb { height: 80px; }
