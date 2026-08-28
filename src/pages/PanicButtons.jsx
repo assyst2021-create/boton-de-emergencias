@@ -113,7 +113,7 @@ export default function PanicButtons() {
           <span className={styles.sos}>🆘</span>
           <div>
             <h1>Botón de Emergencias</h1>
-            <p>para Sismos</p>
+            <p>Alertas de Emergencia</p>
           </div>
           <button className={styles.salir} onClick={() => supabase.auth.signOut()} title="Salir">⏻</button>
         </div>
