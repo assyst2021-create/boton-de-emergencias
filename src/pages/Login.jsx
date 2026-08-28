@@ -52,7 +52,7 @@ export default function Login() {
       <div className={styles.logo}>
         <div className={styles.sos}>🆘</div>
         <h1>Botón de Emergencias</h1>
-        <p>Alertas de Emergencia</p>
+        <p>para Sismos y Avalanchas</p>
       </div>
 
       <div className={styles.card}>
