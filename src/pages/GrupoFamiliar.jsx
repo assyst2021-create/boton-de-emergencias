@@ -10,6 +10,7 @@ export default function GrupoFamiliar() {
   const [solicitudes, setSolicitudes] = useState([])
   const [mensaje, setMensaje] = useState('')
   const [userId, setUserId] = useState(null)
+  const [mostrarUpgrade, setMostrarUpgrade] = useState(false)
 
   useEffect(() => {
     init()
@@ -68,6 +69,13 @@ export default function GrupoFamiliar() {
       return
     }
 
+    // Verificar limite freemium
+    const { data: perfil } = await supabase.from('users').select('is_premium').eq('id', userId).single()
+    if (!perfil?.is_premium && vinculados.length >= 1) {
+      setMostrarUpgrade(true)
+      return
+    }
+
     await supabase.from('family_links').insert({ user_id: userId, linked_user_id: destId, status: 'pending' })
     setMensaje('Solicitud enviada.')
     setResultado(null)
@@ -104,6 +112,21 @@ export default function GrupoFamiliar() {
       </header>
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}
+
+      {mostrarUpgrade && (
+        <div className={styles.upgradeBox}>
+          <div className={styles.upgradeIcon}>🔒</div>
+          <h3>Plan gratuito: 1 familiar</h3>
+          <p>Con el plan gratuito puedes vincular <strong>1 familiar</strong>. Para agregar más personas y proteger a toda tu familia, activa el plan premium.</p>
+          <button
+            className={styles.upgradBtn}
+            onClick={() => window.open('https://botondeemergencias.mefacil.com/premium', '_blank')}
+          >
+            Ver plan Premium
+          </button>
+          <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>Cerrar</button>
+        </div>
+      )}
 
       {/* Solicitudes pendientes */}
       {solicitudes.length > 0 && (
