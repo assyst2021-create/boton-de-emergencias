@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import styles from './Login.module.css'
 
+const toEmail = (username) => `${username.toLowerCase().trim()}@botondeemergencias.app`
+
 export default function Login() {
   const [modo, setModo] = useState('login')
-  const [form, setForm] = useState({ nombre: '', username: '', telefono: '', email: '', password: '' })
+  const [form, setForm] = useState({ nombre: '', username: '', telefono: '', password: '' })
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -13,8 +15,12 @@ export default function Login() {
   async function handleLogin(e) {
     e.preventDefault()
     setError('')
+    if (!form.username || !form.password) { setError('Completa todos los campos'); return }
     setCargando(true)
-    const { error } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email: toEmail(form.username),
+      password: form.password,
+    })
     if (error) setError('Usuario o contraseña incorrectos')
     setCargando(false)
   }
@@ -22,24 +28,33 @@ export default function Login() {
   async function handleRegistro(e) {
     e.preventDefault()
     setError('')
-    if (!form.nombre || !form.username || !form.telefono || !form.email || !form.password) {
+    if (!form.nombre || !form.username || !form.telefono || !form.password) {
       setError('Completa todos los campos')
       return
     }
+    if (form.username.includes(' ')) { setError('El usuario no puede tener espacios'); return }
     if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return }
     setCargando(true)
 
-    // Verificar username unico
-    const { data: existe } = await supabase.from('users').select('id').eq('username', form.username.toLowerCase()).maybeSingle()
+    const { data: existe } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', form.username.toLowerCase().trim())
+      .maybeSingle()
+
     if (existe) { setError('Ese nombre de usuario ya existe, elige otro'); setCargando(false); return }
 
-    const { data: authData, error: authErr } = await supabase.auth.signUp({ email: form.email, password: form.password })
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: toEmail(form.username),
+      password: form.password,
+    })
+
     if (authErr) { setError(authErr.message); setCargando(false); return }
 
     if (authData.user) {
       await supabase.from('users').insert({
         id: authData.user.id,
-        username: form.username.toLowerCase(),
+        username: form.username.toLowerCase().trim(),
         full_name: form.nombre,
         phone_number: form.telefono,
       })
@@ -63,29 +78,27 @@ export default function Login() {
 
         <form onSubmit={modo === 'login' ? handleLogin : handleRegistro} className={styles.form}>
           {modo === 'registro' && (
-            <>
-              <div className={styles.field}>
-                <label>Nombre completo</label>
-                <input type="text" placeholder="Tu nombre" value={form.nombre} onChange={set('nombre')} />
-              </div>
-              <div className={styles.field}>
-                <label>Nombre de usuario</label>
-                <input type="text" placeholder="sin espacios, ej: juan123" value={form.username} onChange={set('username')} />
-              </div>
-              <div className={styles.field}>
-                <label>Teléfono (privado)</label>
-                <input type="tel" placeholder="+57 300 000 0000" value={form.telefono} onChange={set('telefono')} />
-              </div>
-            </>
+            <div className={styles.field}>
+              <label>Nombre completo</label>
+              <input type="text" placeholder="Tu nombre completo" value={form.nombre} onChange={set('nombre')} />
+            </div>
           )}
 
           <div className={styles.field}>
-            <label>Correo electrónico</label>
-            <input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={set('email')} />
+            <label>Nombre de usuario</label>
+            <input type="text" placeholder="sin espacios, ej: juan123" value={form.username} onChange={set('username')} autoComplete="username" />
           </div>
+
+          {modo === 'registro' && (
+            <div className={styles.field}>
+              <label>Teléfono (privado)</label>
+              <input type="tel" placeholder="+57 300 000 0000" value={form.telefono} onChange={set('telefono')} />
+            </div>
+          )}
+
           <div className={styles.field}>
             <label>Contraseña</label>
-            <input type="password" placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'} value={form.password} onChange={set('password')} />
+            <input type="password" placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'} value={form.password} onChange={set('password')} autoComplete={modo === 'login' ? 'current-password' : 'new-password'} />
           </div>
 
           {error && <div className={styles.error}>{error}</div>}
