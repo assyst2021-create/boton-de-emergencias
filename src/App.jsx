@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
-import { LanguageProvider } from './i18n/LanguageContext'
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
 import Disclaimer from './pages/Disclaimer'
@@ -97,6 +97,8 @@ function AppInner() {
 }
 
 function GpsPromptScreen({ onContinuar }) {
+  const { t } = useLanguage()
+
   function activar() {
     navigator.geolocation.getCurrentPosition(
       () => onContinuar(),
@@ -109,15 +111,13 @@ function GpsPromptScreen({ onContinuar }) {
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={{ fontSize: '3.5rem' }}>📍</div>
-        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>Ubicación desactivada</h2>
-        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>
-          Para enviar tu ubicación en una emergencia, necesitamos acceso a tu GPS.
-        </p>
+        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('gpsDesactivada')}</h2>
+        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>{t('gpsTextoReg')}</p>
         <button onClick={activar} style={{ background: 'var(--rojo)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%' }}>
-          Activar GPS
+          {t('activarGps')}
         </button>
         <button onClick={onContinuar} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: '0.875rem', textDecoration: 'underline', cursor: 'pointer' }}>
-          Continuar sin GPS
+          {t('sinGps')}
         </button>
       </div>
     </div>

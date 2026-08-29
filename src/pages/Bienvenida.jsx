@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import styles from './Bienvenida.module.css'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function Bienvenida({ onContinuar }) {
+  const { t } = useLanguage()
   const [paso, setPaso] = useState(0)
   const [gpsOk, setGpsOk] = useState(false)
   const [gpsError, setGpsError] = useState('')
   const [pidiendo, setPidiendo] = useState(false)
 
   useEffect(() => {
-    // Detectar si GPS ya está activo
     navigator.geolocation.getCurrentPosition(
       () => { setGpsOk(true); setPaso(1) },
       () => {},
@@ -26,7 +27,7 @@ export default function Bienvenida({ onContinuar }) {
       setGpsOk(true)
       setTimeout(() => setPaso(1), 800)
     } catch {
-      setGpsError('No se pudo obtener la ubicación. Activa el GPS en tu celular y vuelve a intentarlo.')
+      setGpsError(t('gpsErrorMsg'))
     }
     setPidiendo(false)
   }
@@ -37,32 +38,24 @@ export default function Bienvenida({ onContinuar }) {
         <div className={styles.card}>
           <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
           <div className={styles.icon}>📍</div>
-          <h2>Activa tu ubicación GPS</h2>
-          <p>
-            Esta app necesita tu ubicación GPS para enviar tu posición exacta a tu familia en caso de emergencia.
-          </p>
-          <p className={styles.sub}>
-            Sin GPS activado, tus familiares no podrán encontrarte.
-          </p>
+          <h2>{t('permisoUbicacion')}</h2>
+          <p>{t('permisoTexto')}</p>
+          <p className={styles.sub}>{t('sinGpsAviso')}</p>
 
-          {gpsOk && (
-            <div className={styles.ok}>✅ Ubicación activada correctamente</div>
-          )}
-          {gpsError && (
-            <div className={styles.errorBox}>{gpsError}</div>
-          )}
+          {gpsOk && <div className={styles.ok}>{t('gpsOkMsg')}</div>}
+          {gpsError && <div className={styles.errorBox}>{gpsError}</div>}
 
           <button
             className={styles.btn}
             onClick={pedirGPS}
             disabled={pidiendo || gpsOk}
           >
-            {pidiendo ? 'Verificando...' : gpsOk ? 'Listo' : 'Activar ubicación'}
+            {pidiendo ? t('verificando') : gpsOk ? t('gpsListo') : t('activarGps')}
           </button>
 
           {!gpsOk && (
             <button className={styles.skip} onClick={() => setPaso(1)}>
-              Continuar sin GPS (no recomendado)
+              {t('sinGps')}
             </button>
           )}
         </div>
@@ -72,23 +65,23 @@ export default function Bienvenida({ onContinuar }) {
         <div className={styles.card}>
           <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
-          <h2>¿Cómo funciona?</h2>
+          <h2>{t('comofunciona')}</h2>
           <div className={styles.pasos}>
             <div className={styles.paso}>
               <span className={styles.num}>1</span>
-              <p>Presiona el botón según tu situación: <strong>Estoy en peligro</strong>, <strong>Estoy herido</strong> o <strong>Estoy bien</strong>.</p>
+              <p>{t('paso1')}</p>
             </div>
             <div className={styles.paso}>
               <span className={styles.num}>2</span>
-              <p>La app envía tu <strong>ubicación GPS</strong> y estado a tus familiares vinculados.</p>
+              <p>{t('paso2')}</p>
             </div>
             <div className={styles.paso}>
               <span className={styles.num}>3</span>
-              <p>Si no hay internet, también abre tu app de <strong>mensajes SMS</strong> para enviar la alerta.</p>
+              <p>{t('paso3')}</p>
             </div>
           </div>
           <button className={styles.btn} onClick={onContinuar}>
-            Entendido, ingresar
+            {t('comenzar')}
           </button>
         </div>
       )}
