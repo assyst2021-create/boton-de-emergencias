@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -12,6 +12,19 @@ export default function Login() {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [instalada, setInstalada] = useState(false)
   const [verPassword, setVerPassword] = useState(false)
+  const [usernameStatus, setUsernameStatus] = useState(null) // 'ok' | 'taken' | 'checking'
+  const debounceRef = useRef(null)
+
+  useEffect(() => {
+    if (modo !== 'registro' || form.username.length < 3) { setUsernameStatus(null); return }
+    setUsernameStatus('checking')
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase.from('users').select('id').eq('username', form.username.toLowerCase().trim()).maybeSingle()
+      setUsernameStatus(data ? 'taken' : 'ok')
+    }, 500)
+    return () => clearTimeout(debounceRef.current)
+  }, [form.username, modo])
 
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
@@ -115,6 +128,9 @@ export default function Login() {
               <div className={styles.field}>
                 <label>{t('nombreUsuario')}</label>
                 <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" />
+                {usernameStatus === 'checking' && <span className={styles.usernameChecking}>Verificando...</span>}
+                {usernameStatus === 'ok' && <span className={styles.usernameOk}>✓ Disponible</span>}
+                {usernameStatus === 'taken' && <span className={styles.usernameTaken}>✗ No disponible</span>}
               </div>
             </>
           )}
