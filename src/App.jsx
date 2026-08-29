@@ -25,6 +25,8 @@ function AppInner() {
 
   if (session === undefined) return <Cargando />
 
+  if (!session) return <Login />
+
   if (!bienvenidaVista) {
     return <Bienvenida onContinuar={() => setBienvenidaVista(true)} />
   }
@@ -32,10 +34,9 @@ function AppInner() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={!session ? <Login /> : <Navigate to="/" replace />} />
-        <Route path="/" element={session ? <><PanicButtons /><Nav /></> : <Navigate to="/login" replace />} />
-        <Route path="/historial" element={session ? <><Historial /><Nav /></> : <Navigate to="/login" replace />} />
-        <Route path="/familia" element={session ? <><GrupoFamiliar /><Nav /></> : <Navigate to="/login" replace />} />
+        <Route path="/" element={<><PanicButtons /><Nav /></>} />
+        <Route path="/historial" element={<><Historial /><Nav /></>} />
+        <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

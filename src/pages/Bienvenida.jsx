@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './Bienvenida.module.css'
 
 export default function Bienvenida({ onContinuar }) {
@@ -6,6 +6,15 @@ export default function Bienvenida({ onContinuar }) {
   const [gpsOk, setGpsOk] = useState(false)
   const [gpsError, setGpsError] = useState('')
   const [pidiendo, setPidiendo] = useState(false)
+
+  useEffect(() => {
+    // Detectar si GPS ya está activo
+    navigator.geolocation.getCurrentPosition(
+      () => { setGpsOk(true); setPaso(1) },
+      () => {},
+      { timeout: 3000, maximumAge: 10000 }
+    )
+  }, [])
 
   async function pedirGPS() {
     setPidiendo(true)
