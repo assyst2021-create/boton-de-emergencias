@@ -168,6 +168,19 @@
 
 .installBtn:hover { background: rgba(230,126,34,0.1); }
 
+.resetLink {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.resetLink:hover { color: var(--accent); }
+.resetLink:disabled { opacity: 0.5; cursor: not-allowed; }
+.resetOk { font-size: 0.8rem; color: #2ecc71; font-weight: 600; }
+
 .usernameOk { font-size: 0.78rem; color: #2ecc71; font-weight: 600; margin-top: 3px; display: block; }
 .usernameTaken { font-size: 0.78rem; color: var(--rojo); font-weight: 600; margin-top: 3px; display: block; }
 .usernameChecking { font-size: 0.78rem; color: var(--text2); margin-top: 3px; display: block; }

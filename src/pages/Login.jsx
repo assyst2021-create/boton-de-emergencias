@@ -14,6 +14,8 @@ export default function Login() {
   const [verPassword, setVerPassword] = useState(false)
   const [usernameStatus, setUsernameStatus] = useState(null) // 'ok' | 'taken' | 'checking'
   const debounceRef = useRef(null)
+  const [resetEnviado, setResetEnviado] = useState(false)
+  const [resetCargando, setResetCargando] = useState(false)
 
   useEffect(() => {
     if (modo !== 'registro' || form.username.length < 3) { setUsernameStatus(null); return }
@@ -42,6 +44,15 @@ export default function Login() {
   }
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  async function handleReset() {
+    setError('')
+    if (!form.email) { setError(t('errorCorreoReset')); return }
+    setResetCargando(true)
+    await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim())
+    setResetEnviado(true)
+    setResetCargando(false)
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
@@ -167,6 +178,18 @@ export default function Login() {
               </div>
             )}
           </div>
+
+          {modo === 'login' && (
+            <div style={{ textAlign: 'right', marginTop: -8 }}>
+              {resetEnviado ? (
+                <span className={styles.resetOk}>{t('resetEnviado')}</span>
+              ) : (
+                <button type="button" className={styles.resetLink} onClick={handleReset} disabled={resetCargando}>
+                  {resetCargando ? t('procesando') : t('olvidaste')}
+                </button>
+              )}
+            </div>
+          )}
 
           {error && <div className={styles.error}>{error}</div>}
 
