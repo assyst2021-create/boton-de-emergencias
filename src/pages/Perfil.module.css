@@ -67,6 +67,22 @@
   padding: 14px 16px;
   border-radius: 10px;
   text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.leido {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #27ae60;
+  background: rgba(39,174,96,0.12);
+  border: 1px solid rgba(39,174,96,0.3);
+  border-radius: 20px;
+  padding: 2px 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .opcionRojo {

@@ -9,7 +9,7 @@ export const useAppActions = () => useContext(AppActionsContext)
 
 export default function Perfil({ onCerrar }) {
   const { t, lang, cambiarIdioma } = useLanguage()
-  const { verBienvenida, verTerminos, verPrivacidad } = useAppActions()
+  const { verBienvenida, verTerminos, verPrivacidad, bienvenidaLeida, avisoLeido, privacidadLeida } = useAppActions()
   const [paso, setPaso] = useState('menu')
   const [form, setForm] = useState({ nueva: '', confirmar: '' })
   const [error, setError] = useState('')
@@ -48,13 +48,16 @@ export default function Perfil({ onCerrar }) {
               {t('cambiarIdioma')}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verBienvenida?.() }}>
-              📋 Ver bienvenida
+              <span>📋 Ver bienvenida</span>
+              {bienvenidaLeida && <span className={styles.leido}>✓ Leído</span>}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verTerminos?.() }}>
-              ⚠️ Ver aviso legal
+              <span>⚠️ Ver aviso legal</span>
+              {avisoLeido && <span className={styles.leido}>✓ Leído</span>}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verPrivacidad?.() }}>
-              🔒 Política de privacidad
+              <span>🔒 Política de privacidad</span>
+              {privacidadLeida && <span className={styles.leido}>✓ Leído</span>}
             </button>
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               {t('cambiarContrasena')}

@@ -80,6 +80,9 @@ function AppInner() {
       verBienvenida: () => setBienvenidaVista(false),
       verTerminos: () => setDisclaimerAceptado(false),
       verPrivacidad: () => setPrivacidadVista(false),
+      bienvenidaLeida: bienvenidaVista,
+      avisoLeido: disclaimerAceptado,
+      privacidadLeida: privacidadVista,
     }}>
       <BrowserRouter>
         <Routes>
