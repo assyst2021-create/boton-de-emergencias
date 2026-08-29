@@ -60,12 +60,12 @@ export default function Bienvenida({ onContinuar }) {
 
       {paso === 1 && (
         <div className={styles.card}>
-          <div className={styles.icon}>🆘</div>
+          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
           <h2>¿Cómo funciona?</h2>
           <div className={styles.pasos}>
             <div className={styles.paso}>
               <span className={styles.num}>1</span>
-              <p>Presiona el botón según tu situación: <strong>Atrapado</strong>, <strong>Herido</strong> o <strong>Estoy bien</strong>.</p>
+              <p>Presiona el botón según tu situación: <strong>Estoy en peligro</strong>, <strong>Estoy herido</strong> o <strong>Estoy bien</strong>.</p>
             </div>
             <div className={styles.paso}>
               <span className={styles.num}>2</span>

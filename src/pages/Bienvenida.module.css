@@ -23,6 +23,8 @@
 
 .icon { font-size: 3.5rem; }
 
+.logoImg { width: 80px; height: 80px; object-fit: contain; }
+
 .card h2 {
   font-size: 1.3rem;
   font-weight: 800;
