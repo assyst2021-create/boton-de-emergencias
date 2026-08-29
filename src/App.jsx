@@ -4,6 +4,7 @@ import { supabase } from './supabase'
 import { LanguageProvider } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
+import Disclaimer from './pages/Disclaimer'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
@@ -16,6 +17,7 @@ export default function App() {
 function AppInner() {
   const [session, setSession] = useState(undefined)
   const [bienvenidaVista, setBienvenidaVista] = useState(false)
+  const [disclaimerAceptado, setDisclaimerAceptado] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -29,6 +31,10 @@ function AppInner() {
 
   if (!bienvenidaVista) {
     return <Bienvenida onContinuar={() => setBienvenidaVista(true)} />
+  }
+
+  if (!disclaimerAceptado) {
+    return <Disclaimer onAceptar={() => setDisclaimerAceptado(true)} />
   }
 
   return (
