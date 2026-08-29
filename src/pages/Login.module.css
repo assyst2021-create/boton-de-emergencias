@@ -108,3 +108,23 @@
 .btn:hover { background: var(--rojo-hover); }
 .btn:active { transform: scale(0.98); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.installBox {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.installBtn {
+  background: var(--card);
+  border: 1.5px solid var(--naranja);
+  color: var(--naranja);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 12px 20px;
+  border-radius: 10px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.installBtn:hover { background: rgba(230,126,34,0.1); }

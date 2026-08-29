@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './Login.module.css'
 
@@ -9,6 +9,23 @@ export default function Login() {
   const [form, setForm] = useState({ nombre: '', username: '', telefono: '', password: '' })
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [instalada, setInstalada] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', () => setInstalada(true))
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  async function instalarApp() {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setInstalada(true)
+    setInstallPrompt(null)
+  }
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -69,6 +86,18 @@ export default function Login() {
         <h1>Botón de Emergencias</h1>
         <p>para Sismos y Avalanchas</p>
       </div>
+
+      {(installPrompt || instalada) && (
+        <div className={styles.installBox}>
+          {instalada ? (
+            <span>✅ Aplicación instalada</span>
+          ) : (
+            <button className={styles.installBtn} onClick={instalarApp}>
+              📲 Instalar aplicación en tu celular
+            </button>
+          )}
+        </div>
+      )}
 
       <div className={styles.card}>
         <div className={styles.tabs}>

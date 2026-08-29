@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import Login from './pages/Login'
+import Bienvenida from './pages/Bienvenida'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
@@ -9,6 +10,9 @@ import Nav from './components/Nav'
 
 export default function App() {
   const [session, setSession] = useState(undefined)
+  const [bienvenidaVista, setBienvenidaVista] = useState(
+    () => localStorage.getItem('bienvenida_ok') === 'true'
+  )
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -17,6 +21,16 @@ export default function App() {
   }, [])
 
   if (session === undefined) return <Cargando />
+
+  // Mostrar bienvenida solo la primera vez
+  if (!bienvenidaVista) {
+    return (
+      <Bienvenida onContinuar={() => {
+        localStorage.setItem('bienvenida_ok', 'true')
+        setBienvenidaVista(true)
+      }} />
+    )
+  }
 
   return (
     <BrowserRouter>

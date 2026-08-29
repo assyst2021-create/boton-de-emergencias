@@ -1,0 +1,119 @@
+.wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  background: var(--bg);
+}
+
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 24px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon { font-size: 3.5rem; }
+
+.card h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.card p {
+  font-size: 0.9rem;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.sub {
+  font-size: 0.825rem !important;
+  color: var(--rojo) !important;
+  font-weight: 600;
+}
+
+.ok {
+  background: rgba(30, 132, 73, 0.15);
+  border: 1px solid rgba(30, 132, 73, 0.35);
+  color: #2ecc71;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: 100%;
+}
+
+.errorBox {
+  background: rgba(192, 57, 43, 0.12);
+  border: 1px solid rgba(192, 57, 43, 0.35);
+  color: #e74c3c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.825rem;
+  width: 100%;
+}
+
+.btn {
+  background: var(--rojo);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.btn:hover { background: var(--rojo-hover); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.skip {
+  background: none;
+  color: var(--text2);
+  font-size: 0.825rem;
+  text-decoration: underline;
+}
+
+.pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+.paso {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.num {
+  background: var(--rojo);
+  color: #fff;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.paso p {
+  font-size: 0.875rem;
+  color: var(--text2);
+  line-height: 1.5;
+  text-align: left;
+}
