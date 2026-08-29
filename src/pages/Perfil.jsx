@@ -1,9 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 
+const IDIOMAS = [
+  { code: 'es', label: 'Español', flag: '🇨🇴' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'pt', label: 'Português', flag: '🇧🇷' },
+]
+
 export default function Perfil({ onCerrar }) {
   const [paso, setPaso] = useState('menu')
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'es')
+
+  function seleccionarIdioma(code) {
+    setLang(code)
+    localStorage.setItem('app_lang', code)
+  }
   const [form, setForm] = useState({ nueva: '', confirmar: '' })
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -37,12 +49,33 @@ export default function Perfil({ onCerrar }) {
 
         {paso === 'menu' && (
           <div className={styles.menu}>
+            <button className={styles.opcion} onClick={() => setPaso('idioma')}>
+              🌐 Cambiar idioma
+            </button>
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               🔑 Cambiar contraseña
             </button>
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               ⏻ Cerrar sesión
             </button>
+          </div>
+        )}
+
+        {paso === 'idioma' && (
+          <div className={styles.form}>
+            <p className={styles.desc}>Selecciona tu idioma preferido</p>
+            {IDIOMAS.map(i => (
+              <button
+                key={i.code}
+                className={lang === i.code ? styles.idiomaActivo : styles.idioma}
+                onClick={() => seleccionarIdioma(i.code)}
+              >
+                <span>{i.flag}</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{i.label}</span>
+                {lang === i.code && <span style={{ color: 'var(--rojo)', fontWeight: 800 }}>✓</span>}
+              </button>
+            ))}
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>Volver</button>
           </div>
         )}
 

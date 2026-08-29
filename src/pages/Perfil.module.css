@@ -139,3 +139,33 @@
   text-decoration: underline;
   text-align: center;
 }
+
+.idioma {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--text2);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.idiomaActivo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(192,57,43,0.06);
+  border: 1.5px solid var(--rojo);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+}

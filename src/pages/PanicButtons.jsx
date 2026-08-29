@@ -112,11 +112,8 @@ export default function PanicButtons() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <div className={styles.headerTop}>
-          <span className={styles.sos}>🆘</span>
-          <div>
-            <h1>Botón de Emergencias</h1>
-            <p>para Sismos y Avalanchas</p>
-          </div>
+          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+          <h1>Botón de Emergencias</h1>
           <button className={styles.salir} onClick={() => setMostrarPerfil(true)} title="Opciones">⚙️</button>
         </div>
         {user && <div className={styles.usuario}>Hola, <strong>{user.full_name}</strong></div>}
