@@ -71,7 +71,7 @@ export const translations = {
     avisoAclaracion: 'Al presionar "Estoy de acuerdo" confirmas que has leído, entendido y aceptado estos términos.',
     estoyDeAcuerdo: '✅ Estoy de acuerdo',
     // Nav
-    navAlerta: 'Alerta', navHistorial: 'Historial', navFamilia: 'Familia',
+    navAlerta: 'Alerta', navHistorial: 'Historial', navFamilia: 'Familia', navPerfil: 'Perfil',
   },
   en: {
     ingresar: 'Sign in', registrarse: 'Sign up', nombreCompleto: 'Full name',
@@ -139,7 +139,7 @@ export const translations = {
     avisoP5: 'This tool is a support complement and does not guarantee timely assistance from third parties.',
     avisoAclaracion: 'By pressing "I agree" you confirm that you have read, understood, and accepted these terms.',
     estoyDeAcuerdo: '✅ I agree',
-    navAlerta: 'Alert', navHistorial: 'History', navFamilia: 'Family',
+    navAlerta: 'Alert', navHistorial: 'History', navFamilia: 'Family', navPerfil: 'Settings',
   },
   pt: {
     ingresar: 'Entrar', registrarse: 'Registrar-se', nombreCompleto: 'Nome completo',
@@ -207,7 +207,7 @@ export const translations = {
     avisoP5: 'Esta ferramenta é um complemento de apoio e não garante atendimento oportuno por terceiros.',
     avisoAclaracion: 'Ao pressionar "Concordo", você confirma que leu, entendeu e aceitou estes termos.',
     estoyDeAcuerdo: '✅ Concordo',
-    navAlerta: 'Alerta', navHistorial: 'Histórico', navFamilia: 'Família',
+    navAlerta: 'Alerta', navHistorial: 'Histórico', navFamilia: 'Família', navPerfil: 'Perfil',
   },
 }
 

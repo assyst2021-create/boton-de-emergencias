@@ -1,0 +1,12 @@
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.titulo2 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}

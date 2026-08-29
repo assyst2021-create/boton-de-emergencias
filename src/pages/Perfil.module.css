@@ -1,3 +1,20 @@
+.pagina {
+  min-height: calc(100dvh - 64px);
+  padding: 0 20px 100px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pageHeader {
+  padding: 52px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.pageHeader h2 { font-size: 1.2rem; font-weight: 800; color: var(--text); margin: 0; }
+
 .overlay {
   position: fixed;
   inset: 0;
