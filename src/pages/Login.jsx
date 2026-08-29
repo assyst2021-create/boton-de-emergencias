@@ -127,7 +127,18 @@ export default function Login() {
 
           <div className={styles.field}>
             <label>Contraseña</label>
-            <input type="password" placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'} value={form.password} onChange={set('password')} autoComplete={modo === 'login' ? 'current-password' : 'new-password'} />
+            <input
+              type="password"
+              placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'}
+              value={form.password}
+              onChange={set('password')}
+              autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
+            />
+            {modo === 'registro' && (
+              <div className={styles.hint}>
+                🔐 Mínimo 6 caracteres. <strong>Recuerda bien tu contraseña</strong> — por seguridad no podemos recuperarla si la olvidas.
+              </div>
+            )}
           </div>
 
           {error && <div className={styles.error}>{error}</div>}

@@ -109,6 +109,16 @@
 .btn:active { transform: scale(0.98); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.hint {
+  font-size: 0.78rem;
+  color: var(--naranja);
+  background: rgba(230,126,34,0.08);
+  border: 1px solid rgba(230,126,34,0.25);
+  border-radius: 7px;
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
 .installBox {
   width: 100%;
   max-width: 420px;
