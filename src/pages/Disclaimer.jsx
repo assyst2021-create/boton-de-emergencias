@@ -7,6 +7,7 @@ export default function Disclaimer({ onAceptar }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.scroll}>
+        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
         <div className={styles.emoji}>⚠️</div>
         <h1 className={styles.titulo}>{t('avisoTitulo')}</h1>
         <p className={styles.subtitulo}>{t('avisoSubtitulo')}</p>

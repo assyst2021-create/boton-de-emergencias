@@ -35,6 +35,7 @@ export default function Bienvenida({ onContinuar }) {
     <div className={styles.wrap}>
       {paso === 0 && (
         <div className={styles.card}>
+          <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
           <div className={styles.icon}>📍</div>
           <h2>Activa tu ubicación GPS</h2>
           <p>
@@ -69,6 +70,7 @@ export default function Bienvenida({ onContinuar }) {
 
       {paso === 1 && (
         <div className={styles.card}>
+          <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
           <h2>¿Cómo funciona?</h2>
           <div className={styles.pasos}>

@@ -106,6 +106,8 @@ export default function PanicButtons() {
         {t('instruccion')}
       </div>
 
+      <div className={styles.botonesWrap}>
+      <img src="/logo-empresa.png" alt="" className={styles.watermark} />
       <div className={styles.botones}>
         {BOTONES.map(b => (
           <div key={b.tipo}>
@@ -132,6 +134,7 @@ export default function PanicButtons() {
             )}
           </div>
         ))}
+      </div>
       </div>
 
       {familiares.length === 0 && (

@@ -5,6 +5,7 @@ export default function Privacidad({ onAceptar, soloVer = false }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.scroll}>
+        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
         <div className={styles.emoji}>🔒</div>
         <h1 className={styles.titulo}>Política de Privacidad</h1>
         <p className={styles.subtitulo}>Botón de Emergencias — SST Hecho Fácil</p>
