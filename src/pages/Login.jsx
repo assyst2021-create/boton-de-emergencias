@@ -11,6 +11,7 @@ export default function Login() {
   const [cargando, setCargando] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
   const [instalada, setInstalada] = useState(false)
+  const [verPassword, setVerPassword] = useState(false)
 
   useEffect(() => {
     const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
@@ -127,13 +128,18 @@ export default function Login() {
 
           <div className={styles.field}>
             <label>Contraseña</label>
-            <input
-              type="password"
-              placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'}
-              value={form.password}
-              onChange={set('password')}
-              autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
-            />
+            <div className={styles.passwordWrap}>
+              <input
+                type={verPassword ? 'text' : 'password'}
+                placeholder={modo === 'registro' ? 'Mínimo 6 caracteres' : '••••••••'}
+                value={form.password}
+                onChange={set('password')}
+                autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
+              />
+              <button type="button" className={styles.eyeBtn} onClick={() => setVerPassword(v => !v)}>
+                {verPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
             {modo === 'registro' && (
               <div className={styles.hint}>
                 🔐 Mínimo 6 caracteres. <strong>Recuerda bien tu contraseña</strong> — por seguridad no podemos recuperarla si la olvidas.

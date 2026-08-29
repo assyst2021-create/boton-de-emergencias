@@ -8,6 +8,8 @@ export default function Perfil({ onCerrar }) {
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [verNueva, setVerNueva] = useState(false)
+  const [verConfirmar, setVerConfirmar] = useState(false)
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -49,11 +51,17 @@ export default function Perfil({ onCerrar }) {
             <p className={styles.desc}>Ingresa tu nueva contraseña</p>
             <div className={styles.field}>
               <label>Nueva contraseña</label>
-              <input type="password" placeholder="Mínimo 6 caracteres" value={form.nueva} onChange={set('nueva')} autoComplete="new-password" />
+              <div className={styles.passwordWrap}>
+                <input type={verNueva ? 'text' : 'password'} placeholder="Mínimo 6 caracteres" value={form.nueva} onChange={set('nueva')} autoComplete="new-password" />
+                <button type="button" className={styles.eyeBtn} onClick={() => setVerNueva(v => !v)}>{verNueva ? '🙈' : '👁️'}</button>
+              </div>
             </div>
             <div className={styles.field}>
               <label>Confirmar contraseña</label>
-              <input type="password" placeholder="Repite la contraseña" value={form.confirmar} onChange={set('confirmar')} autoComplete="new-password" />
+              <div className={styles.passwordWrap}>
+                <input type={verConfirmar ? 'text' : 'password'} placeholder="Repite la contraseña" value={form.confirmar} onChange={set('confirmar')} autoComplete="new-password" />
+                <button type="button" className={styles.eyeBtn} onClick={() => setVerConfirmar(v => !v)}>{verConfirmar ? '🙈' : '👁️'}</button>
+              </div>
             </div>
             {error && <div className={styles.error}>{error}</div>}
             {exito && <div className={styles.exito}>{exito}</div>}
