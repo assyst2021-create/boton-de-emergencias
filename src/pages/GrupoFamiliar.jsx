@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './GrupoFamiliar.module.css'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function GrupoFamiliar() {
+  const { t } = useLanguage()
   const [busqueda, setBusqueda] = useState('')
   const [resultado, setResultado] = useState(null)
   const [buscando, setBuscando] = useState(false)
@@ -56,7 +58,6 @@ export default function GrupoFamiliar() {
   }
 
   async function enviarSolicitud(destId) {
-    // Verificar si ya existe
     const { data: existe } = await supabase
       .from('family_links')
       .select('id, status')
@@ -65,11 +66,10 @@ export default function GrupoFamiliar() {
       .maybeSingle()
 
     if (existe) {
-      setMensaje(existe.status === 'pending' ? 'Ya enviaste una solicitud a esta persona.' : 'Ya están vinculados.')
+      setMensaje(existe.status === 'pending' ? t('errorYaVinculado') : t('errorYaVinculado'))
       return
     }
 
-    // Verificar limite freemium
     const { data: perfil } = await supabase.from('users').select('is_premium').eq('id', userId).single()
     if (!perfil?.is_premium && vinculados.length >= 1) {
       setMostrarUpgrade(true)
@@ -77,7 +77,7 @@ export default function GrupoFamiliar() {
     }
 
     await supabase.from('family_links').insert({ user_id: userId, linked_user_id: destId, status: 'pending' })
-    setMensaje('Solicitud enviada.')
+    setMensaje(t('solicitudEnviada'))
     setResultado(null)
     setBusqueda('')
     setTimeout(() => setMensaje(''), 3000)
@@ -87,7 +87,6 @@ export default function GrupoFamiliar() {
     await supabase.from('family_links').update({ status: accion }).eq('id', linkId)
     if (accion === 'accepted') {
       const sol = solicitudes.find(s => s.id === linkId)
-      // Crear el link recíproco
       if (sol) {
         await supabase.from('family_links').upsert({
           user_id: userId,
@@ -107,8 +106,7 @@ export default function GrupoFamiliar() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1>👨‍👩‍👧‍👦 Grupo Familiar</h1>
-        <p>Agrega familiares para que reciban tus alertas</p>
+        <h1>👨‍👩‍👧‍👦 {t('grupoTitulo')}</h1>
       </header>
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}
@@ -117,21 +115,20 @@ export default function GrupoFamiliar() {
         <div className={styles.upgradeBox}>
           <div className={styles.upgradeIcon}>🔒</div>
           <h3>Plan gratuito: 1 familiar</h3>
-          <p>Con el plan gratuito puedes vincular <strong>1 familiar</strong>. Para agregar más personas y proteger a toda tu familia, activa el plan premium.</p>
+          <p>{t('limiteAlcanzado')}</p>
           <button
             className={styles.upgradBtn}
             onClick={() => window.open('https://botondeemergencias.mefacil.com/premium', '_blank')}
           >
             Ver plan Premium
           </button>
-          <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>Cerrar</button>
+          <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>{t('cancelar')}</button>
         </div>
       )}
 
-      {/* Solicitudes pendientes */}
       {solicitudes.length > 0 && (
         <section className={styles.seccion}>
-          <h2>Solicitudes recibidas</h2>
+          <h2>{t('pendientes')}</h2>
           {solicitudes.map(s => (
             <div key={s.id} className={styles.solicitudCard}>
               <div>
@@ -139,21 +136,20 @@ export default function GrupoFamiliar() {
                 <span className={styles.username}>@{s.users?.username}</span>
               </div>
               <div className={styles.acciones}>
-                <button className={styles.aceptar} onClick={() => responderSolicitud(s.id, 'accepted')}>Aceptar</button>
-                <button className={styles.rechazar} onClick={() => responderSolicitud(s.id, 'rejected')}>Rechazar</button>
+                <button className={styles.aceptar} onClick={() => responderSolicitud(s.id, 'accepted')}>{t('aceptar')}</button>
+                <button className={styles.rechazar} onClick={() => responderSolicitud(s.id, 'rejected')}>{t('rechazar')}</button>
               </div>
             </div>
           ))}
         </section>
       )}
 
-      {/* Buscar usuario */}
       <section className={styles.seccion}>
-        <h2>Agregar familiar</h2>
+        <h2>{t('agregarFamiliar')}</h2>
         <div className={styles.buscador}>
           <input
             type="text"
-            placeholder="Buscar por nombre de usuario..."
+            placeholder={t('usernameFamiliar')}
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscarUsuario()}
@@ -164,7 +160,7 @@ export default function GrupoFamiliar() {
         </div>
 
         {resultado === false && (
-          <p className={styles.noEncontrado}>No se encontró ese usuario.</p>
+          <p className={styles.noEncontrado}>{t('errorNoExiste')}</p>
         )}
         {resultado && (
           <div className={styles.resultadoCard}>
@@ -173,17 +169,16 @@ export default function GrupoFamiliar() {
               <span className={styles.username}>@{resultado.username}</span>
             </div>
             <button className={styles.btnVincular} onClick={() => enviarSolicitud(resultado.id)}>
-              Enviar solicitud
+              {t('enviarSolicitud')}
             </button>
           </div>
         )}
       </section>
 
-      {/* Familiares vinculados */}
       <section className={styles.seccion}>
-        <h2>Familiares vinculados ({vinculados.length})</h2>
+        <h2>{t('misVinculados')} ({vinculados.length})</h2>
         {vinculados.length === 0 && (
-          <p className={styles.noEncontrado}>Aún no tienes familiares vinculados.</p>
+          <p className={styles.noEncontrado}>{t('sinVinculados')}</p>
         )}
         {vinculados.map(v => (
           <div key={v.id} className={styles.familiarCard}>

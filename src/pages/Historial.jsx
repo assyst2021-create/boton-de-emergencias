@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './Historial.module.css'
+import { useLanguage } from '../i18n/LanguageContext'
 
-const ESTADO = {
-  red:    { emoji: '🔴', label: 'ATRAPADO / BAJO TIERRA', color: '#C0392B' },
-  orange: { emoji: '🟠', label: 'HERIDO / NECESITO AYUDA', color: '#E67E22' },
-  green:  { emoji: '🟢', label: 'ESTOY BIEN / A SALVO',   color: '#1E8449' },
+const ESTADO_COLOR = {
+  red:    { emoji: '🔴', color: '#C0392B', key: 'estadoRojo' },
+  orange: { emoji: '🟠', color: '#E67E22', key: 'estadoNaranja' },
+  green:  { emoji: '🟢', color: '#1E8449', key: 'estadoVerde' },
 }
 
 export default function Historial() {
+  const { t } = useLanguage()
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
     cargar()
-    // Actualizar en tiempo real
     const canal = supabase.channel('alertas-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, cargar)
       .subscribe()
@@ -25,7 +26,6 @@ export default function Historial() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Familiares aceptados
     const { data: links } = await supabase
       .from('family_links')
       .select('linked_user_id')
@@ -49,23 +49,21 @@ export default function Historial() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1>📋 Historial</h1>
-        <p>Alertas de tus familiares — últimas 24 horas</p>
+        <h1>📋 {t('historialTitulo')}</h1>
       </header>
 
-      {cargando && <div className={styles.vacio}>Cargando...</div>}
+      {cargando && <div className={styles.vacio}>{t('cargando')}</div>}
 
       {!cargando && alertas.length === 0 && (
         <div className={styles.vacio}>
           <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📭</div>
-          <p>No hay alertas recientes de tus familiares.</p>
-          <p style={{ marginTop: '6px', fontSize: '0.8rem' }}>Las alertas se borran automáticamente a las 24 horas.</p>
+          <p>{t('sinAlertas')}</p>
         </div>
       )}
 
       <div className={styles.lista}>
         {alertas.map(a => {
-          const est = ESTADO[a.status_type] || ESTADO.green
+          const est = ESTADO_COLOR[a.status_type] || ESTADO_COLOR.green
           const fecha = new Date(a.sent_at)
           const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
           const dia = fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
@@ -76,7 +74,7 @@ export default function Historial() {
                 <span style={{ fontSize: '1.5rem' }}>{est.emoji}</span>
                 <div className={styles.alertaInfo}>
                   <strong>{a.users?.full_name || 'Familiar'}</strong>
-                  <span style={{ color: est.color, fontWeight: 700, fontSize: '0.8rem' }}>{est.label}</span>
+                  <span style={{ color: est.color, fontWeight: 700, fontSize: '0.8rem' }}>{t(est.key)}</span>
                 </div>
                 <div className={styles.alertaFecha}>
                   <span>{hora}</span>
@@ -91,11 +89,8 @@ export default function Historial() {
                   rel="noreferrer"
                   className={styles.mapsBtn}
                 >
-                  📍 Ver ubicación en Google Maps
+                  {t('verMapa')}
                 </a>
-              )}
-              {!a.latitude && (
-                <p className={styles.sinGps}>Sin datos de ubicación GPS</p>
               )}
             </div>
           )

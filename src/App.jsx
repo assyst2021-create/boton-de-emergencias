@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import { LanguageProvider } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
 import PanicButtons from './pages/PanicButtons'
@@ -9,6 +10,10 @@ import GrupoFamiliar from './pages/GrupoFamiliar'
 import Nav from './components/Nav'
 
 export default function App() {
+  return <LanguageProvider><AppInner /></LanguageProvider>
+}
+
+function AppInner() {
   const [session, setSession] = useState(undefined)
   const [bienvenidaVista, setBienvenidaVista] = useState(
     () => localStorage.getItem('bienvenida_ok') === 'true'

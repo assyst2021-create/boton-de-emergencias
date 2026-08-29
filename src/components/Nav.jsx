@@ -1,19 +1,22 @@
 import { NavLink } from 'react-router-dom'
 import styles from './Nav.module.css'
-
-const tabs = [
-  { to: '/', label: 'Alerta', icon: '🆘' },
-  { to: '/historial', label: 'Historial', icon: '📋' },
-  { to: '/familia', label: 'Familia', icon: '👨‍👩‍👧‍👦' },
-]
+import { useLanguage } from '../i18n/LanguageContext'
 
 export default function Nav() {
+  const { t } = useLanguage()
+
+  const tabs = [
+    { to: '/', label: t('navAlerta'), icon: '🆘' },
+    { to: '/historial', label: t('navHistorial'), icon: '📋' },
+    { to: '/familia', label: t('navFamilia'), icon: '👨‍👩‍👧‍👦' },
+  ]
+
   return (
     <nav className={styles.nav}>
-      {tabs.map(t => (
-        <NavLink key={t.to} to={t.to} end className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
-          <span className={styles.icon}>{t.icon}</span>
-          <span className={styles.label}>{t.label}</span>
+      {tabs.map(tab => (
+        <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
+          <span className={styles.icon}>{tab.icon}</span>
+          <span className={styles.label}>{tab.label}</span>
         </NavLink>
       ))}
     </nav>
