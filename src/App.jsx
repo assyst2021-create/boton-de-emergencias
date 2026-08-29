@@ -51,7 +51,7 @@ function AppInner() {
         { timeout: 3000 }
       )
     }
-  }, [initDone, bienvenidaVista, disclaimerAceptado])
+  }, [initDone, bienvenidaVista, disclaimerAceptado, privacidadVista])
 
   function marcarBienvenida() {
     localStorage.setItem(`bienvenida_${session.user.id}`, '1')
