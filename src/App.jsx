@@ -15,9 +15,7 @@ export default function App() {
 
 function AppInner() {
   const [session, setSession] = useState(undefined)
-  const [bienvenidaVista, setBienvenidaVista] = useState(
-    () => localStorage.getItem('bienvenida_ok') === 'true'
-  )
+  const [bienvenidaVista, setBienvenidaVista] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -27,14 +25,8 @@ function AppInner() {
 
   if (session === undefined) return <Cargando />
 
-  // Mostrar bienvenida solo la primera vez
   if (!bienvenidaVista) {
-    return (
-      <Bienvenida onContinuar={() => {
-        localStorage.setItem('bienvenida_ok', 'true')
-        setBienvenidaVista(true)
-      }} />
-    )
+    return <Bienvenida onContinuar={() => setBienvenidaVista(true)} />
   }
 
   return (
