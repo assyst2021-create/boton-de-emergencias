@@ -3,12 +3,10 @@ import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 
-const toEmail = (username) => `${username.toLowerCase().trim()}@botondeemergencias.app`
-
 export default function Login() {
   const { t } = useLanguage()
   const [modo, setModo] = useState('login')
-  const [form, setForm] = useState({ nombre: '', username: '', telefono: '', password: '' })
+  const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
@@ -35,10 +33,10 @@ export default function Login() {
   async function handleLogin(e) {
     e.preventDefault()
     setError('')
-    if (!form.username || !form.password) { setError(t('errorCampos')); return }
+    if (!form.email || !form.password) { setError(t('errorCampos')); return }
     setCargando(true)
     const { error } = await supabase.auth.signInWithPassword({
-      email: toEmail(form.username),
+      email: form.email.toLowerCase().trim(),
       password: form.password,
     })
     if (error) setError(t('errorLogin'))
@@ -48,7 +46,7 @@ export default function Login() {
   async function handleRegistro(e) {
     e.preventDefault()
     setError('')
-    if (!form.nombre || !form.username || !form.telefono || !form.password) {
+    if (!form.nombre || !form.username || !form.email || !form.telefono || !form.password) {
       setError(t('errorCampos'))
       return
     }
@@ -65,7 +63,7 @@ export default function Login() {
     if (existe) { setError(t('errorUsuarioExiste')); setCargando(false); return }
 
     const { data: authData, error: authErr } = await supabase.auth.signUp({
-      email: toEmail(form.username),
+      email: form.email.toLowerCase().trim(),
       password: form.password,
     })
 
@@ -109,15 +107,21 @@ export default function Login() {
 
         <form onSubmit={modo === 'login' ? handleLogin : handleRegistro} className={styles.form}>
           {modo === 'registro' && (
-            <div className={styles.field}>
-              <label>{t('nombreCompleto')}</label>
-              <input type="text" placeholder={t('nombrePh')} value={form.nombre} onChange={set('nombre')} />
-            </div>
+            <>
+              <div className={styles.field}>
+                <label>{t('nombreCompleto')}</label>
+                <input type="text" placeholder={t('nombrePh')} value={form.nombre} onChange={set('nombre')} />
+              </div>
+              <div className={styles.field}>
+                <label>{t('nombreUsuario')}</label>
+                <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" />
+              </div>
+            </>
           )}
 
           <div className={styles.field}>
-            <label>{t('nombreUsuario')}</label>
-            <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" />
+            <label>{t('correo')}</label>
+            <input type="email" placeholder={t('correoPh')} value={form.email} onChange={set('email')} autoComplete="email" />
           </div>
 
           {modo === 'registro' && (
