@@ -1,0 +1,118 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: flex-end;
+  z-index: 200;
+}
+
+.card {
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  padding: 24px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h2 { font-size: 1.1rem; font-weight: 800; }
+
+.cerrar {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--text2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.opcion {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 16px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.opcionRojo {
+  background: rgba(192,57,43,0.12);
+  border: 1.5px solid rgba(192,57,43,0.3);
+  color: #e74c3c;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 16px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.desc { font-size: 0.875rem; color: var(--text2); }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label { font-size: 0.825rem; font-weight: 600; color: var(--text2); }
+
+.error {
+  background: rgba(192,57,43,0.12);
+  border: 1px solid rgba(192,57,43,0.35);
+  color: #e74c3c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.825rem;
+}
+
+.exito {
+  background: rgba(30,132,73,0.15);
+  border: 1px solid rgba(30,132,73,0.35);
+  color: #2ecc71;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.btn {
+  background: var(--rojo);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+}
+
+.btn:disabled { opacity: 0.6; }
+
+.volver {
+  background: none;
+  color: var(--text2);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-align: center;
+}

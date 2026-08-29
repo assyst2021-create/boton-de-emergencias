@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
+import Perfil from './Perfil'
 
 const BOTONES = [
   {
@@ -41,6 +42,7 @@ export default function PanicButtons() {
   const [enviando, setEnviando] = useState(null)
   const [confirmacion, setConfirmacion] = useState(null)
   const [confirmarBtn, setConfirmarBtn] = useState(null)
+  const [mostrarPerfil, setMostrarPerfil] = useState(false)
 
   useEffect(() => {
     cargarDatos()
@@ -115,7 +117,7 @@ export default function PanicButtons() {
             <h1>Botón de Emergencias</h1>
             <p>para Sismos y Avalanchas</p>
           </div>
-          <button className={styles.salir} onClick={() => supabase.auth.signOut()} title="Salir">⏻</button>
+          <button className={styles.salir} onClick={() => setMostrarPerfil(true)} title="Opciones">⚙️</button>
         </div>
         {user && <div className={styles.usuario}>Hola, <strong>{user.full_name}</strong></div>}
       </header>
@@ -169,6 +171,7 @@ export default function PanicButtons() {
       )}
 
       <div className={styles.pb} />
+      {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
     </div>
   )
 }
