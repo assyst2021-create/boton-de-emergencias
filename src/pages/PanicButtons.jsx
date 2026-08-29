@@ -42,20 +42,18 @@ export default function PanicButtons() {
     setConfirmarBtn(null)
     setEnviando(boton.tipo)
 
-    let lat = null, lng = null
-    try {
-      const pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
-      )
-      lat = pos.coords.latitude
-      lng = pos.coords.longitude
-    } catch {
-      // GPS no disponible
-    }
-
     const { data: { user: authUser } } = await supabase.auth.getUser()
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
+
+    let lat = null, lng = null
+    try {
+      const pos = await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000, maximumAge: 10000 })
+      )
+      lat = pos.coords.latitude
+      lng = pos.coords.longitude
+    } catch {}
 
     await supabase.from('alerts').insert({
       sender_id: authUser.id,
@@ -66,14 +64,14 @@ export default function PanicButtons() {
       expires_at: expiresAt.toISOString(),
     })
 
-    if (familiares.length > 0 && lat) {
-      const mapsLink = `https://maps.google.com/?q=${lat},${lng}`
-      const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-      const fecha = ahora.toLocaleDateString('es-CO')
-      const smsMsg = t(boton.mensajeKey)
-      const cuerpo = `${boton.emoji} ${smsMsg} — ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} — ${fecha}`
+    if (familiares.length > 0) {
       const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean).join(',')
       if (numeros) {
+        const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+        const fecha = ahora.toLocaleDateString('es-CO')
+        const smsMsg = t(boton.mensajeKey)
+        const mapsLink = lat ? `https://maps.google.com/?q=${lat},${lng}` : 'GPS no disponible'
+        const cuerpo = `${boton.emoji} ${smsMsg} — ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} — ${fecha}`
         window.location.href = `sms:${numeros}?body=${encodeURIComponent(cuerpo)}`
       }
     }
