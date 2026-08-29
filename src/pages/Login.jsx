@@ -83,9 +83,8 @@ export default function Login() {
   return (
     <div className={styles.wrap}>
       <div className={styles.logo}>
-        <div className={styles.sos}>🆘</div>
+        <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
         <h1>Botón de Emergencias</h1>
-        <p>para Sismos y Avalanchas</p>
       </div>
 
       {(installPrompt || instalada) && (
