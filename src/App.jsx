@@ -9,7 +9,7 @@ import Privacidad from './pages/Privacidad'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
-import Perfil from './pages/Perfil'
+import { AppActionsContext } from './pages/Perfil'
 import Nav from './components/Nav'
 
 export default function App() {
@@ -76,15 +76,20 @@ function AppInner() {
   if (gpsPrompt) return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<><PanicButtons /><Nav /></>} />
-        <Route path="/historial" element={<><Historial /><Nav /></>} />
-        <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
-        <Route path="/perfil" element={<><Perfil onVerBienvenida={() => setBienvenidaVista(false)} onVerTerminos={() => setDisclaimerAceptado(false)} onVerPrivacidad={() => setPrivacidadVista(false)} /><Nav /></>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <AppActionsContext.Provider value={{
+      verBienvenida: () => setBienvenidaVista(false),
+      verTerminos: () => setDisclaimerAceptado(false),
+      verPrivacidad: () => setPrivacidadVista(false),
+    }}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<><PanicButtons /><Nav /></>} />
+          <Route path="/historial" element={<><Historial /><Nav /></>} />
+          <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AppActionsContext.Provider>
   )
 }
 
