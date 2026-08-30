@@ -97,25 +97,22 @@ function AppInner() {
 function GpsPromptScreen({ onContinuar }) {
   const { t } = useLanguage()
 
-  function activar() {
-    navigator.geolocation.getCurrentPosition(
-      () => onContinuar(),
-      () => onContinuar(),
-      { timeout: 10000 }
-    )
+  async function reVerificar() {
+    const result = await navigator.permissions.query({ name: 'geolocation' })
+    if (result.state === 'granted') onContinuar()
   }
 
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
-      <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ fontSize: '3.5rem' }}>📍</div>
-        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('gpsDesactivada')}</h2>
-        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>{t('gpsTextoReg')}</p>
-        <button onClick={activar} style={{ background: 'var(--rojo)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%' }}>
-          {t('activarGps')}
-        </button>
-        <button onClick={onContinuar} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: '0.875rem', textDecoration: 'underline', cursor: 'pointer' }}>
-          {t('sinGps')}
+      <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+        <div style={{ fontSize: '3.5rem' }}>🚫</div>
+        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('gpsBloqueada')}</h2>
+        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>{t('gpsBloqueadaTexto')}</p>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', fontSize: '0.825rem', color: 'var(--text2)', lineHeight: 1.6, textAlign: 'left', width: '100%' }}>
+          {t('gpsInstruccion')}
+        </div>
+        <button onClick={reVerificar} style={{ background: 'var(--rojo)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%' }}>
+          {t('gpsYaActive')}
         </button>
       </div>
     </div>
