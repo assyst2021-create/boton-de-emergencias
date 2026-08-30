@@ -55,7 +55,6 @@ export default function Perfil({ onCerrar }) {
           <div className={styles.menu}>
             {perfil && (
               <div className={styles.perfilCard}>
-                <div className={styles.perfilAvatar}>👤</div>
                 <div className={styles.perfilInfo}>
                   <span className={styles.perfilNombre}>{perfil.full_name}</span>
                   <span className={styles.perfilUsername}>@{perfil.username}</span>
