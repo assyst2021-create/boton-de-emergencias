@@ -71,7 +71,8 @@ export default function GrupoFamiliar() {
     }
 
     const { data: perfil } = await supabase.from('users').select('is_premium').eq('id', userId).single()
-    if (!perfil?.is_premium && vinculados.length >= 1) {
+    const limite = perfil?.is_premium ? 10 : 2
+    if (vinculados.length >= limite) {
       setMostrarUpgrade(true)
       return
     }
@@ -114,8 +115,8 @@ export default function GrupoFamiliar() {
       {mostrarUpgrade && (
         <div className={styles.upgradeBox}>
           <div className={styles.upgradeIcon}>🔒</div>
-          <h3>Plan gratuito: 1 familiar</h3>
-          <p>{t('limiteAlcanzado')}</p>
+          <h3>{t('upgradeTitulo')}</h3>
+          <p>{t('upgradeDesc')}</p>
           <button
             className={styles.upgradBtn}
             onClick={() => window.open('https://botondeemergencias.mefacil.com/premium', '_blank')}
