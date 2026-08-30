@@ -45,11 +45,9 @@ function AppInner() {
   // GPS check solo para usuarios que ya vieron todo (usuarios recurrentes)
   useEffect(() => {
     if (initDone && bienvenidaVista && disclaimerAceptado && privacidadVista) {
-      navigator.geolocation.getCurrentPosition(
-        () => setGpsPrompt(false),
-        () => setGpsPrompt(true),
-        { timeout: 3000 }
-      )
+      navigator.permissions.query({ name: 'geolocation' }).then(result => {
+        setGpsPrompt(result.state === 'denied')
+      }).catch(() => setGpsPrompt(false))
     }
   }, [initDone, bienvenidaVista, disclaimerAceptado, privacidadVista])
 
