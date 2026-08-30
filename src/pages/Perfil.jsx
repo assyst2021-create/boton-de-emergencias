@@ -1,4 +1,4 @@
-import { useState, useContext, createContext } from 'react'
+import { useState, useContext, createContext, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -17,6 +17,15 @@ export default function Perfil({ onCerrar }) {
   const [cargando, setCargando] = useState(false)
   const [verNueva, setVerNueva] = useState(false)
   const [verConfirmar, setVerConfirmar] = useState(false)
+  const [perfil, setPerfil] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('users').select('full_name, username').eq('id', user.id).maybeSingle()
+        .then(({ data }) => { if (data) setPerfil(data) })
+    })
+  }, [])
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -44,20 +53,29 @@ export default function Perfil({ onCerrar }) {
 
         {paso === 'menu' && (
           <div className={styles.menu}>
+            {perfil && (
+              <div className={styles.perfilCard}>
+                <div className={styles.perfilAvatar}>👤</div>
+                <div className={styles.perfilInfo}>
+                  <span className={styles.perfilNombre}>{perfil.full_name}</span>
+                  <span className={styles.perfilUsername}>@{perfil.username}</span>
+                </div>
+              </div>
+            )}
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verBienvenida?.() }}>
-              <span>📋 Ver bienvenida</span>
-              {bienvenidaLeida && <span className={styles.leido}>✓ Leído</span>}
+              <span>{t('verBienvenida')}</span>
+              {bienvenidaLeida && <span className={styles.leido}>{t('leido')}</span>}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verTerminos?.() }}>
-              <span>⚠️ Ver aviso legal</span>
-              {avisoLeido && <span className={styles.leido}>✓ Leído</span>}
+              <span>{t('verAviso')}</span>
+              {avisoLeido && <span className={styles.leido}>{t('leido')}</span>}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verPrivacidad?.() }}>
-              <span>🔒 Política de privacidad</span>
-              {privacidadLeida && <span className={styles.leido}>✓ Leído</span>}
+              <span>{t('verPrivacidad')}</span>
+              {privacidadLeida && <span className={styles.leido}>{t('leido')}</span>}
             </button>
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               {t('cambiarContrasena')}

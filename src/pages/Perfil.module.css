@@ -58,6 +58,51 @@
   gap: 10px;
 }
 
+.perfilCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+
+.perfilAvatar {
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.perfilInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.perfilNombre {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perfilUsername {
+  font-size: 0.825rem;
+  color: var(--text2);
+}
+
 .opcion {
   background: var(--card);
   border: 1.5px solid var(--border);
