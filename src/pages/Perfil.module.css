@@ -247,3 +247,102 @@
   cursor: pointer;
   width: 100%;
 }
+
+/* Perfil creador */
+.creadorHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.creadorFoto {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid var(--border);
+  flex-shrink: 0;
+}
+.creadorNombre {
+  display: block;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+}
+.creadorCargo {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--rojo);
+  font-weight: 600;
+  margin-top: 3px;
+}
+.creadorBio {
+  font-size: 0.875rem;
+  color: var(--text2);
+  line-height: 1.65;
+  white-space: pre-line;
+  margin: 0;
+}
+
+/* Huellitas */
+.huellitasImg {
+  width: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+  max-height: 200px;
+}
+.huellitasIntro { display: flex; flex-direction: column; gap: 6px; }
+.huellitasTitulo { font-size: 1.1rem; font-weight: 800; color: #0b4ab3; margin: 0; }
+.huellitasIntro p { font-size: 0.875rem; color: var(--text2); line-height: 1.6; margin: 0; }
+.huellitasSubDesc { font-size: 0.8rem !important; color: var(--text2); }
+.nequiBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1.5px solid #1A56C4;
+  border-radius: 12px;
+  padding: 14px 16px;
+  gap: 10px;
+}
+.nequiNumero {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #1A56C4;
+  letter-spacing: 0.04em;
+}
+.copiarBtn {
+  background: #F5A623;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1e293b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.huellitasAviso {
+  font-size: 0.8rem;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.55;
+}
+.waBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #128C7E 0%, #25D366 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 14px;
+  border-radius: 10px;
+  text-decoration: none;
+}

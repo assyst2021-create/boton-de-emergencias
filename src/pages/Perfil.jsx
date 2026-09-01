@@ -79,6 +79,12 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               {t('cambiarContrasena')}
             </button>
+            <button className={styles.opcion} onClick={() => setPaso('creador')}>
+              {t('btnPerfilCreador')}
+            </button>
+            <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
+              {t('btnHuellitas')}
+            </button>
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               {t('cerrarSesion')}
             </button>
@@ -99,6 +105,54 @@ export default function Perfil({ onCerrar }) {
                 {lang === i.code && <span style={{ color: 'var(--rojo)', fontWeight: 800 }}>✓</span>}
               </button>
             ))}
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
+          </div>
+        )}
+
+        {paso === 'creador' && (
+          <div className={styles.form}>
+            <div className={styles.creadorHeader}>
+              <img src="/perfil-creador.jpg" alt={t('creadorNombre')} className={styles.creadorFoto} />
+              <div>
+                <strong className={styles.creadorNombre}>{t('creadorNombre')}</strong>
+                <span className={styles.creadorCargo}>{t('creadorCargo')}</span>
+              </div>
+            </div>
+            <p className={styles.creadorBio}>{t('creadorBio')}</p>
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
+          </div>
+        )}
+
+        {paso === 'huellitas' && (
+          <div className={styles.form}>
+            <img src="/huellitas.png" alt="Huellitas en Acción" className={styles.huellitasImg} />
+            <div className={styles.huellitasIntro}>
+              <h3 className={styles.huellitasTitulo}>🐾 Huellitas en Acción</h3>
+              <p>{t('huellitasDesc')}</p>
+              <p className={styles.huellitasSubDesc}>{t('huellitasNequiDesc')}</p>
+            </div>
+            <div className={styles.nequiBox}>
+              <div className={styles.nequiNumero}>305 923 4214</div>
+              <button
+                className={styles.copiarBtn}
+                onClick={() => {
+                  navigator.clipboard?.writeText('3059234214').catch(() => {})
+                }}
+              >
+                📋 {t('copiar')}
+              </button>
+            </div>
+            <div className={styles.huellitasAviso}>
+              ⚠️ {t('huellitasImportante')}
+            </div>
+            <a
+              href="https://wa.me/573059234214?text=Hola%2C%20acabo%20de%20hacer%20una%20donaci%C3%B3n%20a%20Huellitas%20en%20Acci%C3%B3n%20%F0%9F%90%BE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.waBtn}
+            >
+              <span>💬</span> {t('huellitasWaHeader')}
+            </a>
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
