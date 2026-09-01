@@ -128,12 +128,10 @@ export default function Perfil({ onCerrar }) {
             {/* Hero */}
             <div className={styles.huellitasHero}>
               <img src="/huellitas-mascota.png" alt="Huellitas en Acción" className={styles.huellitasMascota} />
-              <div className={styles.huellitasHeroTexto}>
-                <div className={styles.huellitasTituloAzul}>HUELLITAS</div>
-                <div className={styles.huellitasTituloAmarillo}>EN ACCIÓN</div>
-                <p className={styles.huellitasSlogan}>Tu uso de esta app también alimenta esperanza.</p>
-                <p className={styles.huellitasDesc2}>{t('huellitasDesc')}</p>
-              </div>
+              <div className={styles.huellitasTituloAzul}>HUELLITAS</div>
+              <div className={styles.huellitasTituloAmarillo}>EN ACCIÓN</div>
+              <p className={styles.huellitasSlogan}>Tu uso de esta app también alimenta esperanza.</p>
+              <p className={styles.huellitasDesc2}>{t('huellitasDesc')}</p>
             </div>
 
             {/* Caja motivadora */}

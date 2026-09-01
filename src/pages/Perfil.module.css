@@ -291,52 +291,53 @@
 /* Huellitas */
 .huellitasHero {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  background: #f5f8ff;
-  border-radius: 14px;
-  padding: 16px;
-}
-.huellitasMascota {
-  width: 110px;
-  height: 110px;
-  object-fit: contain;
-  flex-shrink: 0;
-  mix-blend-mode: multiply;
-}
-.huellitasHeroTexto { display: flex; flex-direction: column; gap: 4px; }
-.huellitasTituloAzul { font-size: 1.5rem; font-weight: 900; color: #1c79b4; line-height: 1; letter-spacing: 1px; }
-.huellitasTituloAmarillo { font-size: 1.5rem; font-weight: 900; color: #c8a800; line-height: 1; letter-spacing: 1px; }
-.huellitasSlogan { font-size: 0.75rem; font-weight: 700; color: #1c79b4; margin: 4px 0 0; }
-.huellitasDesc2 { font-size: 0.75rem; color: var(--text2); line-height: 1.5; margin: 0; }
-.huellitasCaja {
-  border: 1.5px solid #1c79b4;
-  border-radius: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  background: linear-gradient(160deg, #e8f4fd 0%, #fff9e6 100%);
+  border-radius: 16px;
+  padding: 24px 16px 20px;
   text-align: center;
 }
-.huellitasCajaTop { font-size: 0.8rem; font-weight: 700; color: #1c79b4; margin: 0 0 6px; }
-.huellitasCajaBottom { font-size: 0.95rem; font-weight: 900; color: var(--text); margin: 0; line-height: 1.4; }
+.huellitasMascota {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.huellitasTituloAzul { font-size: 2rem; font-weight: 900; color: #1c79b4; line-height: 1; letter-spacing: 2px; margin: 0; }
+.huellitasTituloAmarillo { font-size: 2rem; font-weight: 900; color: #c8a800; line-height: 1; letter-spacing: 2px; margin: 0; }
+.huellitasSlogan { font-size: 0.8rem; font-weight: 700; color: #1c79b4; margin: 4px 0 0; }
+.huellitasDesc2 { font-size: 0.82rem; color: var(--text2); line-height: 1.55; margin: 4px 0 0; max-width: 380px; }
+.huellitasCaja {
+  border: 2px solid #1c79b4;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  background: var(--bg);
+}
+.huellitasCajaTop { font-size: 0.78rem; font-weight: 700; color: #1c79b4; margin: 0 0 8px; letter-spacing: 0.3px; }
+.huellitasCajaBottom { font-size: 1.05rem; font-weight: 900; color: var(--text); margin: 0; line-height: 1.45; }
 .huellitasGracias { font-size: 0.8rem; color: var(--text2); text-align: center; font-style: italic; margin: 0; }
 .nequiBox {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--bg);
-  border: 1.5px solid #1A56C4;
-  border-radius: 12px;
-  padding: 14px 16px;
-  gap: 10px;
+  border: 2px solid #1A56C4;
+  border-radius: 14px;
+  padding: 16px 18px;
+  gap: 12px;
 }
-.nequiLabel { font-size: 0.75rem; color: var(--text2); font-weight: 600; margin-bottom: 2px; }
-.nequiNumero { font-size: 1.3rem; font-weight: 800; color: #1A56C4; letter-spacing: 0.04em; }
+.nequiLabel { font-size: 0.75rem; color: var(--text2); font-weight: 600; margin-bottom: 4px; }
+.nequiNumero { font-size: 1.5rem; font-weight: 900; color: #1A56C4; letter-spacing: 0.06em; }
 .copiarBtn {
   background: #F5A623;
   border: none;
-  border-radius: 8px;
-  padding: 9px 14px;
+  border-radius: 10px;
+  padding: 11px 16px;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: #1e293b;
   cursor: pointer;
   white-space: nowrap;
@@ -347,8 +348,8 @@
   background: #fffbeb;
   border: 1px solid #fcd34d;
   border-radius: 8px;
-  padding: 10px 12px;
-  line-height: 1.55;
+  padding: 10px 14px;
+  line-height: 1.6;
 }
 .waBtn {
   display: flex;
@@ -359,7 +360,7 @@
   color: #fff;
   font-weight: 700;
   font-size: 1rem;
-  padding: 14px;
-  border-radius: 10px;
+  padding: 15px;
+  border-radius: 12px;
   text-decoration: none;
 }
