@@ -287,16 +287,35 @@
 }
 
 /* Huellitas */
-.huellitasImg {
-  width: 100%;
-  border-radius: 12px;
-  object-fit: cover;
-  max-height: 200px;
+.huellitasHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f5f8ff;
+  border-radius: 14px;
+  padding: 16px;
 }
-.huellitasIntro { display: flex; flex-direction: column; gap: 6px; }
-.huellitasTitulo { font-size: 1.1rem; font-weight: 800; color: #0b4ab3; margin: 0; }
-.huellitasIntro p { font-size: 0.875rem; color: var(--text2); line-height: 1.6; margin: 0; }
-.huellitasSubDesc { font-size: 0.8rem !important; color: var(--text2); }
+.huellitasMascota {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  flex-shrink: 0;
+  mix-blend-mode: multiply;
+}
+.huellitasHeroTexto { display: flex; flex-direction: column; gap: 4px; }
+.huellitasTituloAzul { font-size: 1.5rem; font-weight: 900; color: #1c79b4; line-height: 1; letter-spacing: 1px; }
+.huellitasTituloAmarillo { font-size: 1.5rem; font-weight: 900; color: #c8a800; line-height: 1; letter-spacing: 1px; }
+.huellitasSlogan { font-size: 0.75rem; font-weight: 700; color: #1c79b4; margin: 4px 0 0; }
+.huellitasDesc2 { font-size: 0.75rem; color: var(--text2); line-height: 1.5; margin: 0; }
+.huellitasCaja {
+  border: 1.5px solid #1c79b4;
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.huellitasCajaTop { font-size: 0.8rem; font-weight: 700; color: #1c79b4; margin: 0 0 6px; }
+.huellitasCajaBottom { font-size: 0.95rem; font-weight: 900; color: var(--text); margin: 0; line-height: 1.4; }
+.huellitasGracias { font-size: 0.8rem; color: var(--text2); text-align: center; font-style: italic; margin: 0; }
 .nequiBox {
   display: flex;
   align-items: center;
@@ -307,12 +326,8 @@
   padding: 14px 16px;
   gap: 10px;
 }
-.nequiNumero {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #1A56C4;
-  letter-spacing: 0.04em;
-}
+.nequiLabel { font-size: 0.75rem; color: var(--text2); font-weight: 600; margin-bottom: 2px; }
+.nequiNumero { font-size: 1.3rem; font-weight: 800; color: #1A56C4; letter-spacing: 0.04em; }
 .copiarBtn {
   background: #F5A623;
   border: none;

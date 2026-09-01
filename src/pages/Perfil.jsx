@@ -125,34 +125,46 @@ export default function Perfil({ onCerrar }) {
 
         {paso === 'huellitas' && (
           <div className={styles.form}>
-            <img src="/huellitas.png" alt="Huellitas en Acción" className={styles.huellitasImg} />
-            <div className={styles.huellitasIntro}>
-              <h3 className={styles.huellitasTitulo}>🐾 Huellitas en Acción</h3>
-              <p>{t('huellitasDesc')}</p>
-              <p className={styles.huellitasSubDesc}>{t('huellitasNequiDesc')}</p>
+            {/* Hero */}
+            <div className={styles.huellitasHero}>
+              <img src="/huellitas-mascota.png" alt="Huellitas en Acción" className={styles.huellitasMascota} />
+              <div className={styles.huellitasHeroTexto}>
+                <div className={styles.huellitasTituloAzul}>HUELLITAS</div>
+                <div className={styles.huellitasTituloAmarillo}>EN ACCIÓN</div>
+                <p className={styles.huellitasSlogan}>Tu uso de esta app también alimenta esperanza.</p>
+                <p className={styles.huellitasDesc2}>{t('huellitasDesc')}</p>
+              </div>
             </div>
+
+            {/* Caja motivadora */}
+            <div className={styles.huellitasCaja}>
+              <p className={styles.huellitasCajaTop}>CONVIRTAMOS CADA DONACIÓN EN UN PLATO LLENO.</p>
+              <p className={styles.huellitasCajaBottom}>CUANDO TÚ AYUDAS,<br/>ELLOS TAMBIÉN GANAN.</p>
+            </div>
+
+            <p className={styles.huellitasGracias}>Gracias por ser parte de esta causa que alimenta vidas y corazones.</p>
+
+            {/* Nequi */}
             <div className={styles.nequiBox}>
-              <div className={styles.nequiNumero}>305 923 4214</div>
-              <button
-                className={styles.copiarBtn}
-                onClick={() => {
-                  navigator.clipboard?.writeText('3059234214').catch(() => {})
-                }}
-              >
-                📋 {t('copiar')}
+              <div>
+                <div className={styles.nequiLabel}>Dona por Nequi</div>
+                <div className={styles.nequiNumero}>305 923 4214</div>
+              </div>
+              <button className={styles.copiarBtn} onClick={() => navigator.clipboard?.writeText('3059234214').catch(() => {})}>
+                📋 Copiar
               </button>
             </div>
-            <div className={styles.huellitasAviso}>
-              ⚠️ {t('huellitasImportante')}
-            </div>
+            <div className={styles.huellitasAviso}>⚠️ {t('huellitasImportante')}</div>
+
+            {/* WhatsApp */}
             <a
               href="https://wa.me/573059234214?text=Hola%2C%20acabo%20de%20hacer%20una%20donaci%C3%B3n%20a%20Huellitas%20en%20Acci%C3%B3n%20%F0%9F%90%BE"
-              target="_blank"
-              rel="noopener noreferrer"
+              target="_blank" rel="noopener noreferrer"
               className={styles.waBtn}
             >
-              <span>💬</span> {t('huellitasWaHeader')}
+              💬 Enviar comprobante por WhatsApp
             </a>
+
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
