@@ -33,6 +33,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 88dvh;
+  overflow-y: auto;
 }
 
 .header {
