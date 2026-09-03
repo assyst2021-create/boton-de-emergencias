@@ -3,10 +3,40 @@ import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 
+const PAISES = [
+  { bandera: '🇨🇴', nombre: 'Colombia', codigo: '+57' },
+  { bandera: '🇺🇸', nombre: 'EE.UU. / Canadá', codigo: '+1' },
+  { bandera: '🇲🇽', nombre: 'México', codigo: '+52' },
+  { bandera: '🇦🇷', nombre: 'Argentina', codigo: '+54' },
+  { bandera: '🇧🇷', nombre: 'Brasil', codigo: '+55' },
+  { bandera: '🇨🇱', nombre: 'Chile', codigo: '+56' },
+  { bandera: '🇻🇪', nombre: 'Venezuela', codigo: '+58' },
+  { bandera: '🇵🇪', nombre: 'Perú', codigo: '+51' },
+  { bandera: '🇪🇨', nombre: 'Ecuador', codigo: '+593' },
+  { bandera: '🇧🇴', nombre: 'Bolivia', codigo: '+591' },
+  { bandera: '🇵🇾', nombre: 'Paraguay', codigo: '+595' },
+  { bandera: '🇺🇾', nombre: 'Uruguay', codigo: '+598' },
+  { bandera: '🇵🇦', nombre: 'Panamá', codigo: '+507' },
+  { bandera: '🇨🇷', nombre: 'Costa Rica', codigo: '+506' },
+  { bandera: '🇬🇹', nombre: 'Guatemala', codigo: '+502' },
+  { bandera: '🇭🇳', nombre: 'Honduras', codigo: '+504' },
+  { bandera: '🇸🇻', nombre: 'El Salvador', codigo: '+503' },
+  { bandera: '🇳🇮', nombre: 'Nicaragua', codigo: '+505' },
+  { bandera: '🇩🇴', nombre: 'Rep. Dominicana', codigo: '+1809' },
+  { bandera: '🇨🇺', nombre: 'Cuba', codigo: '+53' },
+  { bandera: '🇪🇸', nombre: 'España', codigo: '+34' },
+  { bandera: '🇵🇹', nombre: 'Portugal', codigo: '+351' },
+  { bandera: '🇩🇪', nombre: 'Alemania', codigo: '+49' },
+  { bandera: '🇫🇷', nombre: 'Francia', codigo: '+33' },
+  { bandera: '🇮🇹', nombre: 'Italia', codigo: '+39' },
+  { bandera: '🇬🇧', nombre: 'Reino Unido', codigo: '+44' },
+]
+
 export default function Login() {
   const { t } = useLanguage()
   const [modo, setModo] = useState('login')
   const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
+  const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
@@ -98,7 +128,7 @@ export default function Login() {
         id: authData.user.id,
         username: form.username.toLowerCase().trim(),
         full_name: form.nombre,
-        phone_number: form.telefono,
+        phone_number: `${pais.codigo}${form.telefono}`,
       })
     }
     setCargando(false)
@@ -154,7 +184,26 @@ export default function Login() {
           {modo === 'registro' && (
             <div className={styles.field}>
               <label>{t('telefono')}</label>
-              <input type="tel" placeholder={t('telPh')} value={form.telefono} onChange={set('telefono')} />
+              <div className={styles.telWrap}>
+                <select
+                  className={styles.paisSelect}
+                  value={pais.codigo + pais.nombre}
+                  onChange={e => setPais(PAISES.find(p => p.codigo + p.nombre === e.target.value))}
+                >
+                  {PAISES.map(p => (
+                    <option key={p.codigo + p.nombre} value={p.codigo + p.nombre}>
+                      {p.bandera} {p.codigo}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  placeholder="300 000 0000"
+                  value={form.telefono}
+                  onChange={set('telefono')}
+                  className={styles.telInput}
+                />
+              </div>
             </div>
           )}
 
