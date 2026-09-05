@@ -10,6 +10,12 @@ const BOTONES = [
   { tipo: 'green',  emoji: '🟢', tituloKey: 'btnVerdeTitulo',   mensajeKey: 'btnVerdeMensaje',   color: '#1E8449', colorHover: '#196f3d', estado: 'ESTOY BIEN Y A SALVO' },
 ]
 
+/** iOS separa los parametros de sms: con &, el resto con ?. */
+const ES_IOS = typeof navigator !== 'undefined'
+  && (/iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+const SEP_SMS = ES_IOS ? '&' : '?'
+
 /** Corta una promesa de red para que la emergencia nunca se quede esperando. */
 function conTiempoLimite(promesa, ms) {
   return Promise.race([
@@ -65,10 +71,12 @@ export default function PanicButtons() {
       lng = pos.coords.longitude
     } catch {}
 
-    // El aviso a los familiares nunca puede quedar esperando la red.
+    // Hay que esperar a que termine el guardado ANTES de abrir Mensajes:
+    // en iOS, Safari descarga la pagina al ir a sms: y cancela la peticion.
+    // Se corta a los 12 s para no dejar la emergencia esperando indefinidamente.
     let guardadaEnNube = false
     try {
-      const { error } = await conTiempoLimite(
+      const res = await conTiempoLimite(
         supabase.from('alerts').insert({
           sender_id: authUser.id,
           status_type: boton.tipo,
@@ -77,10 +85,13 @@ export default function PanicButtons() {
           sent_at: ahora.toISOString(),
           expires_at: expiresAt.toISOString(),
         }),
-        6000,
+        12000,
       )
-      guardadaEnNube = !error
-    } catch { guardadaEnNube = false }
+      if (res?.error) console.warn('[alerta] no se guardo:', res.error.message)
+      guardadaEnNube = !res?.error
+    } catch (e) {
+      console.warn('[alerta] no se guardo:', e?.message || e)
+    }
 
     let datosRespaldo = null
     if (familiares.length > 0) {
@@ -93,7 +104,8 @@ export default function PanicButtons() {
         // Sin emoji ni guion largo: obliga a codificacion cara y parte el SMS en mas trozos.
         const cuerpo = `${smsMsg} - ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} - ${fecha}`
         datosRespaldo = { numeros, cuerpo, contactos: familiares }
-        window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
+        // iOS usa & como separador; con ? no rellena el mensaje.
+        window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
       }
     }
 
@@ -131,7 +143,7 @@ export default function PanicButtons() {
           {sinNube && <p className={styles.respaldoAviso}>⚠️ Sin conexión: no se guardó en el historial.</p>}
           <a
             className={styles.respaldoSms}
-            href={`sms:${respaldo.numeros.join(',')}?body=${encodeURIComponent(respaldo.cuerpo)}`}
+            href={`sms:${respaldo.numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(respaldo.cuerpo)}`}
           >
             📩 Abrir Mensajes (SMS)
           </a>
