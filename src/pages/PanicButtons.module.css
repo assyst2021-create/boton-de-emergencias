@@ -47,9 +47,9 @@
 
 .instruccion {
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: var(--text2);
-  margin: 4px 0 16px;
+  margin: 2px 0 8px;
 }
 
 .botonesWrap {
@@ -75,22 +75,34 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   flex: 1;
 }
 
+/* Cada boton va dentro de un div sin clase: ese es el hijo flex real,
+   asi que el reparto del alto tiene que aplicarse aqui tambien. */
+.botones > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* flex:1 reparte el alto disponible entre los tres botones, para que suban
+   y no queden pegados al borde inferior donde los tapa la barra del celular. */
 .panico {
   width: 100%;
+  flex: 1;
   border-radius: var(--radius);
-  padding: 24px 20px;
+  padding: 16px 20px;
   color: #fff;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: filter 0.15s, transform 0.1s;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  min-height: 120px;
+  min-height: 96px;
 }
 
 .panico:hover { filter: brightness(0.9); }
@@ -173,13 +185,13 @@
   border: 1px solid rgba(230, 126, 34, 0.35);
   color: #e67e22;
   border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 0.85rem;
-  margin-top: 14px;
+  padding: 9px 14px;
+  font-size: 0.8rem;
+  margin-top: 10px;
   text-align: center;
 }
 
-.pb { height: 80px; }
+.pb { height: 68px; }
 
 /* Respaldo manual de envio: SMS y WhatsApp */
 .respaldo {
@@ -231,21 +243,24 @@
 }
 
 /* Banda de mensajes que se desplaza sola bajo los botones */
+/* Va justo debajo de los botones y les sirve de piso, para que la barra de
+   navegacion del telefono no alcance a tapar el ultimo boton. */
 .banda {
-  position: sticky;
-  bottom: 0;
   overflow: hidden;
   white-space: nowrap;
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  padding: 8px 0;
+  background: #dfe4ea;
+  border-top: 1px solid #c3cad4;
+  border-bottom: 1px solid #c3cad4;
+  padding: 9px 0;
+  margin: 10px -16px 0;
 }
 .bandaTexto {
   display: inline-block;
   white-space: nowrap;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text2);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #3d4757;
   animation: bandaScroll 60s linear infinite;
 }
 @keyframes bandaScroll {
