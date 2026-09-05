@@ -169,6 +169,13 @@ export default function PanicButtons() {
         {t('instruccion')}
       </div>
 
+      {/* El aviso va arriba para que la banda quede pegada bajo el ultimo boton. */}
+      {familiares.length === 0 && (
+        <div className={styles.aviso}>
+          {t('sinFamiliares')}
+        </div>
+      )}
+
       <div className={styles.botonesWrap}>
       <img src="/logo-empresa.png" alt="" className={styles.watermark} />
       <div className={styles.botones}>
@@ -199,12 +206,6 @@ export default function PanicButtons() {
         ))}
       </div>
       </div>
-
-      {familiares.length === 0 && (
-        <div className={styles.aviso}>
-          {t('sinFamiliares')}
-        </div>
-      )}
 
       <div className={styles.banda}>
         <div className={styles.bandaTexto}>{MENSAJES_BANDA}{MENSAJES_BANDA}</div>
