@@ -85,6 +85,13 @@ export default function GrupoFamiliar() {
   }
 
   async function responderSolicitud(linkId, accion) {
+    // Rechazar borra la fila: dejarla en 'rejected' bloqueaba para siempre que
+    // esa persona te volviera a enviar una solicitud.
+    if (accion === 'rejected') {
+      await supabase.from('family_links').delete().eq('id', linkId)
+      await init()
+      return
+    }
     await supabase.from('family_links').update({ status: accion }).eq('id', linkId)
     if (accion === 'accepted') {
       const sol = solicitudes.find(s => s.id === linkId)
@@ -99,8 +106,14 @@ export default function GrupoFamiliar() {
     await init()
   }
 
-  async function desvincular(linkId) {
+  // El vinculo son dos filas, una por sentido. Si solo se borra la propia, el
+  // otro sigue enviandote alertas y tu sigues viendo las suyas.
+  async function desvincular(linkId, otroId) {
     await supabase.from('family_links').delete().eq('id', linkId)
+    if (userId && otroId) {
+      await supabase.from('family_links').delete()
+        .eq('user_id', otroId).eq('linked_user_id', userId)
+    }
     await cargarVinculados(userId)
   }
 
@@ -188,7 +201,7 @@ export default function GrupoFamiliar() {
               <strong>{v.users?.full_name}</strong>
               <span className={styles.username}>@{v.users?.username}</span>
             </div>
-            <button className={styles.btnDesvincular} onClick={() => desvincular(v.id)} title="Desvincular">✕</button>
+            <button className={styles.btnDesvincular} onClick={() => desvincular(v.id, v.linked_user_id)} title="Desvincular">✕</button>
           </div>
         ))}
       </section>

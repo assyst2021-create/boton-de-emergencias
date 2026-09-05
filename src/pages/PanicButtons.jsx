@@ -10,8 +10,18 @@ const BOTONES = [
   { tipo: 'green',  emoji: '🟢', tituloKey: 'btnVerdeTitulo',   mensajeKey: 'btnVerdeMensaje',   color: '#1E8449', colorHover: '#196f3d', estado: 'ESTOY BIEN Y A SALVO' },
 ]
 
+/** Corta una promesa de red para que la emergencia nunca se quede esperando. */
+function conTiempoLimite(promesa, ms) {
+  return Promise.race([
+    promesa,
+    new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('timeout')), ms)),
+  ])
+}
+
 export default function PanicButtons() {
   const { t } = useLanguage()
+  const [respaldo, setRespaldo] = useState(null)
+  const [sinNube, setSinNube] = useState(false)
   const [user, setUser] = useState(null)
   const [familiares, setFamiliares] = useState([])
   const [enviando, setEnviando] = useState(null)
@@ -55,30 +65,43 @@ export default function PanicButtons() {
       lng = pos.coords.longitude
     } catch {}
 
-    await supabase.from('alerts').insert({
-      sender_id: authUser.id,
-      status_type: boton.tipo,
-      latitude: lat,
-      longitude: lng,
-      sent_at: ahora.toISOString(),
-      expires_at: expiresAt.toISOString(),
-    })
+    // El aviso a los familiares nunca puede quedar esperando la red.
+    let guardadaEnNube = false
+    try {
+      const { error } = await conTiempoLimite(
+        supabase.from('alerts').insert({
+          sender_id: authUser.id,
+          status_type: boton.tipo,
+          latitude: lat,
+          longitude: lng,
+          sent_at: ahora.toISOString(),
+          expires_at: expiresAt.toISOString(),
+        }),
+        6000,
+      )
+      guardadaEnNube = !error
+    } catch { guardadaEnNube = false }
 
+    let datosRespaldo = null
     if (familiares.length > 0) {
-      const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean).join(',')
-      if (numeros) {
+      const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean)
+      if (numeros.length > 0) {
         const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
         const fecha = ahora.toLocaleDateString('es-CO')
         const smsMsg = t(boton.mensajeKey)
         const mapsLink = lat ? `https://maps.google.com/?q=${lat},${lng}` : 'GPS no disponible'
-        const cuerpo = `${boton.emoji} ${smsMsg} — ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} — ${fecha}`
-        window.location.href = `sms:${numeros}?body=${encodeURIComponent(cuerpo)}`
+        // Sin emoji ni guion largo: obliga a codificacion cara y parte el SMS en mas trozos.
+        const cuerpo = `${smsMsg} - ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} - ${fecha}`
+        datosRespaldo = { numeros, cuerpo, contactos: familiares }
+        window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
       }
     }
 
     setEnviando(null)
     setConfirmacion(boton)
-    setTimeout(() => setConfirmacion(null), 5000)
+    setSinNube(!guardadaEnNube)
+    setRespaldo(datosRespaldo)
+    if (!datosRespaldo) setTimeout(() => setConfirmacion(null), 5000)
   }
 
   return (
@@ -99,6 +122,44 @@ export default function PanicButtons() {
             <strong>{t('alertaEnviada')}</strong>
             <p>{t(confirmacion.mensajeKey)}</p>
           </div>
+        </div>
+      )}
+
+      {respaldo && (
+        <div className={styles.respaldo}>
+          <strong>📤 {t('envioManualTitulo') || 'Envía la alerta ahora'}</strong>
+          {sinNube && <p className={styles.respaldoAviso}>⚠️ Sin conexión: no se guardó en el historial.</p>}
+          <a
+            className={styles.respaldoSms}
+            href={`sms:${respaldo.numeros.join(',')}?body=${encodeURIComponent(respaldo.cuerpo)}`}
+          >
+            📩 Abrir Mensajes (SMS)
+          </a>
+          <a
+            className={styles.respaldoWa}
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(respaldo.cuerpo)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            💬 WhatsApp: elegir varios y enviar
+          </a>
+          <span className={styles.respaldoSub}>O abre el chat de uno solo:</span>
+          <div className={styles.respaldoChats}>
+            {respaldo.contactos.map((c, i) => (
+              <a
+                key={c.linked_user_id || i}
+                className={styles.respaldoChat}
+                href={`https://wa.me/${(c.users?.phone_number || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(respaldo.cuerpo)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                💬 {c.users?.full_name || respaldo.numeros[i]}
+              </a>
+            ))}
+          </div>
+          <button className={styles.respaldoCerrar} onClick={() => { setRespaldo(null); setConfirmacion(null); setSinNube(false) }}>
+            {t('cerrar') || 'Cerrar'}
+          </button>
         </div>
       )}
 

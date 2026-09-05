@@ -180,3 +180,52 @@
 }
 
 .pb { height: 80px; }
+
+/* Respaldo manual de envio: SMS y WhatsApp */
+.respaldo {
+  margin: 12px 16px 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--bg2);
+  border: 1.5px solid #E67E22;
+  border-radius: 12px;
+}
+.respaldo strong { font-size: 0.95rem; color: var(--text); }
+.respaldoAviso { color: #E67E22; font-size: 0.78rem; margin: 0; }
+.respaldoSms, .respaldoWa {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #fff;
+  text-decoration: none;
+}
+.respaldoSms { background: #2563eb; }
+.respaldoWa { background: #25D366; }
+.respaldoSub { color: var(--text2); font-size: 0.72rem; }
+.respaldoChats { display: flex; flex-wrap: wrap; gap: 8px; }
+.respaldoChat {
+  flex: 1 1 45%;
+  text-align: center;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #25D366;
+  background: rgba(37, 211, 102, 0.12);
+  color: #128C7E;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.respaldoCerrar {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 0.78rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px;
+}
