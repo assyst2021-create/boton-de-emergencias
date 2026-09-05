@@ -38,13 +38,13 @@
   white-space: nowrap;
   background: #dfe4ea;
   border-top: 1px solid #c3cad4;
-  padding: 8px 0;
+  padding: 12px 0;
 }
 
 .bandaTexto {
   display: inline-block;
   white-space: nowrap;
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: #3d4757;

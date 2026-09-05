@@ -191,8 +191,8 @@
   text-align: center;
 }
 
-/* Deja libre el alto de la barra fija: menu (~60px) mas banda (~34px). */
-.pb { height: 104px; }
+/* Deja libre el alto de la barra fija: menu (~60px) mas banda (~46px). */
+.pb { height: 116px; }
 
 /* Respaldo manual de envio: SMS y WhatsApp */
 .respaldo {

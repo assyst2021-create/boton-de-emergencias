@@ -134,7 +134,7 @@
   border: 1.5px solid var(--border);
 }
 
-.pb { height: 104px; }
+.pb { height: 116px; }
 
 .upgradeBox {
   background: var(--card);
