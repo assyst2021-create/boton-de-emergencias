@@ -10,8 +10,6 @@ const BOTONES = [
   { tipo: 'green',  emoji: '🟢', tituloKey: 'btnVerdeTitulo',   mensajeKey: 'btnVerdeMensaje',   color: '#1E8449', colorHover: '#196f3d', estado: 'ESTOY BIEN Y A SALVO' },
 ]
 
-const MENSAJES_BANDA = 'Nadie debería enfrentar una emergencia solo.   ✦   Tu familia es tu primera red de apoyo: mantenla siempre vinculada.   ✦   La seguridad no es suerte, es preparación.   ✦   Mantén tu teléfono cargado: en una emergencia es tu herramienta de auxilio.   ✦   Revisa que tu GPS esté activo, tu ubicación exacta puede salvarte.   ✦   Ante el peligro: mantén la calma, presiona el botón y avisa.   ✦   Prevenir es cuidar, y cuidar es querer.   ✦   Emergencias en Colombia: 123 Policía · 119 Bomberos · 132 Cruz Roja.   ✦   Cada segundo cuenta. Un botón puede cambiarlo todo.   ✦   Avisa dónde estás: quien te quiere necesita saberlo.   ✦   '
-
 /** Corta una promesa de red para que la emergencia nunca se quede esperando. */
 function conTiempoLimite(promesa, ms) {
   return Promise.race([
@@ -205,10 +203,6 @@ export default function PanicButtons() {
           </div>
         ))}
       </div>
-      </div>
-
-      <div className={styles.banda}>
-        <div className={styles.bandaTexto}>{MENSAJES_BANDA}{MENSAJES_BANDA}</div>
       </div>
 
       <div className={styles.pb} />

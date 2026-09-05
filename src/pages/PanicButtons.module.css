@@ -191,7 +191,8 @@
   text-align: center;
 }
 
-.pb { height: 68px; }
+/* Deja libre el alto de la barra fija: menu (~60px) mas banda (~34px). */
+.pb { height: 104px; }
 
 /* Respaldo manual de envio: SMS y WhatsApp */
 .respaldo {
@@ -243,30 +244,4 @@
 }
 
 /* Banda de mensajes que se desplaza sola bajo los botones */
-/* Va justo debajo de los botones y les sirve de piso, para que la barra de
-   navegacion del telefono no alcance a tapar el ultimo boton. */
-.banda {
-  overflow: hidden;
-  white-space: nowrap;
-  background: #dfe4ea;
-  border-top: 1px solid #c3cad4;
-  border-bottom: 1px solid #c3cad4;
-  padding: 9px 0;
-  margin: 8px -16px 0;
-}
-.bandaTexto {
-  display: inline-block;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #3d4757;
-  animation: bandaScroll 60s linear infinite;
-}
-@keyframes bandaScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bandaTexto { animation: none; }
-}
+/* La banda de mensajes vive ahora en components/Nav, bajo el menu. */

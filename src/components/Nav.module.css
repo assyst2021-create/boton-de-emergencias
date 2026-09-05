@@ -1,13 +1,19 @@
-.nav {
+/* La barra completa: menu arriba, banda de mensajes abajo. */
+.barra {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.nav {
   background: var(--bg2);
   border-top: 1.5px solid var(--border);
   display: flex;
-  z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .tab {
@@ -25,3 +31,31 @@
 
 .icon { font-size: 1.4rem; }
 .label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+
+/* Banda de mensajes bajo el menu */
+.banda {
+  overflow: hidden;
+  white-space: nowrap;
+  background: #dfe4ea;
+  border-top: 1px solid #c3cad4;
+  padding: 8px 0;
+}
+
+.bandaTexto {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #3d4757;
+  animation: bandaScroll 60s linear infinite;
+}
+
+@keyframes bandaScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bandaTexto { animation: none; }
+}

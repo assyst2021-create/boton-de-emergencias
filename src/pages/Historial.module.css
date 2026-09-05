@@ -1,4 +1,4 @@
-.wrap {
+﻿.wrap {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
@@ -84,4 +84,4 @@
   color: var(--text2);
 }
 
-.pb { height: 80px; }
+.pb { height: 104px; }

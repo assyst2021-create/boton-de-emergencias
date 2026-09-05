@@ -1,4 +1,4 @@
-export const translations = {
+﻿export const translations = {
   es: {
     // Login
     ingresar: 'Ingresar', registrarse: 'Registrarse', nombreCompleto: 'Nombre completo',
@@ -134,6 +134,7 @@ export const translations = {
     copiar: 'Copiar número',
     copiado: '¡Copiado!',
     // Nav
+    bandaMensajes: 'Nadie debería enfrentar una emergencia solo.   ✦   Tu familia es tu primera red de apoyo: mantenla siempre vinculada.   ✦   La seguridad no es suerte, es preparación.   ✦   Mantén tu teléfono cargado: en una emergencia es tu herramienta de auxilio.   ✦   Revisa que tu GPS esté activo, tu ubicación exacta puede salvarte.   ✦   Ante el peligro: mantén la calma, presiona el botón y avisa.   ✦   Prevenir es cuidar, y cuidar es querer.   ✦   Emergencias en Colombia: 123 Policía · 119 Bomberos · 132 Cruz Roja.   ✦   Cada segundo cuenta. Un botón puede cambiarlo todo.   ✦   Avisa dónde estás: quien te quiere necesita saberlo.   ✦   ',
     navAlerta: 'Alerta', navHistorial: 'Historial', navFamilia: 'Familia', navPerfil: 'Perfil',
   },
   en: {
@@ -263,6 +264,7 @@ export const translations = {
     huellitasWaO: 'or write to',
     copiar: 'Copy number',
     copiado: 'Copied!',
+    bandaMensajes: 'No one should face an emergency alone.   ✦   Your family is your first support network: keep them always linked.   ✦   Safety is not luck, it is preparation.   ✦   Keep your phone charged: in an emergency it is your lifeline.   ✦   Check that your GPS is on, your exact location can save you.   ✦   In danger: stay calm, press the button and let them know.   ✦   Prevention is care, and care is love.   ✦   Emergencies: dial your local emergency number.   ✦   Every second counts. One button can change everything.   ✦   Tell them where you are: the people who love you need to know.   ✦   ',
     navAlerta: 'Alert', navHistorial: 'History', navFamilia: 'Family', navPerfil: 'Settings',
   },
   pt: {
@@ -392,6 +394,7 @@ export const translations = {
     huellitasWaO: 'ou escreva para o número',
     copiar: 'Copiar número',
     copiado: 'Copiado!',
+    bandaMensajes: 'Ninguém deveria enfrentar uma emergência sozinho.   ✦   Sua família é sua primeira rede de apoio: mantenha-a sempre vinculada.   ✦   Segurança não é sorte, é preparação.   ✦   Mantenha seu telefone carregado: numa emergência é sua ferramenta de socorro.   ✦   Verifique se o GPS está ativo, sua localização exata pode salvá-lo.   ✦   Diante do perigo: mantenha a calma, pressione o botão e avise.   ✦   Prevenir é cuidar, e cuidar é amar.   ✦   Emergências no Brasil: 190 Polícia · 193 Bombeiros · 192 SAMU.   ✦   Cada segundo conta. Um botão pode mudar tudo.   ✦   Avise onde você está: quem ama você precisa saber.   ✦   ',
     navAlerta: 'Alerta', navHistorial: 'Histórico', navFamilia: 'Família', navPerfil: 'Perfil',
   },
 }
