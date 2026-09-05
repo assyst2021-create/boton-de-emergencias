@@ -229,3 +229,29 @@
   cursor: pointer;
   padding: 4px;
 }
+
+/* Banda de mensajes que se desplaza sola bajo los botones */
+.banda {
+  position: sticky;
+  bottom: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.bandaTexto {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text2);
+  animation: bandaScroll 60s linear infinite;
+}
+@keyframes bandaScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bandaTexto { animation: none; }
+}
