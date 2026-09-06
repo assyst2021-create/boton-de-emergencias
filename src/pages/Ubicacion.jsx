@@ -6,8 +6,13 @@ import { esPremium } from '../plan'
 
 /** Cada cuanto se envia la posicion mientras se comparte. */
 const INTERVALO_MS = 5000
-/** La sesion se apaga sola pasado este tiempo. */
-const DURACION_MIN = 120
+
+/**
+ * Margen de vida de la sesion. No es un limite duro: cada envio lo empuja
+ * hacia adelante, asi que mientras se este compartiendo nunca vence. Solo
+ * sirve para que una sesion abandonada no quede activa para siempre.
+ */
+const DURACION_MIN = 720
 
 export default function Ubicacion() {
   const { t } = useLanguage()
@@ -16,6 +21,7 @@ export default function Ubicacion() {
   const [miPos, setMiPos] = useState(null)
   const [familiares, setFamiliares] = useState([])
   const [error, setError] = useState('')
+  const [enfocado, setEnfocado] = useState(null)
 
   const vigilanteRef = useRef(null)
   const envioRef = useRef(null)
@@ -23,7 +29,10 @@ export default function Ubicacion() {
 
   useEffect(() => {
     init()
-    return () => detener(false)
+    // Al desmontar solo se sueltan los temporizadores: NO se marca como
+    // inactiva. Cambiar de pestana o recargar no debe cortar el seguimiento;
+    // solo lo corta el boton de detener.
+    return () => soltarTemporizadores()
   }, [])
 
   async function init() {
@@ -33,6 +42,17 @@ export default function Ubicacion() {
     setPerfil(p)
     await cargarFamiliares(user.id)
     escuchar(user.id)
+
+    // Al recargar la pagina se pierde el temporizador, pero la fila sigue
+    // marcada como activa. Si no se reanuda, la familia veria un punto
+    // congelado creyendo que es tu posicion actual.
+    const { data: mia } = await supabase
+      .from('live_locations').select('activo, expires_at')
+      .eq('user_id', user.id).maybeSingle()
+
+    if (mia?.activo && new Date(mia.expires_at) > new Date()) {
+      empezar()
+    }
   }
 
   /** Familiares que me eligieron: son los que pueden verme y a quienes veo. */
@@ -113,16 +133,19 @@ export default function Ubicacion() {
     })
   }
 
-  async function detener(avisar = true) {
+  function soltarTemporizadores() {
     if (vigilanteRef.current != null) {
       navigator.geolocation.clearWatch(vigilanteRef.current)
       vigilanteRef.current = null
     }
     if (envioRef.current) { clearInterval(envioRef.current); envioRef.current = null }
-    if (avisar) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) await supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
-    }
+  }
+
+  /** Corta el seguimiento de verdad. Solo lo llama el boton de detener. */
+  async function detener() {
+    soltarTemporizadores()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) await supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
     setCompartiendo(false)
   }
 
@@ -158,39 +181,64 @@ export default function Ubicacion() {
       </div>
 
       {compartiendo && (
-        <div className={styles.enVivoAviso}>
-          <span className={styles.punto} />
-          {t('ubiCompartiendo')}
-          {miPos && (
-            <span className={styles.coords}>
-              {miPos.lat.toFixed(5)}, {miPos.lng.toFixed(5)}
-            </span>
-          )}
-        </div>
+        <>
+          <div className={styles.enVivoAviso}>
+            <span className={styles.punto} />
+            {t('ubiCompartiendo')}
+            {miPos && (
+              <span className={styles.coords}>
+                {miPos.lat.toFixed(5)}, {miPos.lng.toFixed(5)}
+              </span>
+            )}
+          </div>
+          <div className={styles.avisoPantalla}>⚠️ {t('ubiAvisoPantalla')}</div>
+        </>
       )}
 
-      <Mapa yo={compartiendo ? miPos : null} familiares={enVivo} t={t} />
+      <Mapa
+        yo={compartiendo ? miPos : null}
+        familiares={enVivo}
+        enfocado={enVivo.find(f => f.id === enfocado) || null}
+        t={t}
+      />
 
       <section className={styles.lista}>
         <h2>{t('ubiFamiliaresEnVivo')} ({enVivo.length})</h2>
         {enVivo.length === 0 ? (
           <p className={styles.gris}>{t('ubiNadieEnVivo')}</p>
-        ) : enVivo.map(f => (
+        ) : enVivo.map(f => {
+          // Mas de un minuto sin moverse: puede que ya no este transmitiendo.
+          const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > 60000
+          return (
           <div key={f.id} className={styles.fila}>
-            <span className={styles.punto} />
+            <span className={viejo ? styles.puntoViejo : styles.punto} />
             <div className={styles.filaInfo}>
               <strong>{f.nombre}</strong>
-              <span className={styles.hace}>{haceCuanto(f.ubicacion.updated_at, t)}</span>
+              <span className={viejo ? styles.haceViejo : styles.hace}>
+                {viejo ? `⚠️ ${t('ubiDesactualizado')} · ` : ''}{haceCuanto(f.ubicacion.updated_at, t)}
+              </span>
             </div>
-            <a
-              className={styles.verMapa}
-              href={`https://maps.google.com/?q=${f.ubicacion.latitude},${f.ubicacion.longitude}`}
-              target="_blank" rel="noreferrer"
-            >
-              {t('ubiAbrirMapa')}
-            </a>
+            <div className={styles.filaAcciones}>
+              {/* Centra el mapa de arriba en vez de sacarte de la app */}
+              <button
+                className={enfocado === f.id ? styles.verMapaActivo : styles.verMapa}
+                onClick={() => setEnfocado(enfocado === f.id ? null : f.id)}
+              >
+                {enfocado === f.id ? `✓ ${t('ubiEnMapa')}` : t('ubiAbrirMapa')}
+              </button>
+              {/* Solo para quien necesite la ruta para llegar */}
+              <a
+                className={styles.comoLlegar}
+                href={`https://maps.google.com/?q=${f.ubicacion.latitude},${f.ubicacion.longitude}`}
+                target="_blank" rel="noreferrer"
+                title={t('ubiComoLlegar')}
+              >
+                ↗
+              </a>
+            </div>
           </div>
-        ))}
+          )
+        })}
       </section>
 
       <div className={styles.pb} />
@@ -209,7 +257,7 @@ function haceCuanto(iso, t) {
  * Mapa con OpenStreetMap. Se dibuja con un iframe para no cargar ninguna
  * libreria de mapas ni depender de una llave de Google.
  */
-function Mapa({ yo, familiares, t }) {
+function Mapa({ yo, familiares, enfocado, t }) {
   const puntos = []
   if (yo) puntos.push({ lat: yo.lat, lng: yo.lng })
   familiares.forEach(f => puntos.push({ lat: f.ubicacion.latitude, lng: f.ubicacion.longitude }))
@@ -218,14 +266,26 @@ function Mapa({ yo, familiares, t }) {
     return <div className={styles.mapaVacio}>🗺️<span>{t('ubiMapaVacio')}</span></div>
   }
 
-  const lat = puntos.reduce((s, p) => s + p.lat, 0) / puntos.length
-  const lng = puntos.reduce((s, p) => s + p.lng, 0) / puntos.length
-  const d = 0.01
+  // Con alguien enfocado se centra en el y se acerca; si no, se abarca a todos.
+  let lat, lng, d
+  if (enfocado) {
+    lat = enfocado.ubicacion.latitude
+    lng = enfocado.ubicacion.longitude
+    d = 0.004
+  } else {
+    lat = puntos.reduce((s, p) => s + p.lat, 0) / puntos.length
+    lng = puntos.reduce((s, p) => s + p.lng, 0) / puntos.length
+    d = 0.01
+  }
+
   const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
   const marcadores = puntos.map(p => `${p.lat},${p.lng}`).join('&marker=')
 
   return (
     <div className={styles.mapa}>
+      {enfocado && (
+        <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>
+      )}
       <iframe
         title="mapa"
         src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marcadores}`}

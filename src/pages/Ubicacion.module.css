@@ -76,6 +76,27 @@
   .punto { animation: none; }
 }
 
+/* Sin latido y en naranja: deja claro que ese punto puede estar viejo */
+.puntoViejo {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e67e22;
+  flex-shrink: 0;
+}
+.haceViejo { font-size: 0.72rem; color: #e67e22; font-weight: 600; margin-top: 1px; }
+
+/* El navegador suspende el envio con la pantalla bloqueada: hay que decirlo */
+.avisoPantalla {
+  background: rgba(230, 126, 34, 0.1);
+  border: 1px solid rgba(230, 126, 34, 0.35);
+  color: #b3651a;
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
 .mapa {
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -116,15 +137,54 @@
 .filaInfo strong { font-size: 0.88rem; }
 .hace { font-size: 0.72rem; color: var(--text2); margin-top: 1px; }
 
-.verMapa {
-  background: rgba(30, 132, 73, 0.14);
-  border: 1px solid rgba(30, 132, 73, 0.35);
-  color: #1E8449;
+.filaAcciones { display: flex; align-items: center; gap: 6px; }
+
+.verMapa, .verMapaActivo {
   border-radius: 8px;
   padding: 7px 11px;
   font-size: 0.75rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.verMapa {
+  background: rgba(30, 132, 73, 0.14);
+  border: 1px solid rgba(30, 132, 73, 0.35);
+  color: #1E8449;
+}
+.verMapaActivo {
+  background: #1E8449;
+  border: 1px solid #1E8449;
+  color: #fff;
+}
+
+/* Salida a Google Maps, solo para quien necesite la ruta */
+.comoLlegar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.mapa { position: relative; }
+.mapaEtiqueta {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1E8449;
+  pointer-events: none;
 }
 
 .pb { height: 116px; }
