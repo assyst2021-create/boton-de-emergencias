@@ -26,13 +26,21 @@ export default function Ubicacion() {
   const vigilanteRef = useRef(null)
   const envioRef = useRef(null)
   const ultimaRef = useRef(null)
+  const canalRef = useRef(null)
 
   useEffect(() => {
     init()
-    // Al desmontar solo se sueltan los temporizadores: NO se marca como
-    // inactiva. Cambiar de pestana o recargar no debe cortar el seguimiento;
-    // solo lo corta el boton de detener.
-    return () => soltarTemporizadores()
+    return () => {
+      // Al desmontar solo se sueltan los temporizadores: NO se marca como
+      // inactiva. Cambiar de pestana o recargar no debe cortar el
+      // seguimiento; solo lo corta el boton de detener.
+      soltarTemporizadores()
+      // El canal si hay que cerrarlo, o se acumula uno por cada visita.
+      if (canalRef.current) {
+        supabase.removeChannel(canalRef.current)
+        canalRef.current = null
+      }
+    }
   }, [])
 
   async function init() {
@@ -82,17 +90,21 @@ export default function Ubicacion() {
 
   /** Realtime: repinta el mapa cada vez que alguien mueve su punto. */
   function escuchar(uid) {
-    const canal = supabase.channel('ubicaciones-vivo')
+    if (canalRef.current) return
+    canalRef.current = supabase.channel('ubicaciones-vivo')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'live_locations' },
         () => cargarFamiliares(uid))
       .subscribe()
-    return () => supabase.removeChannel(canal)
   }
 
   async function empezar() {
     setError('')
     if (!navigator.geolocation) { setError(t('ubiSinSoporte')); return }
+    // Sin esta guarda, reanudar al entrar y pulsar el boton dejaria dos
+    // vigilantes y dos temporizadores corriendo a la vez, y el primero
+    // quedaria imposible de detener.
+    if (vigilanteRef.current != null || envioRef.current) return
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -170,7 +182,7 @@ export default function Ubicacion() {
 
       <div className={styles.acciones}>
         {compartiendo ? (
-          <button className={styles.btnDetener} onClick={() => detener(true)}>
+          <button className={styles.btnDetener} onClick={() => detener()}>
             ⏹ {t('ubiDetener')}
           </button>
         ) : (
