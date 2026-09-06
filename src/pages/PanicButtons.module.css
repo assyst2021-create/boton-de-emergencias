@@ -243,5 +243,65 @@
   padding: 4px;
 }
 
-/* Banda de mensajes que se desplaza sola bajo los botones */
 /* La banda de mensajes vive ahora en components/Nav, bajo el menu. */
+
+/* Contador de alertas del plan gratuito */
+.contador {
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--text2);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+}
+.contador strong { color: var(--naranja); }
+
+/* Aviso cuando se agota el plan gratuito */
+.limiteOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.limiteCard {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.limiteIcono { font-size: 2.5rem; }
+.limiteCard h3 { font-size: 1.05rem; font-weight: 800; }
+.limiteCard p { font-size: 0.85rem; color: var(--text2); line-height: 1.5; }
+
+.limiteBtn {
+  background: var(--naranja);
+  color: #fff;
+  border-radius: 10px;
+  padding: 13px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.limiteCerrar {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}

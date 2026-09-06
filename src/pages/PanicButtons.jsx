@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
 import Perfil from './Perfil'
 import { useLanguage } from '../i18n/LanguageContext'
+import { puedeEnviarAlerta, alertasRestantes, esPremium } from '../plan'
 
 const BOTONES = [
   { tipo: 'red',    emoji: '🔴', tituloKey: 'btnRojoTitulo',    mensajeKey: 'btnRojoMensaje',    color: '#C0392B', colorHover: '#a93226', estado: 'EN PELIGRO' },
@@ -32,6 +33,7 @@ export default function PanicButtons() {
   const [familiares, setFamiliares] = useState([])
   const [confirmacion, setConfirmacion] = useState(null)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  const [mostrarLimite, setMostrarLimite] = useState(null)
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
   // confirmacion para salir de la pagina.
@@ -78,6 +80,9 @@ export default function PanicButtons() {
    * aviso de "abrir esta pagina en Mensajes". El guardado va despues, aparte.
    */
   function pulsarBoton(boton) {
+    // Plan gratuito: 3 alertas de prueba. Se corta antes de tocar nada mas.
+    if (!puedeEnviarAlerta(user)) { setMostrarLimite('alertas'); return }
+
     const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean)
     const cuerpo = construirCuerpo(boton)
 
@@ -121,6 +126,16 @@ export default function PanicButtons() {
     } catch (e) {
       console.warn('[alerta] no se guardo:', e?.message || e)
       setSinNube(true)
+    }
+
+    // El contador del plan gratuito lo lleva el servidor, no el telefono.
+    if (!esPremium(user)) {
+      try {
+        const { data: total } = await supabase.rpc('sumar_alerta_usada')
+        if (typeof total === 'number') setUser(u => (u ? { ...u, alertas_usadas: total } : u))
+      } catch (e) {
+        console.warn('[alerta] no se pudo contar:', e?.message || e)
+      }
     }
   }
 
@@ -191,6 +206,32 @@ export default function PanicButtons() {
       {familiares.length === 0 && (
         <div className={styles.aviso}>
           {t('sinFamiliares')}
+        </div>
+      )}
+
+      {user && !esPremium(user) && familiares.length > 0 && (
+        <div className={styles.contador}>
+          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / 3
+        </div>
+      )}
+
+      {mostrarLimite && (
+        <div className={styles.limiteOverlay} onClick={() => setMostrarLimite(null)}>
+          <div className={styles.limiteCard} onClick={e => e.stopPropagation()}>
+            <div className={styles.limiteIcono}>⭐</div>
+            <h3>{t(mostrarLimite === 'alertas' ? 'limiteAlertasTitulo' : 'limiteFamiliaresTitulo')}</h3>
+            <p>{t(mostrarLimite === 'alertas' ? 'limiteAlertasTexto' : 'limiteFamiliaresTexto')}</p>
+            <a
+              className={styles.limiteBtn}
+              href="https://botondeemergencias.mefacil.com/premium"
+              target="_blank" rel="noreferrer"
+            >
+              {t('verSuscripcion')}
+            </a>
+            <button className={styles.limiteCerrar} onClick={() => setMostrarLimite(null)}>
+              {t('cerrar')}
+            </button>
+          </div>
         </div>
       )}
 

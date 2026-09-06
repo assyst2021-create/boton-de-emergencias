@@ -9,6 +9,7 @@ import Privacidad from './pages/Privacidad'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
+import Ubicacion from './pages/Ubicacion'
 import { AppActionsContext } from './pages/Perfil'
 import Nav from './components/Nav'
 
@@ -87,6 +88,7 @@ function AppInner() {
           <Route path="/" element={<><PanicButtons /><Nav /></>} />
           <Route path="/historial" element={<><Historial /><Nav /></>} />
           <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
+          <Route path="/ubicacion" element={<><Ubicacion /><Nav /></>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

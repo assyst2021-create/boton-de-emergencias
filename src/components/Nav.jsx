@@ -9,6 +9,7 @@ export default function Nav() {
     { to: '/', label: t('navAlerta'), icon: '🆘' },
     { to: '/historial', label: t('navHistorial'), icon: '📋' },
     { to: '/familia', label: t('navFamilia'), icon: '👨‍👩‍👧‍👦' },
+    { to: '/ubicacion', label: t('navUbicacion'), icon: '📍' },
   ]
 
   const mensajes = t('bandaMensajes')

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './GrupoFamiliar.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
+import { limiteFamiliares } from '../plan'
 
 export default function GrupoFamiliar() {
   const { t } = useLanguage()
@@ -70,9 +71,10 @@ export default function GrupoFamiliar() {
       return
     }
 
-    const { data: perfil } = await supabase.from('users').select('is_premium').eq('id', userId).single()
-    const limite = perfil?.is_premium ? 10 : 2
-    if (vinculados.length >= limite) {
+    // El limite se relee de la base: el perfil en memoria puede estar viejo.
+    const { data: perfil } = await supabase
+      .from('users').select('is_premium, premium_hasta').eq('id', userId).maybeSingle()
+    if (vinculados.length >= limiteFamiliares(perfil)) {
       setMostrarUpgrade(true)
       return
     }
