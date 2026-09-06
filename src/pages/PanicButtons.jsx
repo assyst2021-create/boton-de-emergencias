@@ -34,6 +34,7 @@ export default function PanicButtons() {
   const [confirmacion, setConfirmacion] = useState(null)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
   const [mostrarLimite, setMostrarLimite] = useState(null)
+  const [gps, setGps] = useState('buscando')
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
   // confirmacion para salir de la pagina.
@@ -41,10 +42,14 @@ export default function PanicButtons() {
 
   useEffect(() => {
     cargarDatos()
-    if (!navigator.geolocation) return
+    if (!navigator.geolocation) { setGps('sin-soporte'); return }
     const vigilante = navigator.geolocation.watchPosition(
-      p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } },
-      () => {},
+      p => {
+        posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
+        setGps('listo')
+      },
+      // Sin esto el usuario no sabia que su alerta saldria sin ubicacion.
+      err => setGps(err.code === err.PERMISSION_DENIED ? 'denegado' : 'error'),
       { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 },
     )
     return () => navigator.geolocation.clearWatch(vigilante)
@@ -208,6 +213,13 @@ export default function PanicButtons() {
           {t('sinFamiliares')}
         </div>
       )}
+
+      <div className={gps === 'listo' ? styles.gpsOk : styles.gpsMal}>
+        {gps === 'listo' && `📍 ${t('gpsListo')}`}
+        {gps === 'buscando' && `⏳ ${t('gpsBuscando')}`}
+        {gps === 'denegado' && `⚠️ ${t('gpsDenegado')}`}
+        {(gps === 'error' || gps === 'sin-soporte') && `⚠️ ${t('gpsError')}`}
+      </div>
 
       {user && !esPremium(user) && familiares.length > 0 && (
         <div className={styles.contador}>

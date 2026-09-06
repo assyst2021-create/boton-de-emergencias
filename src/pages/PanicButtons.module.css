@@ -258,6 +258,25 @@
 }
 .contador strong { color: var(--naranja); }
 
+/* Estado del GPS: hay que saberlo ANTES de pulsar, no despues */
+.gpsOk, .gpsMal {
+  text-align: center;
+  font-size: 0.74rem;
+  border-radius: 8px;
+  padding: 5px 12px;
+  margin-bottom: 6px;
+}
+.gpsOk {
+  color: #1E8449;
+  background: rgba(30, 132, 73, 0.1);
+  border: 1px solid rgba(30, 132, 73, 0.3);
+}
+.gpsMal {
+  color: #e67e22;
+  background: rgba(230, 126, 34, 0.1);
+  border: 1px solid rgba(230, 126, 34, 0.3);
+}
+
 /* Aviso cuando se agota el plan gratuito */
 .limiteOverlay {
   position: fixed;
