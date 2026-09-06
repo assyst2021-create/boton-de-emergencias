@@ -14,7 +14,7 @@ export default function Disclaimer({ onAceptar }) {
 
         <div className={styles.caja}>
           <p className={styles.parrafo}>
-            <strong>Botón de Emergencias</strong>{t('avisoP1')}
+            <strong>{t('appNombre')}</strong>{t('avisoP1')}
           </p>
           <hr className={styles.divider} />
           <p className={styles.parrafo}>🔹 {t('avisoP2')}</p>

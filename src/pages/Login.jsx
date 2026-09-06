@@ -138,7 +138,7 @@ export default function Login() {
     <div className={styles.wrap}>
       <div className={styles.logo}>
         <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
-        <h1>Botón de Emergencias</h1>
+        <h1>{t('appNombre')}</h1>
       </div>
 
       {(installPrompt || instalada) && (
@@ -169,9 +169,9 @@ export default function Login() {
               <div className={styles.field}>
                 <label>{t('nombreUsuario')}</label>
                 <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" />
-                {usernameStatus === 'checking' && <span className={styles.usernameChecking}>Verificando...</span>}
-                {usernameStatus === 'ok' && <span className={styles.usernameOk}>✓ Disponible</span>}
-                {usernameStatus === 'taken' && <span className={styles.usernameTaken}>✗ No disponible</span>}
+                {usernameStatus === 'checking' && <span className={styles.usernameChecking}>{t('verificando')}</span>}
+                {usernameStatus === 'ok' && <span className={styles.usernameOk}>{t('usuarioDisponible')}</span>}
+                {usernameStatus === 'taken' && <span className={styles.usernameTaken}>{t('usuarioNoDisponible')}</span>}
               </div>
             </>
           )}

@@ -120,11 +120,12 @@ function GpsPromptScreen({ onContinuar }) {
 }
 
 function Cargando() {
+  const { t } = useLanguage()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🆘</div>
-        <p style={{ color: 'var(--text2)' }}>Cargando...</p>
+        <p style={{ color: 'var(--text2)' }}>{t('cargando')}</p>
       </div>
     </div>
   )

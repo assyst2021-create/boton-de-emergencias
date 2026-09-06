@@ -130,26 +130,26 @@ export default function Perfil({ onCerrar }) {
               <img src="/huellitas-mascota.png" alt="Huellitas en Acción" className={styles.huellitasMascota} />
               <div className={styles.huellitasTituloAzul}>HUELLITAS</div>
               <div className={styles.huellitasTituloAmarillo}>EN ACCIÓN</div>
-              <p className={styles.huellitasSlogan}>Tu uso de esta app también alimenta esperanza.</p>
+              <p className={styles.huellitasSlogan}>{t('huellitasSlogan')}</p>
               <p className={styles.huellitasDesc2}>{t('huellitasDesc')}</p>
             </div>
 
             {/* Caja motivadora */}
             <div className={styles.huellitasCaja}>
-              <p className={styles.huellitasCajaTop}>CONVIRTAMOS CADA DONACIÓN EN UN PLATO LLENO.</p>
-              <p className={styles.huellitasCajaBottom}>CUANDO TÚ AYUDAS,<br/>ELLOS TAMBIÉN GANAN.</p>
+              <p className={styles.huellitasCajaTop}>{t('huellitasCajaTop')}</p>
+              <p className={styles.huellitasCajaBottom}>{t('huellitasCajaBottom')}</p>
             </div>
 
-            <p className={styles.huellitasGracias}>Gracias por ser parte de esta causa que alimenta vidas y corazones.</p>
+            <p className={styles.huellitasGracias}>{t('huellitasGracias')}</p>
 
             {/* Nequi */}
             <div className={styles.nequiBox}>
               <div>
-                <div className={styles.nequiLabel}>Dona por Nequi</div>
+                <div className={styles.nequiLabel}>{t('donarPorNequi')}</div>
                 <div className={styles.nequiNumero}>305 923 4214</div>
               </div>
               <button className={styles.copiarBtn} onClick={() => navigator.clipboard?.writeText('3059234214').catch(() => {})}>
-                📋 Copiar
+                📋 {t('copiar')}
               </button>
             </div>
             <div className={styles.huellitasAviso}>⚠️ {t('huellitasImportante')}</div>
@@ -160,7 +160,7 @@ export default function Perfil({ onCerrar }) {
               target="_blank" rel="noopener noreferrer"
               className={styles.waBtn}
             >
-              💬 Enviar comprobante por WhatsApp
+              {t('enviarWa')}
             </a>
 
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>

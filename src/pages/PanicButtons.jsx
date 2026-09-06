@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
 import Perfil from './Perfil'
@@ -30,13 +30,22 @@ export default function PanicButtons() {
   const [sinNube, setSinNube] = useState(false)
   const [user, setUser] = useState(null)
   const [familiares, setFamiliares] = useState([])
-  const [enviando, setEnviando] = useState(null)
   const [confirmacion, setConfirmacion] = useState(null)
-  const [confirmarBtn, setConfirmarBtn] = useState(null)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
+  // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
+  // confirmacion para salir de la pagina.
+  const posRef = useRef(null)
 
   useEffect(() => {
     cargarDatos()
+    if (!navigator.geolocation) return
+    const vigilante = navigator.geolocation.watchPosition(
+      p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 },
+    )
+    return () => navigator.geolocation.clearWatch(vigilante)
   }, [])
 
   async function cargarDatos() {
@@ -53,67 +62,66 @@ export default function PanicButtons() {
     setFamiliares(links || [])
   }
 
-  async function enviarAlerta(boton) {
-    if (enviando) return
-    setConfirmarBtn(null)
-    setEnviando(boton.tipo)
+  /** Arma el texto del SMS. Sin emoji ni guion largo: encarecen el envio. */
+  function construirCuerpo(boton) {
+    const ahora = new Date()
+    const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    const fecha = ahora.toLocaleDateString('es-CO')
+    const p = posRef.current
+    const mapsLink = p ? `https://maps.google.com/?q=${p.lat},${p.lng}` : 'GPS no disponible'
+    return `${t(boton.mensajeKey)} - ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} - ${fecha}`
+  }
 
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+  /**
+   * Se ejecuta de forma SINCRONA dentro del toque del usuario: abre Mensajes
+   * en ese mismo instante, que es la unica forma de que iOS no muestre el
+   * aviso de "abrir esta pagina en Mensajes". El guardado va despues, aparte.
+   */
+  function pulsarBoton(boton) {
+    const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean)
+    const cuerpo = construirCuerpo(boton)
+
+    setConfirmacion(boton)
+    setSinNube(false)
+
+    if (numeros.length > 0) {
+      setRespaldo({ numeros, cuerpo, contactos: familiares })
+      window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
+    } else {
+      setRespaldo(null)
+      setTimeout(() => setConfirmacion(null), 5000)
+    }
+
+    guardarEnHistorial(boton)
+  }
+
+  /** Guarda la alerta sin bloquear el aviso a la familia. */
+  async function guardarEnHistorial(boton) {
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
-
-    let lat = null, lng = null
+    const p = posRef.current
     try {
-      const pos = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 4000, maximumAge: 10000 })
-      )
-      lat = pos.coords.latitude
-      lng = pos.coords.longitude
-    } catch {}
-
-    // Hay que esperar a que termine el guardado ANTES de abrir Mensajes:
-    // en iOS, Safari descarga la pagina al ir a sms: y cancela la peticion.
-    // Se corta a los 12 s para no dejar la emergencia esperando indefinidamente.
-    let guardadaEnNube = false
-    try {
+      const { data: { user: authUser } } = await conTiempoLimite(supabase.auth.getUser(), 8000)
+      if (!authUser) throw new Error('sin sesion')
       const res = await conTiempoLimite(
         supabase.from('alerts').insert({
           sender_id: authUser.id,
           status_type: boton.tipo,
-          latitude: lat,
-          longitude: lng,
+          latitude: p?.lat ?? null,
+          longitude: p?.lng ?? null,
           sent_at: ahora.toISOString(),
           expires_at: expiresAt.toISOString(),
         }),
         12000,
       )
-      if (res?.error) console.warn('[alerta] no se guardo:', res.error.message)
-      guardadaEnNube = !res?.error
+      if (res?.error) {
+        console.warn('[alerta] no se guardo:', res.error.message)
+        setSinNube(true)
+      }
     } catch (e) {
       console.warn('[alerta] no se guardo:', e?.message || e)
+      setSinNube(true)
     }
-
-    let datosRespaldo = null
-    if (familiares.length > 0) {
-      const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean)
-      if (numeros.length > 0) {
-        const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-        const fecha = ahora.toLocaleDateString('es-CO')
-        const smsMsg = t(boton.mensajeKey)
-        const mapsLink = lat ? `https://maps.google.com/?q=${lat},${lng}` : 'GPS no disponible'
-        // Sin emoji ni guion largo: obliga a codificacion cara y parte el SMS en mas trozos.
-        const cuerpo = `${smsMsg} - ${user?.full_name || 'Usuario'} | ${boton.estado} | ${mapsLink} | ${hora} - ${fecha}`
-        datosRespaldo = { numeros, cuerpo, contactos: familiares }
-        // iOS usa & como separador; con ? no rellena el mensaje.
-        window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
-      }
-    }
-
-    setEnviando(null)
-    setConfirmacion(boton)
-    setSinNube(!guardadaEnNube)
-    setRespaldo(datosRespaldo)
-    if (!datosRespaldo) setTimeout(() => setConfirmacion(null), 5000)
   }
 
   return (
@@ -121,7 +129,7 @@ export default function PanicButtons() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
-          <h1>Botón de Emergencias</h1>
+          <h1>{t('appNombre')}</h1>
           <button className={styles.salir} onClick={() => setMostrarPerfil(true)} title="Opciones">⚙️</button>
         </div>
         {user && <div className={styles.usuario}>{t('hola')} <strong>{user.full_name}</strong></div>}
@@ -139,13 +147,13 @@ export default function PanicButtons() {
 
       {respaldo && (
         <div className={styles.respaldo}>
-          <strong>📤 {t('envioManualTitulo') || 'Envía la alerta ahora'}</strong>
-          {sinNube && <p className={styles.respaldoAviso}>⚠️ Sin conexión: no se guardó en el historial.</p>}
+          <strong>📤 {t('envioManualTitulo')}</strong>
+          {sinNube && <p className={styles.respaldoAviso}>⚠️ {t('sinConexionNube')}</p>}
           <a
             className={styles.respaldoSms}
             href={`sms:${respaldo.numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(respaldo.cuerpo)}`}
           >
-            📩 Abrir Mensajes (SMS)
+            {t('abrirMensajes')}
           </a>
           <a
             className={styles.respaldoWa}
@@ -153,9 +161,9 @@ export default function PanicButtons() {
             target="_blank"
             rel="noreferrer"
           >
-            💬 WhatsApp: elegir varios y enviar
+            {t('waVarios')}
           </a>
-          <span className={styles.respaldoSub}>O abre el chat de uno solo:</span>
+          <span className={styles.respaldoSub}>{t('waIndividual')}</span>
           <div className={styles.respaldoChats}>
             {respaldo.contactos.map((c, i) => (
               <a
@@ -170,7 +178,7 @@ export default function PanicButtons() {
             ))}
           </div>
           <button className={styles.respaldoCerrar} onClick={() => { setRespaldo(null); setConfirmacion(null); setSinNube(false) }}>
-            {t('cerrar') || 'Cerrar'}
+            {t('cerrar')}
           </button>
         </div>
       )}
@@ -191,27 +199,16 @@ export default function PanicButtons() {
       <div className={styles.botones}>
         {BOTONES.map(b => (
           <div key={b.tipo}>
-            {confirmarBtn === b.tipo ? (
-              <div className={styles.confirmBox}>
-                <p>{t('confirmar')} <strong>{t(b.tituloKey)}</strong>?</p>
-                <div className={styles.confirmBtns}>
-                  <button onClick={() => enviarAlerta(b)} style={{ background: b.color }}>{t('siEnviar')}</button>
-                  <button onClick={() => setConfirmarBtn(null)} className={styles.cancelar}>{t('cancelar')}</button>
-                </div>
-              </div>
-            ) : (
-              <button
-                className={styles.panico}
-                style={{ background: b.color, '--hover': b.colorHover }}
-                onClick={() => setConfirmarBtn(b.tipo)}
-                disabled={enviando !== null}
-              >
-                <span className={styles.btnEmoji}>{b.emoji}</span>
-                <span className={styles.btnTitulo}>{t(b.tituloKey)}</span>
-                <span className={styles.btnMensaje}>{t(b.mensajeKey)}</span>
-                {enviando === b.tipo && <span className={styles.spinner}>{t('enviando')}</span>}
-              </button>
-            )}
+            {/* Sin paso de confirmacion: un solo toque abre Mensajes. */}
+            <button
+              className={styles.panico}
+              style={{ background: b.color, '--hover': b.colorHover }}
+              onClick={() => pulsarBoton(b)}
+            >
+              <span className={styles.btnEmoji}>{b.emoji}</span>
+              <span className={styles.btnTitulo}>{t(b.tituloKey)}</span>
+              <span className={styles.btnMensaje}>{t(b.mensajeKey)}</span>
+            </button>
           </div>
         ))}
       </div>
