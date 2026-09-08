@@ -40,8 +40,11 @@ export default function Login() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
-  const [instalada, setInstalada] = useState(false)
+  const [instalada, setInstalada] = useState(() =>
+    window.matchMedia('(display-mode: standalone)').matches || !!window.navigator.standalone
+  )
   const [verPassword, setVerPassword] = useState(false)
+  const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
   const [usernameStatus, setUsernameStatus] = useState(null) // 'ok' | 'taken' | 'checking'
   const debounceRef = useRef(null)
   const [resetEnviado, setResetEnviado] = useState(false)
@@ -141,14 +144,30 @@ export default function Login() {
         <h1>{t('appNombre')}</h1>
       </div>
 
-      {(installPrompt || instalada) && (
+      {instalada ? (
         <div className={styles.installBox}>
-          {instalada ? (
-            <span>{t('appInstalada')}</span>
-          ) : (
+          <span>{t('appInstalada')}</span>
+        </div>
+      ) : (
+        <div className={styles.installSection}>
+          {esIOS ? (
+            <div className={styles.installCard}>
+              <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
+              <ol className={styles.installSteps}>
+                <li>{t('instalarIosPaso1')}</li>
+                <li>{t('instalarIosPaso2')}</li>
+                <li>{t('instalarIosPaso3')}</li>
+              </ol>
+            </div>
+          ) : installPrompt ? (
             <button className={styles.installBtn} onClick={instalarApp}>
               {t('instalarApp')}
             </button>
+          ) : (
+            <div className={styles.installCard}>
+              <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
+              <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
+            </div>
           )}
         </div>
       )}

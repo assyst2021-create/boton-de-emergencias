@@ -176,6 +176,11 @@
   text-align: center;
 }
 
+.installSection {
+  width: 100%;
+  max-width: 420px;
+}
+
 .installBtn {
   background: var(--card);
   border: 1.5px solid var(--naranja);
@@ -189,6 +194,41 @@
 }
 
 .installBtn:hover { background: rgba(230,126,34,0.1); }
+
+.installCard {
+  background: var(--card);
+  border: 1.5px solid var(--naranja);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.installCardTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--naranja);
+  margin: 0 0 10px;
+}
+
+.installSteps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.installSteps li {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.installCardInstr {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.4;
+}
 
 .resetLink {
   background: none;
