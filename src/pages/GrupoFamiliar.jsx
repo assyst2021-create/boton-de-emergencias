@@ -73,7 +73,7 @@ export default function GrupoFamiliar() {
 
     // El limite se relee de la base: el perfil en memoria puede estar viejo.
     const { data: perfil } = await supabase
-      .from('users').select('is_premium, premium_hasta').eq('id', userId).maybeSingle()
+      .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
     if (vinculados.length >= limiteFamiliares(perfil)) {
       setMostrarUpgrade(true)
       return

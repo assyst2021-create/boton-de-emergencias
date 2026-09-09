@@ -13,6 +13,8 @@ export default function Historial() {
   const { t } = useLanguage()
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [dismissedIds, setDismissedIds] = useState(new Set())
+  const [userId, setUserId] = useState(null)
 
   useEffect(() => {
     cargar()
@@ -25,6 +27,10 @@ export default function Historial() {
   async function cargar() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    setUserId(user.id)
+
+    const dismissed = JSON.parse(localStorage.getItem(`dismissed_alerts_${user.id}`) || '[]')
+    setDismissedIds(new Set(dismissed))
 
     const { data: links } = await supabase
       .from('family_links')
@@ -46,6 +52,15 @@ export default function Historial() {
     setCargando(false)
   }
 
+  function dismissAlert(id) {
+    setDismissedIds(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      if (userId) localStorage.setItem(`dismissed_alerts_${userId}`, JSON.stringify([...next]))
+      return next
+    })
+  }
+
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
@@ -62,7 +77,7 @@ export default function Historial() {
       )}
 
       <div className={styles.lista}>
-        {alertas.map(a => {
+        {alertas.filter(a => !dismissedIds.has(a.id)).map(a => {
           const est = ESTADO_COLOR[a.status_type] || ESTADO_COLOR.green
           const fecha = new Date(a.sent_at)
           const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
@@ -80,6 +95,7 @@ export default function Historial() {
                   <span>{hora}</span>
                   <span>{dia}</span>
                 </div>
+                <button className={styles.btnDismiss} onClick={() => dismissAlert(a.id)} title="Eliminar">✕</button>
               </div>
 
               {a.latitude && a.longitude && (

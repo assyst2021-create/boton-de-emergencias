@@ -1,3 +1,37 @@
+/* Banda de mensajes fija en la parte SUPERIOR, visible en todas las pestañas */
+.topBanda {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  overflow: hidden;
+  white-space: nowrap;
+  background: #dfe4ea;
+  border-bottom: 1px solid #c3cad4;
+  padding: 12px 0;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+}
+
+.topBandaTexto {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #3d4757;
+  animation: bandaTopScroll 60s linear infinite;
+}
+
+@keyframes bandaTopScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topBandaTexto { animation: none; }
+}
+
 /* La barra completa: menu arriba, banda de mensajes abajo. */
 .barra {
   position: fixed;

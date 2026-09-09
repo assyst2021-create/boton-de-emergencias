@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { supabase } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -287,44 +289,100 @@ function haceCuanto(iso, t) {
   return `${t('ubiHace')} ${Math.floor(seg / 60)} min`
 }
 
-/**
- * Mapa con OpenStreetMap. Se dibuja con un iframe para no cargar ninguna
- * libreria de mapas ni depender de una llave de Google.
- */
 function Mapa({ yo, familiares, enfocado, t }) {
+  const containerRef = useRef(null)
+  const mapRef = useRef(null)
+  const yoMarkerRef = useRef(null)
+  const famMarkersRef = useRef({})
+  const fittedRef = useRef(false)
+
+  // Inject custom marker CSS once
+  useEffect(() => {
+    if (document.getElementById('lf-mapa-styles')) return
+    const s = document.createElement('style')
+    s.id = 'lf-mapa-styles'
+    s.textContent = `
+      @keyframes lfpulse{0%{box-shadow:0 0 0 0 rgba(30,132,73,.55)}70%{box-shadow:0 0 0 14px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
+      .lf-yo{width:18px;height:18px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);animation:lfpulse 2s ease-out infinite}
+      .lf-fam{width:38px;height:38px;border-radius:50%;background:#E67E22;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;font-family:system-ui,sans-serif}
+    `
+    document.head.appendChild(s)
+  }, [])
+
+  // Init map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false })
+      .setView([4.711, -74.072], 13)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 20,
+    }).addTo(map)
+    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    mapRef.current = map
+    return () => { map.remove(); mapRef.current = null; fittedRef.current = false }
+  }, [])
+
+  // Update yo marker
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (yo) {
+      const icon = L.divIcon({ className: '', html: '<div class="lf-yo"></div>', iconSize: [18, 18], iconAnchor: [9, 9] })
+      if (yoMarkerRef.current) {
+        yoMarkerRef.current.setLatLng([yo.lat, yo.lng])
+      } else {
+        yoMarkerRef.current = L.marker([yo.lat, yo.lng], { icon, zIndexOffset: 1000 })
+          .bindPopup('📍 Yo').addTo(map)
+        if (!fittedRef.current) { map.setView([yo.lat, yo.lng], 16); fittedRef.current = true }
+      }
+    } else {
+      if (yoMarkerRef.current) { map.removeLayer(yoMarkerRef.current); yoMarkerRef.current = null }
+    }
+  }, [yo])
+
+  // Update familia markers
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const activeIds = new Set(familiares.filter(f => f.ubicacion).map(f => f.id))
+    Object.keys(famMarkersRef.current).forEach(id => {
+      if (!activeIds.has(id)) { map.removeLayer(famMarkersRef.current[id]); delete famMarkersRef.current[id] }
+    })
+    familiares.forEach(f => {
+      if (!f.ubicacion) return
+      const inicial = (f.nombre || '?')[0].toUpperCase()
+      const icon = L.divIcon({ className: '', html: `<div class="lf-fam">${inicial}</div>`, iconSize: [38, 38], iconAnchor: [19, 19] })
+      const pos = [f.ubicacion.latitude, f.ubicacion.longitude]
+      if (famMarkersRef.current[f.id]) {
+        famMarkersRef.current[f.id].setLatLng(pos)
+      } else {
+        famMarkersRef.current[f.id] = L.marker(pos, { icon }).bindPopup(`👤 ${f.nombre}`).addTo(map)
+        if (!fittedRef.current) { map.setView(pos, 15); fittedRef.current = true }
+      }
+    })
+    if (!enfocado) {
+      const all = [...(yoMarkerRef.current ? [yoMarkerRef.current] : []), ...Object.values(famMarkersRef.current)]
+      if (all.length > 1) { try { map.fitBounds(L.featureGroup(all).getBounds().pad(0.25), { maxZoom: 17 }) } catch (_) {} }
+    }
+  }, [familiares])
+
+  // Pan to enfocado
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !enfocado) return
+    const m = famMarkersRef.current[enfocado.id]
+    if (m) { map.setView(m.getLatLng(), 17, { animate: true }); m.openPopup() }
+  }, [enfocado])
+
   const puntos = []
-  if (yo) puntos.push({ lat: yo.lat, lng: yo.lng })
-  familiares.forEach(f => puntos.push({ lat: f.ubicacion.latitude, lng: f.ubicacion.longitude }))
-
-  if (puntos.length === 0) {
-    return <div className={styles.mapaVacio}>🗺️<span>{t('ubiMapaVacio')}</span></div>
-  }
-
-  // Con alguien enfocado se centra en el y se acerca; si no, se abarca a todos.
-  let lat, lng, d
-  if (enfocado) {
-    lat = enfocado.ubicacion.latitude
-    lng = enfocado.ubicacion.longitude
-    d = 0.004
-  } else {
-    lat = puntos.reduce((s, p) => s + p.lat, 0) / puntos.length
-    lng = puntos.reduce((s, p) => s + p.lng, 0) / puntos.length
-    d = 0.01
-  }
-
-  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-  const marcadores = puntos.map(p => `${p.lat},${p.lng}`).join('&marker=')
+  if (yo) puntos.push(yo)
+  familiares.forEach(f => f.ubicacion && puntos.push(f.ubicacion))
+  if (puntos.length === 0) return <div className={styles.mapaVacio}>🗺️<span>{t('ubiMapaVacio')}</span></div>
 
   return (
     <div className={styles.mapa}>
-      {enfocado && (
-        <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>
-      )}
-      <iframe
-        title="mapa"
-        src={`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marcadores}`}
-        loading="lazy"
-      />
+      {enfocado && <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>}
+      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
     </div>
   )
 }

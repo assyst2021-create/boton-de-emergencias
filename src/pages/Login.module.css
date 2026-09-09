@@ -182,18 +182,20 @@
 }
 
 .installBtn {
-  background: var(--card);
-  border: 1.5px solid var(--naranja);
-  color: var(--naranja);
-  font-weight: 700;
-  font-size: 0.9rem;
-  padding: 12px 20px;
-  border-radius: 10px;
+  background: var(--naranja);
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 15px 20px;
+  border-radius: 12px;
   width: 100%;
-  transition: background 0.2s;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  box-shadow: 0 4px 14px rgba(230,126,34,0.35);
 }
 
-.installBtn:hover { background: rgba(230,126,34,0.1); }
+.installBtn:hover { opacity: 0.88; }
 
 .installCard {
   background: var(--card);

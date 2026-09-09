@@ -41,19 +41,40 @@ export default function PanicButtons() {
   // confirmacion para salir de la pagina.
   const posRef = useRef(null)
 
-  useEffect(() => {
-    cargarDatos()
-    if (!navigator.geolocation) { setGps('sin-soporte'); return }
-    const vigilante = navigator.geolocation.watchPosition(
+  const vigilanteRef = useRef(null)
+
+  function iniciarWatch() {
+    if (vigilanteRef.current !== null || !navigator.geolocation) return
+    vigilanteRef.current = navigator.geolocation.watchPosition(
       p => {
         posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
         setGps('listo')
       },
-      // Sin esto el usuario no sabia que su alerta saldria sin ubicacion.
       err => setGps(err.code === err.PERMISSION_DENIED ? 'denegado' : 'error'),
       { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 },
     )
-    return () => navigator.geolocation.clearWatch(vigilante)
+  }
+
+  useEffect(() => {
+    cargarDatos()
+    if (!navigator.geolocation) { setGps('sin-soporte'); return }
+
+    async function init() {
+      try {
+        const perm = await navigator.permissions.query({ name: 'geolocation' })
+        if (perm.state === 'denied') { setGps('denegado'); return }
+        if (perm.state === 'prompt') { setGps('sin-permiso'); return }
+      } catch (_) { /* API no disponible, proceder normalmente */ }
+      iniciarWatch()
+    }
+    init()
+
+    return () => {
+      if (vigilanteRef.current !== null) {
+        navigator.geolocation.clearWatch(vigilanteRef.current)
+        vigilanteRef.current = null
+      }
+    }
   }, [])
 
   async function cargarDatos() {
@@ -148,14 +169,8 @@ export default function PanicButtons() {
     }
   }
 
-  const bandaMensajes = t('bandaMensajes')
-
   return (
     <div className={styles.wrap}>
-      <div className={styles.bandaTop}>
-        <div className={styles.bandaTopTexto}>{bandaMensajes}{bandaMensajes}</div>
-      </div>
-
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
@@ -247,6 +262,11 @@ export default function PanicButtons() {
         {gps === 'buscando' && `⏳ ${t('gpsBuscando')}`}
         {gps === 'denegado' && `⚠️ ${t('gpsDenegado')}`}
         {(gps === 'error' || gps === 'sin-soporte') && `⚠️ ${t('gpsError')}`}
+        {gps === 'sin-permiso' && (
+          <button className={styles.gpsPermBtn} onClick={() => { setGps('buscando'); iniciarWatch() }}>
+            📍 {t('activarGps')}
+          </button>
+        )}
       </div>
 
       {user && !esPremium(user) && familiares.length > 0 && (

@@ -3,6 +3,7 @@
   flex-direction: column;
   min-height: 100dvh;
   padding: 0 16px;
+  padding-top: calc(46px + env(safe-area-inset-top, 0px));
 }
 
 .header {

@@ -15,6 +15,10 @@ export default function Nav() {
   const mensajes = t('bandaMensajes')
 
   return (
+    <>
+    <div className={styles.topBanda}>
+      <div className={styles.topBandaTexto}>{mensajes}{mensajes}</div>
+    </div>
     <div className={styles.barra}>
       <nav className={styles.nav}>
         {tabs.map(tab => (
@@ -31,5 +35,6 @@ export default function Nav() {
         <div className={styles.bandaTexto}>{mensajes}{mensajes}</div>
       </div>
     </div>
+    </>
   )
 }

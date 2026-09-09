@@ -6,39 +6,6 @@
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
 }
 
-.bandaTop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  overflow: hidden;
-  white-space: nowrap;
-  background: #dfe4ea;
-  border-bottom: 1px solid #c3cad4;
-  padding: 12px 0;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
-}
-
-.bandaTopTexto {
-  display: inline-block;
-  white-space: nowrap;
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #3d4757;
-  animation: bandaTopScroll 60s linear infinite;
-}
-
-@keyframes bandaTopScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bandaTopTexto { animation: none; }
-}
-
 .avisoPlan {
   background: rgba(230, 168, 23, 0.1);
   border: 1.5px solid rgba(230, 168, 23, 0.45);
@@ -326,6 +293,17 @@
   margin-bottom: 8px;
 }
 .contador strong { color: var(--naranja); }
+
+.gpsPermBtn {
+  background: none;
+  border: none;
+  color: #e67e22;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
 
 /* Estado del GPS: hay que saberlo ANTES de pulsar, no despues */
 .gpsOk, .gpsMal {

@@ -3,6 +3,10 @@ import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 
+// Capture the install prompt at module level — the browser fires it before React mounts
+let _installEvent = null
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installEvent = e })
+
 const PAISES = [
   { bandera: '🇨🇴', nombre: 'Colombia', codigo: '+57' },
   { bandera: '🇺🇸', nombre: 'EE.UU. / Canadá', codigo: '+1' },
@@ -39,7 +43,7 @@ export default function Login() {
   const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
-  const [installPrompt, setInstallPrompt] = useState(null)
+  const [installPrompt, setInstallPrompt] = useState(() => _installEvent)
   const [instalada, setInstalada] = useState(() =>
     window.matchMedia('(display-mode: standalone)').matches || !!window.navigator.standalone
   )
@@ -62,9 +66,9 @@ export default function Login() {
   }, [form.username, modo])
 
   useEffect(() => {
-    const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
+    const handler = (e) => { e.preventDefault(); _installEvent = e; setInstallPrompt(e) }
     window.addEventListener('beforeinstallprompt', handler)
-    window.addEventListener('appinstalled', () => setInstalada(true))
+    window.addEventListener('appinstalled', () => { setInstalada(true); setInstallPrompt(null) })
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
@@ -148,27 +152,29 @@ export default function Login() {
         <div className={styles.installBox}>
           <span>{t('appInstalada')}</span>
         </div>
+      ) : installPrompt ? (
+        <div className={styles.installSection}>
+          <button className={styles.installBtn} onClick={instalarApp}>
+            ⬇️ {t('instalarApp')}
+          </button>
+        </div>
+      ) : esIOS ? (
+        <div className={styles.installSection}>
+          <div className={styles.installCard}>
+            <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
+            <ol className={styles.installSteps}>
+              <li>{t('instalarIosPaso1')}</li>
+              <li>{t('instalarIosPaso2')}</li>
+              <li>{t('instalarIosPaso3')}</li>
+            </ol>
+          </div>
+        </div>
       ) : (
         <div className={styles.installSection}>
-          {esIOS ? (
-            <div className={styles.installCard}>
-              <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
-              <ol className={styles.installSteps}>
-                <li>{t('instalarIosPaso1')}</li>
-                <li>{t('instalarIosPaso2')}</li>
-                <li>{t('instalarIosPaso3')}</li>
-              </ol>
-            </div>
-          ) : installPrompt ? (
-            <button className={styles.installBtn} onClick={instalarApp}>
-              {t('instalarApp')}
-            </button>
-          ) : (
-            <div className={styles.installCard}>
-              <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
-              <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
-            </div>
-          )}
+          <div className={styles.installCard}>
+            <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
+            <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
+          </div>
         </div>
       )}
 
