@@ -5,6 +5,41 @@
   padding: 0 16px;
 }
 
+.avisoPlan {
+  background: rgba(230, 168, 23, 0.1);
+  border: 1.5px solid rgba(230, 168, 23, 0.45);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.avisoPlanTexto strong {
+  font-size: 0.9rem;
+  color: var(--text);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.avisoPlanTexto p {
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.avisoPlanCerrar {
+  background: #e6a817;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  align-self: flex-end;
+}
+
 .header {
   padding: 20px 4px 12px;
 }

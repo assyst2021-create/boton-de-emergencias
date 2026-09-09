@@ -40,8 +40,23 @@ function AppInner() {
       setBienvenidaVista(!!localStorage.getItem(`bienvenida_${uid}`))
       setDisclaimerAceptado(!!localStorage.getItem(`disclaimer_${uid}`))
       setPrivacidadVista(!!localStorage.getItem(`privacidad_${uid}`))
-      setPlanElegido(!!localStorage.getItem(`planElegido_${uid}`))
-      setInitDone(true)
+
+      if (!!localStorage.getItem(`planElegido_${uid}`)) {
+        setPlanElegido(true)
+        setInitDone(true)
+      } else {
+        // Usuarios premium existentes saltan la pantalla de planes
+        supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', uid).maybeSingle()
+          .then(({ data: p }) => {
+            const premium = p?.plan === 'premium' ||
+              (p?.is_premium && (!p.premium_hasta || new Date(p.premium_hasta) > new Date()))
+            if (premium) {
+              localStorage.setItem(`planElegido_${uid}`, '1')
+              setPlanElegido(true)
+            }
+            setInitDone(true)
+          })
+      }
     }
     if (!session) { setInitDone(false); setGpsPrompt(false) }
   }, [session, initDone])
@@ -77,10 +92,10 @@ function AppInner() {
 
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
+  if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
   if (!disclaimerAceptado) return <Disclaimer onAceptar={marcarDisclaimer} />
   if (!privacidadVista) return <Privacidad onAceptar={marcarPrivacidad} />
-  if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (gpsPrompt) return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (

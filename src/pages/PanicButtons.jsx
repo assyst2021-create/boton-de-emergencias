@@ -34,6 +34,7 @@ export default function PanicButtons() {
   const [confirmacion, setConfirmacion] = useState(null)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
   const [mostrarLimite, setMostrarLimite] = useState(null)
+  const [avisoPlan, setAvisoPlan] = useState(false)
   const [gps, setGps] = useState('buscando')
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
@@ -60,6 +61,9 @@ export default function PanicButtons() {
     if (!authUser) return
     const { data: perfil } = await supabase.from('users').select('*').eq('id', authUser.id).single()
     setUser(perfil)
+    if (!esPremium(perfil) && !localStorage.getItem(`trialAviso_${authUser.id}`)) {
+      setAvisoPlan(true)
+    }
 
     const { data: links } = await supabase
       .from('family_links')
@@ -154,6 +158,24 @@ export default function PanicButtons() {
         </div>
         {user && <div className={styles.usuario}>{t('hola')} <strong>{user.full_name}</strong></div>}
       </header>
+
+      {avisoPlan && user && !esPremium(user) && (
+        <div className={styles.avisoPlan}>
+          <div className={styles.avisoPlanTexto}>
+            <strong>🎉 ¡Bienvenido al Plan de Prueba!</strong>
+            <p>Tienes: <strong>2 alertas</strong> · <strong>1 familiar</strong> · <strong>2 sesiones en vivo</strong>. Cuando se agoten, activa el Premium por $49.000 COP para siempre.</p>
+          </div>
+          <button
+            className={styles.avisoPlanCerrar}
+            onClick={() => {
+              localStorage.setItem(`trialAviso_${user.id}`, '1')
+              setAvisoPlan(false)
+            }}
+          >
+            Entendido ✓
+          </button>
+        </div>
+      )}
 
       {confirmacion && (
         <div className={styles.confirmacion} style={{ borderColor: confirmacion.color }}>
