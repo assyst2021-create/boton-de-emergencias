@@ -148,8 +148,14 @@ export default function PanicButtons() {
     }
   }
 
+  const bandaMensajes = t('bandaMensajes')
+
   return (
     <div className={styles.wrap}>
+      <div className={styles.bandaTop}>
+        <div className={styles.bandaTopTexto}>{bandaMensajes}{bandaMensajes}</div>
+      </div>
+
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />

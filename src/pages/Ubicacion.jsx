@@ -228,20 +228,6 @@ export default function Ubicacion() {
         )}
       </div>
 
-      {compartiendo && (
-        <>
-          <div className={styles.enVivoAviso}>
-            <span className={styles.punto} />
-            {t('ubiCompartiendo')}
-            {miPos && (
-              <span className={styles.coords}>
-                {miPos.lat.toFixed(5)}, {miPos.lng.toFixed(5)}
-              </span>
-            )}
-          </div>
-          <div className={styles.avisoPantalla}>⚠️ {t('ubiAvisoPantalla')}</div>
-        </>
-      )}
 
       <Mapa
         yo={compartiendo ? miPos : null}

@@ -85,6 +85,9 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
               {t('btnHuellitas')}
             </button>
+            <button className={styles.opcion} onClick={() => setPaso('contrato')}>
+              {t('perfilContrato')}
+            </button>
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               {t('cerrarSesion')}
             </button>
@@ -163,6 +166,22 @@ export default function Perfil({ onCerrar }) {
               {t('enviarWa')}
             </a>
 
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
+          </div>
+        )}
+
+        {paso === 'contrato' && (
+          <div className={styles.form}>
+            <h3 style={{ fontWeight: 800, marginBottom: 12 }}>{t('contratoTitulo')}</h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text2)', marginBottom: 10, lineHeight: 1.5 }}>
+              <strong>{t('contratoProveedor')}</strong><br />
+              <strong>{t('contratoServicioLabel')}</strong>
+            </p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS1')}</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS2')}</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS3')}</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text2)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS4')}</p>
+            <p style={{ fontSize: '0.78rem', fontStyle: 'italic', color: 'var(--text2)', lineHeight: 1.5 }}>{t('contratoS5')}</p>
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
