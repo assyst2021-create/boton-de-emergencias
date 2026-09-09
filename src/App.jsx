@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
 import Disclaimer from './pages/Disclaimer'
 import Privacidad from './pages/Privacidad'
+import ElegirPlan from './pages/ElegirPlan'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
@@ -22,6 +23,7 @@ function AppInner() {
   const [bienvenidaVista, setBienvenidaVista] = useState(false)
   const [disclaimerAceptado, setDisclaimerAceptado] = useState(false)
   const [privacidadVista, setPrivacidadVista] = useState(false)
+  const [planElegido, setPlanElegido] = useState(false)
   const [initDone, setInitDone] = useState(false)
   const [gpsPrompt, setGpsPrompt] = useState(false)
 
@@ -38,6 +40,7 @@ function AppInner() {
       setBienvenidaVista(!!localStorage.getItem(`bienvenida_${uid}`))
       setDisclaimerAceptado(!!localStorage.getItem(`disclaimer_${uid}`))
       setPrivacidadVista(!!localStorage.getItem(`privacidad_${uid}`))
+      setPlanElegido(!!localStorage.getItem(`planElegido_${uid}`))
       setInitDone(true)
     }
     if (!session) { setInitDone(false); setGpsPrompt(false) }
@@ -67,11 +70,17 @@ function AppInner() {
     setPrivacidadVista(true)
   }
 
+  function marcarPlanElegido() {
+    localStorage.setItem(`planElegido_${session.user.id}`, '1')
+    setPlanElegido(true)
+  }
+
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
   if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
   if (!disclaimerAceptado) return <Disclaimer onAceptar={marcarDisclaimer} />
   if (!privacidadVista) return <Privacidad onAceptar={marcarPrivacidad} />
+  if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (gpsPrompt) return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (

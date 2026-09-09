@@ -133,11 +133,11 @@ export default function PanicButtons() {
       setSinNube(true)
     }
 
-    // El contador del plan gratuito lo lleva el servidor, no el telefono.
     if (!esPremium(user)) {
       try {
-        const { data: total } = await supabase.rpc('sumar_alerta_usada')
-        if (typeof total === 'number') setUser(u => (u ? { ...u, alertas_usadas: total } : u))
+        const nuevas = (user?.alertas_enviadas ?? 0) + 1
+        await supabase.from('users').update({ alertas_enviadas: nuevas }).eq('id', authUser.id)
+        setUser(u => (u ? { ...u, alertas_enviadas: nuevas } : u))
       } catch (e) {
         console.warn('[alerta] no se pudo contar:', e?.message || e)
       }
@@ -223,7 +223,7 @@ export default function PanicButtons() {
 
       {user && !esPremium(user) && familiares.length > 0 && (
         <div className={styles.contador}>
-          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / 3
+          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / 2
         </div>
       )}
 
@@ -235,7 +235,7 @@ export default function PanicButtons() {
             <p>{t(mostrarLimite === 'alertas' ? 'limiteAlertasTexto' : 'limiteFamiliaresTexto')}</p>
             <a
               className={styles.limiteBtn}
-              href="https://botondeemergencias.mefacil.com/premium"
+              href={import.meta.env.VITE_WOMPI_LINK || '#'}
               target="_blank" rel="noreferrer"
             >
               {t('verSuscripcion')}

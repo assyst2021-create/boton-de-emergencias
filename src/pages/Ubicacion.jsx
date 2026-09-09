@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { esPremium } from '../plan'
+import { esPremium, puedeUbicacionEnVivo, UBICACIONES_TRIAL } from '../plan'
 
 /** Cada cuanto se envia la posicion mientras se comparte. */
 const INTERVALO_MS = 5000
@@ -22,6 +22,7 @@ export default function Ubicacion() {
   const [familiares, setFamiliares] = useState([])
   const [error, setError] = useState('')
   const [enfocado, setEnfocado] = useState(null)
+  const [mostrarUpgrade, setMostrarUpgrade] = useState(false)
 
   const vigilanteRef = useRef(null)
   const envioRef = useRef(null)
@@ -59,7 +60,7 @@ export default function Ubicacion() {
       .eq('user_id', user.id).maybeSingle()
 
     if (mia?.activo && new Date(mia.expires_at) > new Date()) {
-      empezar()
+      empezar(false)
     }
   }
 
@@ -98,13 +99,15 @@ export default function Ubicacion() {
       .subscribe()
   }
 
-  async function empezar() {
+  async function empezar(manual = true) {
     setError('')
     if (!navigator.geolocation) { setError(t('ubiSinSoporte')); return }
     // Sin esta guarda, reanudar al entrar y pulsar el boton dejaria dos
     // vigilantes y dos temporizadores corriendo a la vez, y el primero
     // quedaria imposible de detener.
     if (vigilanteRef.current != null || envioRef.current) return
+
+    if (manual && !puedeUbicacionEnVivo(perfil)) { setMostrarUpgrade(true); return }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -128,6 +131,16 @@ export default function Ubicacion() {
     envioRef.current = setInterval(() => enviarPosicion(user.id), INTERVALO_MS)
     setCompartiendo(true)
     enviarPosicion(user.id)
+
+    if (manual && !esPremium(perfil)) {
+      try {
+        const nuevas = (perfil?.ubicaciones_usadas ?? 0) + 1
+        await supabase.from('users').update({ ubicaciones_usadas: nuevas }).eq('id', user.id)
+        setPerfil(p => p ? { ...p, ubicaciones_usadas: nuevas } : p)
+      } catch (e) {
+        console.warn('[ubicacion] no se pudo contar:', e?.message || e)
+      }
+    }
   }
 
   async function enviarPosicion(uid) {
@@ -162,6 +175,7 @@ export default function Ubicacion() {
   }
 
   const premium = esPremium(perfil)
+  const ubicUsadas = perfil?.ubicaciones_usadas ?? 0
   const enVivo = familiares.filter(f => f.ubicacion)
 
   return (
@@ -173,8 +187,30 @@ export default function Ubicacion() {
 
       {!premium && (
         <div className={styles.premiumBox}>
-          <strong>⭐ {t('ubiPremiumTitulo')}</strong>
-          <p>{t('ubiPremiumTexto')}</p>
+          <strong>🛰 Sesiones de prueba: {ubicUsadas} / {UBICACIONES_TRIAL}</strong>
+          {ubicUsadas >= UBICACIONES_TRIAL && (
+            <p style={{ marginTop: 4 }}>Has agotado tus sesiones de prueba.</p>
+          )}
+        </div>
+      )}
+
+      {mostrarUpgrade && (
+        <div className={styles.upgradeOverlay} onClick={() => setMostrarUpgrade(false)}>
+          <div className={styles.upgradeCard} onClick={e => e.stopPropagation()}>
+            <div className={styles.upgradeIcono}>⭐</div>
+            <h3>Periodo de prueba agotado</h3>
+            <p>Activa el Plan Premium por $49.000 COP y protege a tu familia para siempre.</p>
+            <a
+              className={styles.upgradeBtn}
+              href={import.meta.env.VITE_WOMPI_LINK || '#'}
+              target="_blank" rel="noreferrer"
+            >
+              Activar Premium
+            </a>
+            <button className={styles.upgradeCerrar} onClick={() => setMostrarUpgrade(false)}>
+              {t('cerrar')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -186,7 +222,7 @@ export default function Ubicacion() {
             ⏹ {t('ubiDetener')}
           </button>
         ) : (
-          <button className={styles.btnCompartir} onClick={empezar} disabled={!premium}>
+          <button className={styles.btnCompartir} onClick={() => empezar(true)}>
             🛰 {t('ubiCompartir')}
           </button>
         )}

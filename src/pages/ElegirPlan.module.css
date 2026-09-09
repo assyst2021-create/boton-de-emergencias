@@ -1,0 +1,136 @@
+.wrap {
+  min-height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 48px;
+  gap: 20px;
+}
+
+.top {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.icono {
+  font-size: 3rem;
+}
+
+.titulo {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.sub {
+  color: var(--text2);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.planes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.cardTrial,
+.cardPremium {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardPremium {
+  border-color: #e6a817;
+}
+
+.badgeTrial {
+  display: inline-block;
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+}
+
+.badgePremium {
+  display: inline-block;
+  background: #e6a817;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  align-self: flex-start;
+}
+
+.planNombre {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.permanente {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #e6a817;
+  margin: -4px 0 0;
+}
+
+.lista {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text2);
+  font-size: 0.9rem;
+}
+
+.btnTrial,
+.btnPremium {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnTrial {
+  background: var(--bg2);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+
+.btnTrial:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnPremium {
+  background: #e6a817;
+  color: #fff;
+}
+
+.btnPremium:hover {
+  opacity: 0.9;
+}

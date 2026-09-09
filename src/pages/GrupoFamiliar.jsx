@@ -134,9 +134,9 @@ export default function GrupoFamiliar() {
           <p>{t('upgradeDesc')}</p>
           <button
             className={styles.upgradBtn}
-            onClick={() => window.open('https://botondeemergencias.mefacil.com/premium', '_blank')}
+            onClick={() => window.open(import.meta.env.VITE_WOMPI_LINK || '#', '_blank')}
           >
-            Ver plan Premium
+            Activar Premium
           </button>
           <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>{t('cancelar')}</button>
         </div>
