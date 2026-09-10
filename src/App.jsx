@@ -61,11 +61,13 @@ function AppInner() {
     if (!session) { setInitDone(false); setGpsPrompt(false) }
   }, [session, initDone])
 
-  // GPS check solo para usuarios que ya vieron todo (usuarios recurrentes)
+  // GPS check para usuarios recurrentes (ya pasaron Bienvenida):
+  // 'granted' -> nada; 'denied' -> pantalla de desbloqueo; 'prompt' -> pedir permiso de nuevo
   useEffect(() => {
     if (initDone && bienvenidaVista && disclaimerAceptado && privacidadVista) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
-        setGpsPrompt(result.state === 'denied')
+        if (result.state === 'granted') setGpsPrompt(false)
+        else setGpsPrompt(result.state) // 'denied' | 'prompt'
       }).catch(() => setGpsPrompt(false))
     }
   }, [initDone, bienvenidaVista, disclaimerAceptado, privacidadVista])
@@ -96,7 +98,8 @@ function AppInner() {
   if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
   if (!disclaimerAceptado) return <Disclaimer onAceptar={marcarDisclaimer} />
   if (!privacidadVista) return <Privacidad onAceptar={marcarPrivacidad} />
-  if (gpsPrompt) return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
+  if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
+  if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (
     <AppActionsContext.Provider value={{
@@ -117,6 +120,40 @@ function AppInner() {
         </Routes>
       </BrowserRouter>
     </AppActionsContext.Provider>
+  )
+}
+
+function GpsRequestScreen({ onContinuar }) {
+  const { t } = useLanguage()
+  const [pidiendo, setPidiendo] = useState(false)
+  const [bloqueada, setBloqueada] = useState(false)
+
+  async function pedirGPS() {
+    setPidiendo(true)
+    try {
+      await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
+      )
+      onContinuar()
+    } catch (err) {
+      if (err.code === 1) setBloqueada(true)
+    }
+    setPidiendo(false)
+  }
+
+  if (bloqueada) return <GpsPromptScreen onContinuar={onContinuar} />
+
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+      <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+        <div style={{ fontSize: '3.5rem' }}>📍</div>
+        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('permisoUbicacion')}</h2>
+        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>{t('permisoTexto')}</p>
+        <button onClick={pedirGPS} disabled={pidiendo} style={{ background: 'var(--rojo)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%', border: 'none', cursor: 'pointer' }}>
+          {pidiendo ? t('verificando') : t('activarGps')}
+        </button>
+      </div>
+    </div>
   )
 }
 
