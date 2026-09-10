@@ -19,7 +19,11 @@ const DURACION_MIN = 720
 export default function Ubicacion() {
   const { t } = useLanguage()
   const [perfil, setPerfil] = useState(null)
-  const [compartiendo, setCompartiendo] = useState(false)
+  // Persiste en sessionStorage para que al volver de otra pestaña el botón
+  // muestre "Deja de compartir" de inmediato, sin parpadear a "Compartir"
+  // mientras init() comprueba la DB en segundo plano.
+  const [compartiendo, setCompartiendoRaw] = useState(() => sessionStorage.getItem('ubi_sharing') === '1')
+  const setCompartiendo = (v) => { sessionStorage.setItem('ubi_sharing', v ? '1' : '0'); setCompartiendoRaw(v) }
   const [miPos, setMiPos] = useState(null)
   const [familiares, setFamiliares] = useState([])
   const [error, setError] = useState('')
@@ -63,6 +67,9 @@ export default function Ubicacion() {
 
     if (mia?.activo && new Date(mia.expires_at) > new Date()) {
       empezar(false)
+    } else {
+      // La sesión no estaba activa: aseguramos que el estado local lo refleje
+      setCompartiendo(false)
     }
   }
 
@@ -296,7 +303,9 @@ function Mapa({ yo, familiares, enfocado, t }) {
   const famMarkersRef = useRef({})
   const fittedRef = useRef(false)
 
-  // Inject custom marker CSS once
+  const hayPuntos = yo || familiares.some(f => f.ubicacion)
+
+  // CSS personalizado de marcadores (una sola vez)
   useEffect(() => {
     if (document.getElementById('lf-mapa-styles')) return
     const s = document.createElement('style')
@@ -309,20 +318,39 @@ function Mapa({ yo, familiares, enfocado, t }) {
     document.head.appendChild(s)
   }, [])
 
-  // Init map once
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
-    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false })
+  // Inicializar mapa — usa callback ref para que funcione aunque el div
+  // empiece oculto (cuando aún no hay puntos) y se revele después.
+  const initMap = useRef(false)
+  const setContainer = (node) => {
+    containerRef.current = node
+    if (!node || initMap.current) return
+    initMap.current = true
+    const map = L.map(node, { zoomControl: false, attributionControl: false })
       .setView([4.711, -74.072], 13)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd', maxZoom: 20,
     }).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     mapRef.current = map
-    return () => { map.remove(); mapRef.current = null; fittedRef.current = false }
+    // Invalidar tamaño tras primer render para que los tiles llenen el contenedor
+    setTimeout(() => map.invalidateSize(), 100)
+  }
+
+  // Limpieza al desmontar
+  useEffect(() => {
+    return () => {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; initMap.current = false; fittedRef.current = false }
+    }
   }, [])
 
-  // Update yo marker
+  // Cuando el div pasa de oculto a visible, invalidar tamaño
+  useEffect(() => {
+    if (hayPuntos && mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 50)
+    }
+  }, [hayPuntos])
+
+  // Marcador "Yo"
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -340,7 +368,7 @@ function Mapa({ yo, familiares, enfocado, t }) {
     }
   }, [yo])
 
-  // Update familia markers
+  // Marcadores familia
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -366,7 +394,7 @@ function Mapa({ yo, familiares, enfocado, t }) {
     }
   }, [familiares])
 
-  // Pan to enfocado
+  // Pan a familiar enfocado
   useEffect(() => {
     const map = mapRef.current
     if (!map || !enfocado) return
@@ -374,15 +402,24 @@ function Mapa({ yo, familiares, enfocado, t }) {
     if (m) { map.setView(m.getLatLng(), 17, { animate: true }); m.openPopup() }
   }, [enfocado])
 
-  const puntos = []
-  if (yo) puntos.push(yo)
-  familiares.forEach(f => f.ubicacion && puntos.push(f.ubicacion))
-  if (puntos.length === 0) return <div className={styles.mapaVacio}>🗺️<span>{t('ubiMapaVacio')}</span></div>
-
   return (
-    <div className={styles.mapa}>
+    <div className={styles.mapa} style={{ position: 'relative' }}>
       {enfocado && <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>}
-      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+      {/* El div siempre está en el DOM para que Leaflet pueda inicializarse */}
+      <div ref={setContainer} style={{ height: '100%', width: '100%' }} />
+      {/* Estado vacío como overlay, no early-return */}
+      {!hayPuntos && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 10,
+          fontSize: '2.5rem', color: 'var(--text2)',
+          background: 'var(--bg2)', zIndex: 10, borderRadius: 'inherit',
+          pointerEvents: 'none',
+        }}>
+          🗺️
+          <span style={{ fontSize: '0.82rem', textAlign: 'center', padding: '0 24px' }}>{t('ubiMapaVacio')}</span>
+        </div>
+      )}
     </div>
   )
 }
