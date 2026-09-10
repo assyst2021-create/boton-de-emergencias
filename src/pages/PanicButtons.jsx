@@ -232,7 +232,7 @@ export default function PanicButtons() {
         <div className={styles.avisoPlan}>
           <div className={styles.avisoPlanTexto}>
             <strong>🎉 ¡Bienvenido al Plan de Prueba!</strong>
-            <p>Tienes: <strong>2 alertas</strong> · <strong>1 familiar</strong> · <strong>2 sesiones en vivo</strong>. Cuando se agoten, activa el Premium por $49.000 COP para siempre.</p>
+            <p>Tienes: <strong>2 alertas</strong> · <strong>1 familiar</strong> · <strong>2 sesiones en vivo</strong>. Cuando se agoten, activa el Plan Premium con renovación anual.</p>
           </div>
           <button
             className={styles.avisoPlanCerrar}

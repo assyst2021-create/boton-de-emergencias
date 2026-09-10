@@ -208,7 +208,7 @@ export default function Ubicacion() {
           <div className={styles.upgradeCard} onClick={e => e.stopPropagation()}>
             <div className={styles.upgradeIcono}>⭐</div>
             <h3>Periodo de prueba agotado</h3>
-            <p>Activa el Plan Premium por $49.000 COP y protege a tu familia para siempre.</p>
+            <p>Activa el Plan Premium con renovación anual y protege a tu familia.</p>
             <a
               className={styles.upgradeBtn}
               href={import.meta.env.VITE_WOMPI_LINK || '#'}
