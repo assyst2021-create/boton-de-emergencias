@@ -1,6 +1,6 @@
 export const FAMILIARES_TRIAL = 1
 export const FAMILIARES_PREMIUM = 10
-export const ALERTAS_TRIAL = 2
+export const ALERTAS_TRIAL = 1
 export const UBICACIONES_TRIAL = 2
 
 // Alias para compatibilidad con imports existentes

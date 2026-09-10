@@ -44,7 +44,7 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planTrialF1')}</li>
             <li>{t('planTrialF2')}</li>
             <li>{t('planTrialF3')}</li>
-            <li>{t('planTrialF4')}</li>
+            {t('planTrialF4') && <li>{t('planTrialF4')}</li>}
           </ul>
           <button className={styles.btnTrial} onClick={elegirTrial} disabled={cargando}>
             {cargando ? t('planGuardando') : t('planEmpezarGratis')}
