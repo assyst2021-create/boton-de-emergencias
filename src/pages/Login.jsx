@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
+import { IDIOMAS } from '../i18n/translations'
 
 // Capture the install prompt at module level — the browser fires it before React mounts
 let _installEvent = null
@@ -37,7 +38,7 @@ const PAISES = [
 ]
 
 export default function Login() {
-  const { t } = useLanguage()
+  const { t, lang, cambiarIdioma } = useLanguage()
   const [modo, setModo] = useState('login')
   const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
   const [pais, setPais] = useState(PAISES[0])
@@ -268,6 +269,20 @@ export default function Login() {
           )}
 
           {error && <div className={styles.error}>{error}</div>}
+
+          <div className={styles.idiomaSelector}>
+            <span className={styles.idiomaLabel}>🌐</span>
+            {IDIOMAS.map(i => (
+              <button
+                key={i.code}
+                type="button"
+                className={lang === i.code ? styles.idiomaOpcionActiva : styles.idiomaOpcion}
+                onClick={() => cambiarIdioma(i.code)}
+              >
+                {i.flag} {i.label}
+              </button>
+            ))}
+          </div>
 
           <button type="submit" className={styles.btn} disabled={cargando}>
             {cargando ? t('procesando') : modo === 'login' ? t('ingresar') : t('crearCuenta')}

@@ -245,6 +245,36 @@
 .resetLink:disabled { opacity: 0.5; cursor: not-allowed; }
 .resetOk { font-size: 0.8rem; color: #2ecc71; font-weight: 600; }
 
+.idiomaSelector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.idiomaLabel { font-size: 1rem; color: var(--text2); }
+.idiomaOpcion {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  color: var(--text2);
+  cursor: pointer;
+  flex: 1;
+}
+.idiomaOpcionActiva {
+  background: var(--rojo);
+  border: 1.5px solid var(--rojo);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 1;
+}
+
 .usernameOk { font-size: 0.78rem; color: #2ecc71; font-weight: 600; margin-top: 3px; display: block; }
 .usernameTaken { font-size: 0.78rem; color: var(--rojo); font-weight: 600; margin-top: 3px; display: block; }
 .usernameChecking { font-size: 0.78rem; color: var(--text2); margin-top: 3px; display: block; }
