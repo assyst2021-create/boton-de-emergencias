@@ -18,14 +18,28 @@ export default function Perfil({ onCerrar }) {
   const [verNueva, setVerNueva] = useState(false)
   const [verConfirmar, setVerConfirmar] = useState(false)
   const [perfil, setPerfil] = useState(null)
+  const [uid, setUid] = useState(null)
+  const [autoAlerta, setAutoAlerta] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('users').select('full_name, username').eq('id', user.id).maybeSingle()
-        .then(({ data }) => { if (data) setPerfil(data) })
+      setUid(user.id)
+      supabase.from('users').select('full_name, username, auto_alert_enabled').eq('id', user.id).maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setPerfil(data)
+            setAutoAlerta(!!data.auto_alert_enabled)
+          }
+        })
     })
   }, [])
+
+  async function toggleAutoAlerta() {
+    const nuevo = !autoAlerta
+    setAutoAlerta(nuevo)
+    if (uid) await supabase.from('users').update({ auto_alert_enabled: nuevo }).eq('id', uid)
+  }
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -88,6 +102,16 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('contrato')}>
               {t('perfilContrato')}
             </button>
+            <div className={styles.opcionToggle}>
+              <span>{t('autoAlertaLabel')}</span>
+              <button
+                className={autoAlerta ? styles.toggleOn : styles.toggleOff}
+                onClick={toggleAutoAlerta}
+                aria-pressed={autoAlerta}
+              >
+                {autoAlerta ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
+              </button>
+            </div>
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               {t('cerrarSesion')}
             </button>

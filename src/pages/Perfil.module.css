@@ -132,6 +132,42 @@
   flex-shrink: 0;
 }
 
+.opcionToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.toggleOn {
+  background: #1E8449;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggleOff {
+  background: var(--border);
+  color: var(--text2);
+  border: none;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .opcionRojo {
   background: rgba(192,57,43,0.12);
   border: 1.5px solid rgba(192,57,43,0.3);

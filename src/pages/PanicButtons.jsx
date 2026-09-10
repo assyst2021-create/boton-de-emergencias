@@ -160,8 +160,8 @@ export default function PanicButtons() {
         setSinNube(true)
       }
 
-      // Programar alerta automática en 2 horas (solo rojo y naranja)
-      if (boton.tipo === 'red' || boton.tipo === 'orange') {
+      // Programar alerta automática en 2 horas (solo rojo y naranja, si el usuario la activó)
+      if ((boton.tipo === 'red' || boton.tipo === 'orange') && user?.auto_alert_enabled) {
         const scheduledAt = new Date(ahora.getTime() + 2 * 60 * 60 * 1000)
         await supabase.from('scheduled_alerts').insert({
           user_id: authUser.id,
