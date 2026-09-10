@@ -21,6 +21,7 @@ export default function Nav() {
     <>
     <div className={styles.topBanda}>
       <div className={styles.topBandaTexto}>{mensajes}{mensajes}</div>
+      <button className={styles.topGear} onClick={() => setMostrarPerfil(true)} title={t('navOpciones')}>⚙️</button>
     </div>
     <div className={styles.barra}>
       <nav className={styles.nav}>
@@ -30,10 +31,6 @@ export default function Nav() {
             <span className={styles.label}>{tab.label}</span>
           </NavLink>
         ))}
-        <button className={styles.tab} onClick={() => setMostrarPerfil(true)}>
-          <span className={styles.icon}>⚙️</span>
-          <span className={styles.label}>{t('navOpciones')}</span>
-        </button>
       </nav>
 
       <div className={styles.banda}>
