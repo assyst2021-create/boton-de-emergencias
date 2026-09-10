@@ -90,6 +90,7 @@ export default function Historial() {
                 <div className={styles.alertaInfo}>
                   <strong>{a.users?.full_name || 'Familiar'}</strong>
                   <span style={{ color: est.color, fontWeight: 700, fontSize: '0.8rem' }}>{t(est.key)}</span>
+                  {a.is_auto && <span style={{ fontSize: '0.72rem', color: '#888', fontStyle: 'italic' }}>{t('alertaAutomatica')}</span>}
                 </div>
                 <div className={styles.alertaFecha}>
                   <span>{hora}</span>

@@ -57,6 +57,8 @@ export default function PanicButtons() {
 
   useEffect(() => {
     cargarDatos()
+    verificarAlertasAuto()
+    const intervalo = setInterval(verificarAlertasAuto, 60000)
     if (!navigator.geolocation) { setGps('sin-soporte'); return }
 
     async function init() {
@@ -70,6 +72,7 @@ export default function PanicButtons() {
     init()
 
     return () => {
+      clearInterval(intervalo)
       if (vigilanteRef.current !== null) {
         navigator.geolocation.clearWatch(vigilanteRef.current)
         vigilanteRef.current = null
@@ -135,8 +138,10 @@ export default function PanicButtons() {
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
     const p = posRef.current
+    let authUser = null
     try {
-      const { data: { user: authUser } } = await conTiempoLimite(supabase.auth.getUser(), 8000)
+      const { data: { user: u } } = await conTiempoLimite(supabase.auth.getUser(), 8000)
+      authUser = u
       if (!authUser) throw new Error('sin sesion')
       const res = await conTiempoLimite(
         supabase.from('alerts').insert({
@@ -146,6 +151,7 @@ export default function PanicButtons() {
           longitude: p?.lng ?? null,
           sent_at: ahora.toISOString(),
           expires_at: expiresAt.toISOString(),
+          is_auto: false,
         }),
         12000,
       )
@@ -153,12 +159,25 @@ export default function PanicButtons() {
         console.warn('[alerta] no se guardo:', res.error.message)
         setSinNube(true)
       }
+
+      // Programar alerta automática en 2 horas (solo rojo y naranja)
+      if (boton.tipo === 'red' || boton.tipo === 'orange') {
+        const scheduledAt = new Date(ahora.getTime() + 2 * 60 * 60 * 1000)
+        await supabase.from('scheduled_alerts').insert({
+          user_id: authUser.id,
+          status_type: boton.tipo,
+          latitude: p?.lat ?? null,
+          longitude: p?.lng ?? null,
+          scheduled_at: scheduledAt.toISOString(),
+          fired: false,
+        })
+      }
     } catch (e) {
       console.warn('[alerta] no se guardo:', e?.message || e)
       setSinNube(true)
     }
 
-    if (!esPremium(user)) {
+    if (authUser && !esPremium(user)) {
       try {
         const nuevas = (user?.alertas_enviadas ?? 0) + 1
         await supabase.from('users').update({ alertas_enviadas: nuevas }).eq('id', authUser.id)
@@ -166,6 +185,35 @@ export default function PanicButtons() {
       } catch (e) {
         console.warn('[alerta] no se pudo contar:', e?.message || e)
       }
+    }
+  }
+
+  /** Dispara alertas programadas que ya vencieron. */
+  async function verificarAlertasAuto() {
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser) return
+    const ahora = new Date().toISOString()
+    const { data: pendientes } = await supabase
+      .from('scheduled_alerts')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .eq('fired', false)
+      .lte('scheduled_at', ahora)
+    if (!pendientes || pendientes.length === 0) return
+
+    for (const item of pendientes) {
+      const sentAt = new Date()
+      const expiresAt = new Date(sentAt.getTime() + 24 * 60 * 60 * 1000)
+      await supabase.from('alerts').insert({
+        sender_id: authUser.id,
+        status_type: item.status_type,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        sent_at: sentAt.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        is_auto: true,
+      })
+      await supabase.from('scheduled_alerts').update({ fired: true }).eq('id', item.id)
     }
   }
 
