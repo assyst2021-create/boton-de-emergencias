@@ -344,7 +344,6 @@ export default function PanicButtons() {
       )}
 
       <div className={styles.botonesWrap}>
-      <img src="/logo-empresa.png" alt="" className={styles.watermark} />
       <div className={styles.botones}>
         {BOTONES.map(b => (
           <div key={b.tipo}>

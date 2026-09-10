@@ -110,6 +110,24 @@ function AppInner() {
       avisoLeido: disclaimerAceptado,
       privacidadLeida: privacidadVista,
     }}>
+      <img
+        src="/logo-empresa.png"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(320px, 80vw)',
+          height: 'min(320px, 80vw)',
+          objectFit: 'contain',
+          opacity: 0.06,
+          pointerEvents: 'none',
+          zIndex: 0,
+          userSelect: 'none',
+        }}
+      />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<><PanicButtons /><Nav /></>} />
