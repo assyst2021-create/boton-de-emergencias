@@ -15,8 +15,6 @@ export default function Historial() {
   const { abrirOpciones } = useNavContext()
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [dismissedIds, setDismissedIds] = useState(new Set())
-  const [userId, setUserId] = useState(null)
   // Cache para no volver a consultar en cada evento RT
   const familyIdsRef = useRef(new Set())
   const userIdRef = useRef(null)
@@ -24,15 +22,12 @@ export default function Historial() {
 
   useEffect(() => {
     let canal
-    cargar().then(({ uid, ids, nombres }) => {
+    cargar().then(({ ids, nombres }) => {
       canal = supabase.channel('alertas-rt')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' },
           (payload) => {
             const a = payload.new
             if (!familyIdsRef.current.has(a.sender_id)) return
-            const dismissed = JSON.parse(localStorage.getItem(`dismissed_alerts_${userIdRef.current}`) || '[]')
-            if (dismissed.includes(a.id)) return
-            // Añadir directamente al estado — sin re-fetch
             const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || 'Familiar' } }
             setAlertas(prev => [enriquecida, ...prev])
           })
@@ -45,10 +40,6 @@ export default function Historial() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return {}
     userIdRef.current = user.id
-    setUserId(user.id)
-
-    const dismissed = JSON.parse(localStorage.getItem(`dismissed_alerts_${user.id}`) || '[]')
-    setDismissedIds(new Set(dismissed))
 
     const { data: links } = await supabase
       .from('family_links')
@@ -73,16 +64,14 @@ export default function Historial() {
 
     setAlertas(data || [])
     setCargando(false)
-    return { uid: user.id, ids, nombres }
+    return { ids, nombres }
   }
 
-  function dismissAlert(id) {
-    setDismissedIds(prev => {
-      const next = new Set(prev)
-      next.add(id)
-      if (userId) localStorage.setItem(`dismissed_alerts_${userId}`, JSON.stringify([...next]))
-      return next
-    })
+  async function dismissAlert(id) {
+    // Eliminar del estado local inmediatamente
+    setAlertas(prev => prev.filter(a => a.id !== id))
+    // Eliminar de Supabase
+    await supabase.from('alerts').delete().eq('id', id)
   }
 
   return (
@@ -102,7 +91,7 @@ export default function Historial() {
       )}
 
       <div className={styles.lista}>
-        {alertas.filter(a => !dismissedIds.has(a.id)).map(a => {
+        {alertas.map(a => {
           const est = ESTADO_COLOR[a.status_type] || ESTADO_COLOR.green
           const fecha = new Date(a.sent_at)
           const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
