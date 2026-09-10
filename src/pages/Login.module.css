@@ -248,31 +248,20 @@
 .idiomaSelector {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 4px;
 }
-.idiomaLabel { font-size: 1rem; color: var(--text2); }
-.idiomaOpcion {
+.idiomaLabel { font-size: 1.1rem; }
+.idiomaSelect {
+  flex: 1;
   background: var(--card);
   border: 1.5px solid var(--border);
   border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 0.78rem;
-  color: var(--text2);
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  color: var(--text);
   cursor: pointer;
-  flex: 1;
-}
-.idiomaOpcionActiva {
-  background: var(--rojo);
-  border: 1.5px solid var(--rojo);
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 0.78rem;
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  flex: 1;
+  appearance: auto;
 }
 
 .usernameOk { font-size: 0.78rem; color: #2ecc71; font-weight: 600; margin-top: 3px; display: block; }

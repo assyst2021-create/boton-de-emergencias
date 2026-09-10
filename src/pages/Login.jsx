@@ -272,16 +272,15 @@ export default function Login() {
 
           <div className={styles.idiomaSelector}>
             <span className={styles.idiomaLabel}>🌐</span>
-            {IDIOMAS.map(i => (
-              <button
-                key={i.code}
-                type="button"
-                className={lang === i.code ? styles.idiomaOpcionActiva : styles.idiomaOpcion}
-                onClick={() => cambiarIdioma(i.code)}
-              >
-                {i.flag} {i.label}
-              </button>
-            ))}
+            <select
+              className={styles.idiomaSelect}
+              value={lang}
+              onChange={e => cambiarIdioma(e.target.value)}
+            >
+              {IDIOMAS.map(i => (
+                <option key={i.code} value={i.code}>{i.flag} {i.label}</option>
+              ))}
+            </select>
           </div>
 
           <button type="submit" className={styles.btn} disabled={cargando}>
