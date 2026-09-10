@@ -9,7 +9,7 @@ export const useAppActions = () => useContext(AppActionsContext)
 
 export default function Perfil({ onCerrar }) {
   const { t, lang, cambiarIdioma } = useLanguage()
-  const { verBienvenida, verTerminos, verPrivacidad, bienvenidaLeida, avisoLeido, privacidadLeida } = useAppActions()
+  const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
   const [paso, setPaso] = useState('menu')
   const [form, setForm] = useState({ nueva: '', confirmar: '' })
   const [error, setError] = useState('')
@@ -99,8 +99,9 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
               {t('btnHuellitas')}
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('contrato')}>
-              {t('perfilContrato')}
+            <button className={styles.opcion} onClick={() => { onCerrar(); verContrato?.() }}>
+              <span>{t('perfilContrato')}</span>
+              {contratoLeido && <span className={styles.leido}>{t('leido')}</span>}
             </button>
             <div className={styles.opcionToggle}>
               <span>{t('autoAlertaLabel')}</span>
@@ -190,22 +191,6 @@ export default function Perfil({ onCerrar }) {
               {t('enviarWa')}
             </a>
 
-            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
-          </div>
-        )}
-
-        {paso === 'contrato' && (
-          <div className={styles.form}>
-            <h3 style={{ fontWeight: 800, marginBottom: 12 }}>{t('contratoTitulo')}</h3>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text2)', marginBottom: 10, lineHeight: 1.5 }}>
-              <strong>{t('contratoProveedor')}</strong><br />
-              <strong>{t('contratoServicioLabel')}</strong>
-            </p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS1')}</p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS2')}</p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS3')}</p>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text2)', lineHeight: 1.6, marginBottom: 10 }}>{t('contratoS4')}</p>
-            <p style={{ fontSize: '0.78rem', fontStyle: 'italic', color: 'var(--text2)', lineHeight: 1.5 }}>{t('contratoS5')}</p>
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}

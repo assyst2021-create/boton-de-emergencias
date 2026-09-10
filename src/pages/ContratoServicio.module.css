@@ -1,0 +1,19 @@
+.planBloque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planNombre {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
+.planNombrePremium {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #B7950B;
+  margin: 0 0 4px;
+}

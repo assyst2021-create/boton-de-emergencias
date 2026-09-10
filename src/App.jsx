@@ -11,6 +11,7 @@ import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
 import Ubicacion from './pages/Ubicacion'
+import ContratoServicio from './pages/ContratoServicio'
 import { AppActionsContext } from './pages/Perfil'
 import Nav from './components/Nav'
 
@@ -24,6 +25,7 @@ function AppInner() {
   const [disclaimerAceptado, setDisclaimerAceptado] = useState(false)
   const [privacidadVista, setPrivacidadVista] = useState(false)
   const [planElegido, setPlanElegido] = useState(false)
+  const [contratoAceptado, setContratoAceptado] = useState(false)
   const [initDone, setInitDone] = useState(false)
   const [gpsPrompt, setGpsPrompt] = useState(false)
 
@@ -40,6 +42,7 @@ function AppInner() {
       setBienvenidaVista(!!localStorage.getItem(`bienvenida_${uid}`))
       setDisclaimerAceptado(!!localStorage.getItem(`disclaimer_${uid}`))
       setPrivacidadVista(!!localStorage.getItem(`privacidad_${uid}`))
+      setContratoAceptado(!!localStorage.getItem(`contrato_${uid}`))
 
       if (!!localStorage.getItem(`planElegido_${uid}`)) {
         setPlanElegido(true)
@@ -58,7 +61,7 @@ function AppInner() {
           })
       }
     }
-    if (!session) { setInitDone(false); setGpsPrompt(false) }
+    if (!session) { setInitDone(false); setGpsPrompt(false); setContratoAceptado(false) }
   }, [session, initDone])
 
   // GPS check para usuarios recurrentes (ya pasaron Bienvenida):
@@ -87,6 +90,11 @@ function AppInner() {
     setPrivacidadVista(true)
   }
 
+  function marcarContrato() {
+    localStorage.setItem(`contrato_${session.user.id}`, '1')
+    setContratoAceptado(true)
+  }
+
   function marcarPlanElegido() {
     localStorage.setItem(`planElegido_${session.user.id}`, '1')
     setPlanElegido(true)
@@ -98,6 +106,7 @@ function AppInner() {
   if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
   if (!disclaimerAceptado) return <Disclaimer onAceptar={marcarDisclaimer} />
   if (!privacidadVista) return <Privacidad onAceptar={marcarPrivacidad} />
+  if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
 
@@ -106,9 +115,11 @@ function AppInner() {
       verBienvenida: () => setBienvenidaVista(false),
       verTerminos: () => setDisclaimerAceptado(false),
       verPrivacidad: () => setPrivacidadVista(false),
+      verContrato: () => setContratoAceptado(false),
       bienvenidaLeida: bienvenidaVista,
       avisoLeido: disclaimerAceptado,
       privacidadLeida: privacidadVista,
+      contratoLeido: contratoAceptado,
     }}>
       <img
         src="/logo-empresa.png"
