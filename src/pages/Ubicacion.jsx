@@ -5,6 +5,7 @@ import { supabase } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { esPremium, puedeUbicacionEnVivo, UBICACIONES_TRIAL } from '../plan'
+import { useNavContext } from '../components/NavContext'
 
 /** Cada cuanto se envia la posicion mientras se comparte. */
 const INTERVALO_MS = 5000
@@ -18,6 +19,7 @@ const DURACION_MIN = 720
 
 export default function Ubicacion() {
   const { t } = useLanguage()
+  const { abrirOpciones } = useNavContext()
   const [perfil, setPerfil] = useState(null)
   // Persiste en sessionStorage para que al volver de otra pestaña el botón
   // muestre "Deja de compartir" de inmediato, sin parpadear a "Compartir"
@@ -190,7 +192,10 @@ export default function Ubicacion() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1>📍 {t('ubiTitulo')}</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1>📍 {t('ubiTitulo')}</h1>
+          <button className={styles.gear} onClick={abrirOpciones} title="Opciones">⚙️</button>
+        </div>
         <p className={styles.sub}>{t('ubiSubtitulo')}</p>
       </header>
 

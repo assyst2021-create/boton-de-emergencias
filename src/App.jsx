@@ -13,7 +13,9 @@ import GrupoFamiliar from './pages/GrupoFamiliar'
 import Ubicacion from './pages/Ubicacion'
 import ContratoServicio from './pages/ContratoServicio'
 import { AppActionsContext } from './pages/Perfil'
+import Perfil from './pages/Perfil'
 import Nav from './components/Nav'
+import { NavContext } from './components/NavContext'
 
 export default function App() {
   return <LanguageProvider><AppInner /></LanguageProvider>
@@ -110,7 +112,10 @@ function AppInner() {
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
 
+  const [mostrarPerfil, setMostrarPerfil] = useState(false)
+
   return (
+    <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
     <AppActionsContext.Provider value={{
       verBienvenida: () => setBienvenidaVista(false),
       verTerminos: () => setDisclaimerAceptado(false),
@@ -148,7 +153,9 @@ function AppInner() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
     </AppActionsContext.Provider>
+    </NavContext.Provider>
   )
 }
 

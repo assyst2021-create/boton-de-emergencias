@@ -1,12 +1,9 @@
-import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import styles from './Nav.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import Perfil from '../pages/Perfil'
 
 export default function Nav() {
   const { t } = useLanguage()
-  const [mostrarPerfil, setMostrarPerfil] = useState(false)
 
   const tabs = [
     { to: '/', label: t('navAlerta'), icon: '🆘' },
@@ -19,26 +16,23 @@ export default function Nav() {
 
   return (
     <>
-    <div className={styles.topBanda}>
-      <div className={styles.topBandaTexto}>{mensajes}{mensajes}</div>
-      <button className={styles.topGear} onClick={() => setMostrarPerfil(true)} title={t('navOpciones')}>⚙️</button>
-    </div>
-    <div className={styles.barra}>
-      <nav className={styles.nav}>
-        {tabs.map(tab => (
-          <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
-            <span className={styles.icon}>{tab.icon}</span>
-            <span className={styles.label}>{tab.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className={styles.banda}>
-        <div className={styles.bandaTexto}>{mensajes}{mensajes}</div>
+      <div className={styles.topBanda}>
+        <div className={styles.topBandaTexto}>{mensajes}{mensajes}</div>
       </div>
-    </div>
+      <div className={styles.barra}>
+        <nav className={styles.nav}>
+          {tabs.map(tab => (
+            <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
+              <span className={styles.icon}>{tab.icon}</span>
+              <span className={styles.label}>{tab.label}</span>
+            </NavLink>
+          ))}
+        </nav>
 
-    {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
+        <div className={styles.banda}>
+          <div className={styles.bandaTexto}>{mensajes}{mensajes}</div>
+        </div>
+      </div>
     </>
   )
 }

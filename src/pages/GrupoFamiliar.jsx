@@ -3,9 +3,11 @@ import { supabase } from '../supabase'
 import styles from './GrupoFamiliar.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { limiteFamiliares } from '../plan'
+import { useNavContext } from '../components/NavContext'
 
 export default function GrupoFamiliar() {
   const { t } = useLanguage()
+  const { abrirOpciones } = useNavContext()
   const [busqueda, setBusqueda] = useState('')
   const [resultado, setResultado] = useState(null)
   const [buscando, setBuscando] = useState(false)
@@ -137,6 +139,7 @@ export default function GrupoFamiliar() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>👨‍👩‍👧‍👦 {t('grupoTitulo')}</h1>
+        <button className={styles.gear} onClick={abrirOpciones} title="Opciones">⚙️</button>
       </header>
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}

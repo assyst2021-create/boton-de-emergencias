@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './Historial.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useNavContext } from '../components/NavContext'
 
 const ESTADO_COLOR = {
   red:    { emoji: '🔴', color: '#C0392B', key: 'estadoRojo' },
@@ -11,6 +12,7 @@ const ESTADO_COLOR = {
 
 export default function Historial() {
   const { t } = useLanguage()
+  const { abrirOpciones } = useNavContext()
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [dismissedIds, setDismissedIds] = useState(new Set())
@@ -87,6 +89,7 @@ export default function Historial() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>📋 {t('historialTitulo')}</h1>
+        <button className={styles.gear} onClick={abrirOpciones} title="Opciones">⚙️</button>
       </header>
 
       {cargando && <div className={styles.vacio}>{t('cargando')}</div>}

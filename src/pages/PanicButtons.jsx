@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
-import Perfil from './Perfil'
 import { useLanguage } from '../i18n/LanguageContext'
 import { puedeEnviarAlerta, alertasRestantes, esPremium } from '../plan'
+import { useNavContext } from '../components/NavContext'
 
 const BOTONES = [
   { tipo: 'red',    emoji: '🔴', tituloKey: 'btnRojoTitulo',    mensajeKey: 'btnRojoMensaje',    color: '#C0392B', colorHover: '#a93226', estado: 'EN PELIGRO' },
@@ -27,12 +27,12 @@ function conTiempoLimite(promesa, ms) {
 
 export default function PanicButtons() {
   const { t } = useLanguage()
+  const { abrirOpciones } = useNavContext()
   const [respaldo, setRespaldo] = useState(null)
   const [sinNube, setSinNube] = useState(false)
   const [user, setUser] = useState(null)
   const [familiares, setFamiliares] = useState([])
   const [confirmacion, setConfirmacion] = useState(null)
-  const [mostrarPerfil, setMostrarPerfil] = useState(false)
   const [mostrarLimite, setMostrarLimite] = useState(null)
   const [avisoPlan, setAvisoPlan] = useState(false)
   const [gps, setGps] = useState('buscando')
@@ -223,7 +223,7 @@ export default function PanicButtons() {
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
-          <button className={styles.salir} onClick={() => setMostrarPerfil(true)} title="Opciones">⚙️</button>
+          <button className={styles.salir} onClick={abrirOpciones} title="Opciones">⚙️</button>
         </div>
         {user && <div className={styles.usuario}>{t('hola')} <strong>{user.full_name}</strong></div>}
       </header>
@@ -363,7 +363,6 @@ export default function PanicButtons() {
       </div>
 
       <div className={styles.pb} />
-      {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
     </div>
   )
 }
