@@ -29,8 +29,8 @@ export default function Historial() {
           (payload) => {
             const a = payload.new
             if (!familyIdsRef.current.has(a.sender_id)) return
-            const dismissed = JSON.parse(localStorage.getItem(`dismissed_${userIdRef.current}`) || '[]')
-            if (dismissed.includes(a.id)) return
+            const dismissed = JSON.parse(localStorage.getItem(`dismissed_${userIdRef.current}`) || '{}')
+            if (dismissed[a.id]) return
             const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || 'Familiar' } }
             setAlertas(prev => [enriquecida, ...prev])
           })
@@ -44,8 +44,15 @@ export default function Historial() {
     if (!user) return {}
     userIdRef.current = user.id
 
-    const dismissed = JSON.parse(localStorage.getItem(`dismissed_${user.id}`) || '[]')
-    setDismissedIds(new Set(dismissed))
+    // Cargar descartadas y limpiar las que ya superaron 24h
+    const VEINTI_CUATRO_H = 24 * 60 * 60 * 1000
+    const ahora = Date.now()
+    const rawDismissed = JSON.parse(localStorage.getItem(`dismissed_${user.id}`) || '{}')
+    const vigentes = Object.fromEntries(
+      Object.entries(rawDismissed).filter(([, ts]) => ahora - ts < VEINTI_CUATRO_H)
+    )
+    localStorage.setItem(`dismissed_${user.id}`, JSON.stringify(vigentes))
+    setDismissedIds(new Set(Object.keys(vigentes)))
 
     const { data: links } = await supabase
       .from('family_links')
@@ -76,11 +83,15 @@ export default function Historial() {
   async function dismissAlert(id) {
     // Ocultar inmediatamente en pantalla
     setAlertas(prev => prev.filter(a => a.id !== id))
-    // Guardar en localStorage para que no reaparezca al volver a la pestaña
+    // Guardar en localStorage con timestamp para que expire en 24h automáticamente
     setDismissedIds(prev => {
       const next = new Set(prev)
       next.add(id)
-      if (userIdRef.current) localStorage.setItem(`dismissed_${userIdRef.current}`, JSON.stringify([...next]))
+      if (userIdRef.current) {
+        const raw = JSON.parse(localStorage.getItem(`dismissed_${userIdRef.current}`) || '{}')
+        raw[id] = Date.now()
+        localStorage.setItem(`dismissed_${userIdRef.current}`, JSON.stringify(raw))
+      }
       return next
     })
     // Intentar borrar de Supabase (funciona si el usuario es el sender; si no, RLS lo bloquea pero localStorage ya lo cubre)
