@@ -116,6 +116,7 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               {t('cerrarSesion')}
             </button>
+            <div className={styles.version}>Botón de Emergencias · v1.1.1</div>
           </div>
         )}
 

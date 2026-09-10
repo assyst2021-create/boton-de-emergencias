@@ -168,6 +168,16 @@
   white-space: nowrap;
 }
 
+.version {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text2);
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+  padding: 6px 0 2px;
+  user-select: none;
+}
+
 .opcionRojo {
   background: rgba(192,57,43,0.12);
   border: 1.5px solid rgba(192,57,43,0.3);
