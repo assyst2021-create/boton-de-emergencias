@@ -15,6 +15,7 @@ export default function Historial() {
   const { abrirOpciones } = useNavContext()
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [dismissedIds, setDismissedIds] = useState(new Set())
   // Cache para no volver a consultar en cada evento RT
   const familyIdsRef = useRef(new Set())
   const userIdRef = useRef(null)
@@ -28,6 +29,8 @@ export default function Historial() {
           (payload) => {
             const a = payload.new
             if (!familyIdsRef.current.has(a.sender_id)) return
+            const dismissed = JSON.parse(localStorage.getItem(`dismissed_${userIdRef.current}`) || '[]')
+            if (dismissed.includes(a.id)) return
             const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || 'Familiar' } }
             setAlertas(prev => [enriquecida, ...prev])
           })
@@ -40,6 +43,9 @@ export default function Historial() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return {}
     userIdRef.current = user.id
+
+    const dismissed = JSON.parse(localStorage.getItem(`dismissed_${user.id}`) || '[]')
+    setDismissedIds(new Set(dismissed))
 
     const { data: links } = await supabase
       .from('family_links')
@@ -68,10 +74,17 @@ export default function Historial() {
   }
 
   async function dismissAlert(id) {
-    // Eliminar del estado local inmediatamente
+    // Ocultar inmediatamente en pantalla
     setAlertas(prev => prev.filter(a => a.id !== id))
-    // Eliminar de Supabase
-    await supabase.from('alerts').delete().eq('id', id)
+    // Guardar en localStorage para que no reaparezca al volver a la pestaña
+    setDismissedIds(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      if (userIdRef.current) localStorage.setItem(`dismissed_${userIdRef.current}`, JSON.stringify([...next]))
+      return next
+    })
+    // Intentar borrar de Supabase (funciona si el usuario es el sender; si no, RLS lo bloquea pero localStorage ya lo cubre)
+    supabase.from('alerts').delete().eq('id', id)
   }
 
   return (
@@ -91,7 +104,7 @@ export default function Historial() {
       )}
 
       <div className={styles.lista}>
-        {alertas.map(a => {
+        {alertas.filter(a => !dismissedIds.has(a.id)).map(a => {
           const est = ESTADO_COLOR[a.status_type] || ESTADO_COLOR.green
           const fecha = new Date(a.sent_at)
           const hora = fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
