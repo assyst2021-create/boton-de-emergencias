@@ -53,6 +53,7 @@ export default function Login() {
   const debounceRef = useRef(null)
   const [resetEnviado, setResetEnviado] = useState(false)
   const [resetCargando, setResetCargando] = useState(false)
+  const [verPasos, setVerPasos] = useState(false)
 
   useEffect(() => {
     if (modo !== 'registro' || form.username.length < 3) { setUsernameStatus(null); return }
@@ -158,23 +159,24 @@ export default function Login() {
             ⬇️ {t('instalarApp')}
           </button>
         </div>
-      ) : esIOS ? (
-        <div className={styles.installSection}>
-          <div className={styles.installCard}>
-            <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
-            <ol className={styles.installSteps}>
-              <li>{t('instalarIosPaso1')}</li>
-              <li>{t('instalarIosPaso2')}</li>
-              <li>{t('instalarIosPaso3')}</li>
-            </ol>
-          </div>
-        </div>
       ) : (
         <div className={styles.installSection}>
-          <div className={styles.installCard}>
-            <p className={styles.installCardTitle}>📲 {t('instalarApp')}</p>
-            <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
-          </div>
+          <button className={styles.installBtn} onClick={() => setVerPasos(v => !v)}>
+            ⬇️ {t('instalarApp')}
+          </button>
+          {verPasos && (
+            <div className={styles.installCard}>
+              {esIOS ? (
+                <ol className={styles.installSteps}>
+                  <li>{t('instalarIosPaso1')}</li>
+                  <li>{t('instalarIosPaso2')}</li>
+                  <li>{t('instalarIosPaso3')}</li>
+                </ol>
+              ) : (
+                <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
