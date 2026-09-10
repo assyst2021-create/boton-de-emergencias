@@ -194,7 +194,7 @@
     // ElegirPlan
     planTitulo: 'Elige tu plan', planSub: 'Protege a tu familia desde hoy',
     planTrialGratis: 'Gratis', planTrialNombre: 'PLAN GRATIS',
-    planTrialF1: '1 familiar vinculado', planTrialF2: '1 envío de prueba',
+    planTrialF1: '1 familiar vinculado', planTrialF2: '2 envíos de prueba',
     planTrialF3: 'SMS + WhatsApp + push', planTrialF4: '',
     planEmpezarGratis: 'Continuar gratis', planGuardando: 'Guardando...',
     planPremiumBadge: '$49.000 COP · Pago único', planPremiumNombre: 'PLAN PREMIUM 👑',
@@ -401,7 +401,7 @@
     // ElegirPlan
     planTitulo: 'Choose your plan', planSub: 'Protect your family today',
     planTrialGratis: 'Free', planTrialNombre: 'FREE PLAN',
-    planTrialF1: '1 linked family member', planTrialF2: '1 trial alert send',
+    planTrialF1: '1 linked family member', planTrialF2: '2 trial alert sends',
     planTrialF3: 'SMS + WhatsApp + push', planTrialF4: '',
     planEmpezarGratis: 'Continue free', planGuardando: 'Saving...',
     planPremiumBadge: '$49,000 COP · One-time payment', planPremiumNombre: 'PREMIUM PLAN 👑',
@@ -608,7 +608,7 @@
     // ElegirPlan
     planTitulo: 'Escolha seu plano', planSub: 'Proteja sua família hoje',
     planTrialGratis: 'Grátis', planTrialNombre: 'PLANO GRÁTIS',
-    planTrialF1: '1 familiar vinculado', planTrialF2: '1 envio de teste',
+    planTrialF1: '1 familiar vinculado', planTrialF2: '2 envios de teste',
     planTrialF3: 'SMS + WhatsApp + push', planTrialF4: '',
     planEmpezarGratis: 'Continuar grátis', planGuardando: 'Salvando...',
     planPremiumBadge: '$49.000 COP · Pagamento único', planPremiumNombre: 'PLANO PREMIUM 👑',
