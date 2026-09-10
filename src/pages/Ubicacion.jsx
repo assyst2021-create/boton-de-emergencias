@@ -327,8 +327,8 @@ function Mapa({ yo, familiares, enfocado, t }) {
     initMap.current = true
     const map = L.map(node, { zoomControl: false, attributionControl: false })
       .setView([4.711, -74.072], 13)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd', maxZoom: 20,
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      subdomains: 'abc', maxZoom: 19,
     }).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     mapRef.current = map
