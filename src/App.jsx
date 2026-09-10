@@ -30,6 +30,7 @@ function AppInner() {
   const [contratoAceptado, setContratoAceptado] = useState(false)
   const [initDone, setInitDone] = useState(false)
   const [gpsPrompt, setGpsPrompt] = useState(false)
+  const [mostrarPerfil, setMostrarPerfil] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -111,8 +112,6 @@ function AppInner() {
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
-
-  const [mostrarPerfil, setMostrarPerfil] = useState(false)
 
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
