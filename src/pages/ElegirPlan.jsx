@@ -44,7 +44,9 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planTrialF1')}</li>
             <li>{t('planTrialF2')}</li>
             <li>{t('planTrialF3')}</li>
-            {t('planTrialF4') && <li>{t('planTrialF4')}</li>}
+            <li>{t('planTrialF4')}</li>
+            <li>{t('planTrialF5')}</li>
+            <li>{t('planTrialF6')}</li>
           </ul>
           <button className={styles.btnTrial} onClick={elegirTrial} disabled={cargando}>
             {cargando ? t('planGuardando') : t('planEmpezarGratis')}
@@ -60,6 +62,8 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planPremiumF2')}</li>
             <li>{t('planPremiumF3')}</li>
             <li>{t('planPremiumF4')}</li>
+            <li>{t('planPremiumF5')}</li>
+            <li>{t('planPremiumF6')}</li>
           </ul>
           <button className={styles.btnPremium} onClick={elegirPremium}>
             {t('planActivarPremium')}
