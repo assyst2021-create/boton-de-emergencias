@@ -192,7 +192,7 @@
     waIndividual: 'WhatsApp: enviar a un familiar',
     sinConexionNube: 'Sin conexión: no se guardó en el historial. Envía el mensaje abajo.',
     cerrar: 'Cerrar',
-    navAlerta: 'Alerta', navHistorial: 'Historial', navFamilia: 'Familia', navPerfil: 'Perfil',
+    navAlerta: 'Alerta', navHistorial: 'Historial', navFamilia: 'Familia', navPerfil: 'Perfil', navOpciones: 'Opciones',
     // ElegirPlan
     planTitulo: 'Elige tu plan', planSub: 'Protege a tu familia desde hoy',
     planTrialGratis: 'Gratis', planTrialNombre: '🎁 Paquete de Prueba',
@@ -423,7 +423,7 @@
     waIndividual: 'WhatsApp: send to one family member',
     sinConexionNube: 'No connection: not saved to history. Send the message below.',
     cerrar: 'Close',
-    navAlerta: 'Alert', navHistorial: 'History', navFamilia: 'Family', navPerfil: 'Settings',
+    navAlerta: 'Alert', navHistorial: 'History', navFamilia: 'Family', navPerfil: 'Settings', navOpciones: 'Settings',
     // ElegirPlan
     planTitulo: 'Choose your plan', planSub: 'Protect your family today',
     planTrialGratis: 'Free', planTrialNombre: '🎁 Trial Package',
@@ -651,7 +651,7 @@
     waIndividual: 'WhatsApp: enviar a um familiar',
     sinConexionNube: 'Sem conexão: não foi salvo no histórico. Envie a mensagem abaixo.',
     cerrar: 'Fechar',
-    navAlerta: 'Alerta', navHistorial: 'Histórico', navFamilia: 'Família', navPerfil: 'Perfil',
+    navAlerta: 'Alerta', navHistorial: 'Histórico', navFamilia: 'Família', navPerfil: 'Perfil', navOpciones: 'Opções',
     // ElegirPlan
     planTitulo: 'Escolha seu plano', planSub: 'Proteja sua família hoje',
     planTrialGratis: 'Grátis', planTrialNombre: '🎁 Pacote de Teste',

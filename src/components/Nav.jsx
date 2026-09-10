@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import styles from './Nav.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
+import Perfil from '../pages/Perfil'
 
 export default function Nav() {
   const { t } = useLanguage()
+  const [mostrarPerfil, setMostrarPerfil] = useState(false)
 
   const tabs = [
     { to: '/', label: t('navAlerta'), icon: '🆘' },
@@ -27,14 +30,18 @@ export default function Nav() {
             <span className={styles.label}>{tab.label}</span>
           </NavLink>
         ))}
+        <button className={styles.tab} onClick={() => setMostrarPerfil(true)}>
+          <span className={styles.icon}>⚙️</span>
+          <span className={styles.label}>{t('navOpciones')}</span>
+        </button>
       </nav>
 
-      {/* Va bajo el menu: ocupa la franja donde el telefono pone sus botones,
-          asi el contenido de arriba sube y no queda tapado. */}
       <div className={styles.banda}>
         <div className={styles.bandaTexto}>{mensajes}{mensajes}</div>
       </div>
     </div>
+
+    {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
     </>
   )
 }
