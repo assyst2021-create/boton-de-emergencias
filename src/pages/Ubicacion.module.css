@@ -18,7 +18,7 @@
   cursor: pointer;
 }
 
-.header { padding: 20px 4px 4px; display: flex; align-items: center; }
+.header { padding: 20px 4px 4px; }
 .header h1 { font-size: 1.1rem; font-weight: 800; }
 .sub { font-size: 0.8rem; color: var(--text2); margin-top: 2px; }
 
