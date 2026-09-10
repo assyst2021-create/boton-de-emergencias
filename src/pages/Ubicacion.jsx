@@ -180,9 +180,9 @@ export default function Ubicacion() {
   /** Corta el seguimiento de verdad. Solo lo llama el boton de detener. */
   async function detener() {
     soltarTemporizadores()
+    setCompartiendo(false)  // actualizar UI al instante
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) await supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
-    setCompartiendo(false)
+    if (user) supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
   }
 
   const premium = esPremium(perfil)
