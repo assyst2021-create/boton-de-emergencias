@@ -14,6 +14,7 @@ export default function GrupoFamiliar() {
   const [mensaje, setMensaje] = useState('')
   const [userId, setUserId] = useState(null)
   const [mostrarUpgrade, setMostrarUpgrade] = useState(false)
+  const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
     init()
@@ -24,6 +25,7 @@ export default function GrupoFamiliar() {
     if (!user) return
     setUserId(user.id)
     await Promise.all([cargarVinculados(user.id), cargarSolicitudes(user.id)])
+    setCargando(false)
   }
 
   async function cargarVinculados(uid) {
@@ -48,12 +50,24 @@ export default function GrupoFamiliar() {
     if (!busqueda.trim()) return
     setBuscando(true)
     setResultado(null)
-    const { data } = await supabase
+    // Primero busca exacto, luego parcial si no encuentra
+    const termino = busqueda.toLowerCase().trim()
+    let { data } = await supabase
       .from('users')
       .select('id, full_name, username')
-      .eq('username', busqueda.toLowerCase().trim())
+      .eq('username', termino)
       .neq('id', userId)
-      .single()
+      .maybeSingle()
+    if (!data) {
+      const { data: parcial } = await supabase
+        .from('users')
+        .select('id, full_name, username')
+        .ilike('username', `%${termino}%`)
+        .neq('id', userId)
+        .limit(1)
+        .maybeSingle()
+      data = parcial
+    }
     setResultado(data || false)
     setBuscando(false)
   }
@@ -193,7 +207,8 @@ export default function GrupoFamiliar() {
 
       <section className={styles.seccion}>
         <h2>{t('misVinculados')} ({vinculados.length})</h2>
-        {vinculados.length === 0 && (
+        {cargando && <p className={styles.noEncontrado}>{t('cargando')}</p>}
+        {!cargando && vinculados.length === 0 && (
           <p className={styles.noEncontrado}>{t('sinVinculados')}</p>
         )}
         {vinculados.map(v => (

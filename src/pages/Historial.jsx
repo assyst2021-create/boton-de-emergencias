@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './Historial.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -15,18 +15,34 @@ export default function Historial() {
   const [cargando, setCargando] = useState(true)
   const [dismissedIds, setDismissedIds] = useState(new Set())
   const [userId, setUserId] = useState(null)
+  // Cache para no volver a consultar en cada evento RT
+  const familyIdsRef = useRef(new Set())
+  const userIdRef = useRef(null)
+  const nombresRef = useRef({})
 
   useEffect(() => {
-    cargar()
-    const canal = supabase.channel('alertas-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, cargar)
-      .subscribe()
-    return () => supabase.removeChannel(canal)
+    let canal
+    cargar().then(({ uid, ids, nombres }) => {
+      canal = supabase.channel('alertas-rt')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' },
+          (payload) => {
+            const a = payload.new
+            if (!familyIdsRef.current.has(a.sender_id)) return
+            const dismissed = JSON.parse(localStorage.getItem(`dismissed_alerts_${userIdRef.current}`) || '[]')
+            if (dismissed.includes(a.id)) return
+            // Añadir directamente al estado — sin re-fetch
+            const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || 'Familiar' } }
+            setAlertas(prev => [enriquecida, ...prev])
+          })
+        .subscribe()
+    })
+    return () => { if (canal) supabase.removeChannel(canal) }
   }, [])
 
   async function cargar() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return {}
+    userIdRef.current = user.id
     setUserId(user.id)
 
     const dismissed = JSON.parse(localStorage.getItem(`dismissed_alerts_${user.id}`) || '[]')
@@ -34,12 +50,17 @@ export default function Historial() {
 
     const { data: links } = await supabase
       .from('family_links')
-      .select('linked_user_id')
+      .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name)')
       .eq('user_id', user.id)
       .eq('status', 'accepted')
 
     const ids = (links || []).map(l => l.linked_user_id)
-    if (ids.length === 0) { setAlertas([]); setCargando(false); return }
+    const nombres = {}
+    ;(links || []).forEach(l => { nombres[l.linked_user_id] = l.users?.full_name })
+    familyIdsRef.current = new Set(ids)
+    nombresRef.current = nombres
+
+    if (ids.length === 0) { setAlertas([]); setCargando(false); return { uid: user.id, ids, nombres } }
 
     const { data } = await supabase
       .from('alerts')
@@ -50,6 +71,7 @@ export default function Historial() {
 
     setAlertas(data || [])
     setCargando(false)
+    return { uid: user.id, ids, nombres }
   }
 
   function dismissAlert(id) {
