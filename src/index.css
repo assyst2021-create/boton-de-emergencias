@@ -1,6 +1,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; text-decoration: none !important; }
 a { color: inherit; }
 
+@keyframes paginaEntrada {
+  0%   { transform: scale(0.96); opacity: 0.6; }
+  60%  { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.pagina-entrada {
+  animation: paginaEntrada 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 :root {
   --rojo: #C0392B;
   --rojo-hover: #a93226;

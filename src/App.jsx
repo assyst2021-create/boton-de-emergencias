@@ -183,13 +183,15 @@ function SwipeRouter() {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <Routes>
-        <Route path="/" element={<><PanicButtons /><Nav /></>} />
-        <Route path="/historial" element={<><Historial /><Nav /></>} />
-        <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
-        <Route path="/ubicacion" element={<><Ubicacion /><Nav /></>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div key={location.pathname} className="pagina-entrada">
+        <Routes>
+          <Route path="/" element={<><PanicButtons /><Nav /></>} />
+          <Route path="/historial" element={<><Historial /><Nav /></>} />
+          <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
+          <Route path="/ubicacion" element={<><Ubicacion /><Nav /></>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
     </div>
   )
 }
