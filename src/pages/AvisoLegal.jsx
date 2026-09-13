@@ -212,7 +212,7 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
             <li>Permite el acceso a la ubicación cuando la aplicación lo solicite.</li>
             <li>Registra correctamente tus datos.</li>
             <li>Vincula únicamente a familiares o contactos de confianza.</li>
-            <li>Mantén activos el GPS, una señal o conexión mínima y los permisos necesarios.</li>
+            <li>Mantén activo el GPS, una señal o conexión mínima y los permisos necesarios.</li>
           </ul>
 
           <p className={aStyles.bienvenidaAviso}>

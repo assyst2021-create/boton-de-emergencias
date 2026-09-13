@@ -80,8 +80,9 @@
   font-weight: 800;
   color: var(--text);
   margin: 0;
-  align-self: flex-start;
+  width: 100%;
   max-width: 560px;
+  text-align: left;
 }
 
 /* Contenedor exterior con scroll */
