@@ -39,16 +39,24 @@ export default function Ubicacion() {
 
   useEffect(() => {
     init()
+
+    // Al volver al tab, recargar por si el WebSocket estuvo pausado
+    const uidRef = { current: null }
+    supabase.auth.getUser().then(({ data: { user } }) => { uidRef.current = user?.id })
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && uidRef.current) {
+        cargarFamiliares(uidRef.current)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
-      // Al desmontar solo se sueltan los temporizadores: NO se marca como
-      // inactiva. Cambiar de pestana o recargar no debe cortar el
-      // seguimiento; solo lo corta el boton de detener.
       soltarTemporizadores()
-      // El canal si hay que cerrarlo, o se acumula uno por cada visita.
       if (canalRef.current) {
         supabase.removeChannel(canalRef.current)
         canalRef.current = null
       }
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [])
 

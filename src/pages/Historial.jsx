@@ -24,7 +24,7 @@ export default function Historial() {
 
   useEffect(() => {
     let canal
-    cargar().then(({ ids, nombres }) => {
+    cargar().then(() => {
       canal = supabase.channel('alertas-rt')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' },
           (payload) => {
@@ -37,7 +37,16 @@ export default function Historial() {
           })
         .subscribe()
     })
-    return () => { if (canal) supabase.removeChannel(canal) }
+
+    // Al volver al tab o desbloquear el teléfono, recargar por si el WebSocket
+    // estuvo pausado (el navegador suspende las conexiones en segundo plano)
+    const onVisible = () => { if (document.visibilityState === 'visible') cargar() }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      if (canal) supabase.removeChannel(canal)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   async function cargar() {
