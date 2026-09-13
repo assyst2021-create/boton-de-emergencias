@@ -13,20 +13,23 @@ export async function suscribirPush(supabase, userId) {
 
   try {
     const registro = await navigator.serviceWorker.ready
-    let sub = await registro.pushManager.getSubscription()
-    if (!sub) {
-      sub = await registro.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
-      })
-    }
+    // Cancelar suscripción vieja si existe (puede tener VAPID key diferente)
+    const subVieja = await registro.pushManager.getSubscription()
+    if (subVieja) await subVieja.unsubscribe()
+
+    const sub = await registro.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
+    })
     const json = sub.toJSON()
-    await supabase.from('push_subscriptions').upsert({
+    const { error } = await supabase.from('push_subscriptions').upsert({
       user_id: userId,
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
     }, { onConflict: 'user_id,endpoint' })
+    if (error) console.warn('[push] error guardando suscripción:', error)
+    else console.log('[push] suscripción guardada OK')
     return sub
   } catch (e) {
     console.warn('[push] no se pudo suscribir:', e)
