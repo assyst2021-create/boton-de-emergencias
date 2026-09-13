@@ -64,10 +64,10 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   width: 100%;
   max-width: 420px;
@@ -84,9 +84,9 @@
   flex: 1;
   padding: 14px;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 800;
   background: none;
-  color: #1a1a2e;
+  color: #000000;
   transition: all 0.2s;
 }
 
@@ -110,8 +110,8 @@
 
 .field label {
   font-size: 0.85rem;
-  font-weight: 700;
-  color: #1a1a2e;
+  font-weight: 900;
+  color: #000000;
 }
 
 .error {
@@ -261,8 +261,9 @@
 .resetLink {
   background: none;
   border: none;
-  color: #1a1a2e;
+  color: #000000;
   font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
@@ -297,8 +298,9 @@
 /* Inputs dentro del login con fondo semi-transparente y texto negro */
 .form input,
 .form select {
-  background: rgba(255,255,255,0.25);
-  border-color: rgba(255,255,255,0.35);
-  color: #1a1a2e;
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.25);
+  color: #000000;
+  font-weight: 700;
 }
-.form input::placeholder { color: rgba(0,0,0,0.45); }
+.form input::placeholder { color: rgba(0,0,0,0.55); font-weight: 600; }
