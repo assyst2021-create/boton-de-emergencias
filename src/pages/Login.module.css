@@ -7,8 +7,8 @@
   padding: 40px 20px;
   gap: 20px;
   background-image: url('/bg-familia.jpg.png');
-  background-size: 200%;
-  background-position: center -10%;
+  background-size: cover;
+  background-position: center -80px;
   background-repeat: no-repeat;
 }
 
