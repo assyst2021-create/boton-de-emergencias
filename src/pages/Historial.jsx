@@ -151,7 +151,7 @@ export default function Historial() {
                     rel="noreferrer"
                     className={styles.mapsBtn}
                   >
-                    📍 {t('verMapa')}
+                    {t('verMapa')}
                   </a>
                 ) : (
                   <span className={styles.sinUbicacion}>📍 Sin ubicación</span>
