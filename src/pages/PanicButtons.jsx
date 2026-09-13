@@ -161,18 +161,20 @@ export default function PanicButtons() {
     return new Promise(resolve => {
       if (!navigator.geolocation) return resolve(posRef.current)
       if (posRef.current) {
-        // Tenemos posición en caché, intentar refrescar con timeout corto
+        // Tenemos posición en caché — usarla de inmediato y refrescar en segundo plano
+        const cached = posRef.current
         navigator.geolocation.getCurrentPosition(
-          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
-          () => resolve(posRef.current),
-          { timeout: 4000, maximumAge: 30000 }
+          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } },
+          () => {},
+          { timeout: 5000, maximumAge: 30000 }
         )
+        resolve(cached)
       } else {
-        // Sin posición en caché, esperar hasta 6s
+        // Sin posición — aceptar caché del sistema hasta 5 min o esperar 8s
         navigator.geolocation.getCurrentPosition(
           p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
           () => resolve(null),
-          { timeout: 6000, maximumAge: 60000 }
+          { timeout: 8000, maximumAge: 300000, enableHighAccuracy: false }
         )
       }
     })
