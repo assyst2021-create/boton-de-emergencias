@@ -426,8 +426,9 @@ export default function PanicButtons() {
             {/* Sin paso de confirmacion: un solo toque abre Mensajes. */}
             <button
               className={styles.panico}
-              style={{ background: b.color, '--hover': b.colorHover }}
+              style={{ background: b.color, '--hover': b.colorHover, opacity: gps === 'listo' ? 1 : 0.55 }}
               onClick={() => pulsarBoton(b)}
+              title={gps !== 'listo' ? 'Esperando GPS...' : ''}
             >
               <span className={styles.btnEmoji}>{b.emoji}</span>
               <span className={styles.btnTitulo}>{t(b.tituloKey)}</span>
