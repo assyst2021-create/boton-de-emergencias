@@ -107,8 +107,7 @@ export default function Disclaimer({ onAceptar }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.scroll} onScroll={alHacerScroll}>
-        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
-        <div className={styles.emoji}>⚠️</div>
+        <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoHeader} />
         <h1 className={styles.titulo}>Términos de Uso</h1>
         <p className={styles.subtitulo}>Botón de Emergencia · Desarrollado por ASSYST</p>
 

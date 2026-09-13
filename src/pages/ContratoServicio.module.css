@@ -1,19 +1,32 @@
 .wrap {
   min-height: 100dvh;
   background: var(--bg);
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Banda blanca que cubre el área del status bar del iPhone */
+.wrap::before {
+  content: '';
+  display: block;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
 }
 
 .scroll {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 20px 48px;
+  padding: 24px 20px calc(48px + env(safe-area-inset-bottom, 0px));
   gap: 16px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
+}
+
+.logoHeader {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin-bottom: 4px;
 }
 
 .planBloque {

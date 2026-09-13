@@ -1,8 +1,13 @@
 .wrap {
   min-height: 100dvh;
   background: var(--bg);
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.wrap::before {
+  content: '';
+  display: block;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
 }
 
 .scroll {
@@ -25,6 +30,13 @@
   object-fit: contain;
   opacity: 0.8;
   mix-blend-mode: multiply;
+}
+
+.logoHeader {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin-bottom: 4px;
 }
 
 .emoji {
