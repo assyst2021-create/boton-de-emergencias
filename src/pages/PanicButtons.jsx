@@ -56,7 +56,15 @@ export default function PanicButtons() {
   }
 
   useEffect(() => {
-    cargarDatos()
+    let canal = null
+    cargarDatos().then(uid => {
+      if (!uid) return
+      // Suscripción en tiempo real: cuando cambian los familiares vinculados, recargar
+      canal = supabase
+        .channel('family_links_rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'family_links', filter: `user_id=eq.${uid}` }, () => cargarDatos())
+        .subscribe()
+    })
     verificarAlertasAuto()
     const intervalo = setInterval(verificarAlertasAuto, 60000)
     if (!navigator.geolocation) { setGps('sin-soporte'); return }
@@ -65,7 +73,7 @@ export default function PanicButtons() {
       try {
         const perm = await navigator.permissions.query({ name: 'geolocation' })
         if (perm.state === 'denied') { setGps('denegado'); return }
-        if (perm.state === 'prompt') { setGps('sin-permiso'); return }
+        // 'prompt' o 'granted': iniciamos watch; el navegador pedirá permiso si hace falta
       } catch (_) { /* API no disponible, proceder normalmente */ }
       iniciarWatch()
     }
@@ -73,6 +81,7 @@ export default function PanicButtons() {
 
     return () => {
       clearInterval(intervalo)
+      if (canal) supabase.removeChannel(canal)
       if (vigilanteRef.current !== null) {
         navigator.geolocation.clearWatch(vigilanteRef.current)
         vigilanteRef.current = null
@@ -82,7 +91,7 @@ export default function PanicButtons() {
 
   async function cargarDatos() {
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    if (!authUser) return
+    if (!authUser) return null
     const { data: perfil } = await supabase.from('users').select('*').eq('id', authUser.id).single()
     setUser(perfil)
     if (!esPremium(perfil) && !localStorage.getItem(`trialAviso_${authUser.id}`)) {
@@ -95,6 +104,7 @@ export default function PanicButtons() {
       .eq('user_id', authUser.id)
       .eq('status', 'accepted')
     setFamiliares(links || [])
+    return authUser.id
   }
 
   /** Arma el texto del SMS. Sin emoji ni guion largo: encarecen el envio. */
@@ -307,14 +317,9 @@ export default function PanicButtons() {
 
       <div className={gps === 'listo' ? styles.gpsOk : styles.gpsMal}>
         {gps === 'listo' && `📍 ${t('gpsListo')}`}
-        {gps === 'buscando' && `⏳ ${t('gpsBuscando')}`}
+        {(gps === 'buscando' || gps === 'sin-permiso') && `⏳ ${t('gpsBuscando')}`}
         {gps === 'denegado' && `⚠️ ${t('gpsDenegado')}`}
         {(gps === 'error' || gps === 'sin-soporte') && `⚠️ ${t('gpsError')}`}
-        {gps === 'sin-permiso' && (
-          <button className={styles.gpsPermBtn} onClick={() => { setGps('buscando'); iniciarWatch() }}>
-            📍 {t('activarGps')}
-          </button>
-        )}
       </div>
 
       {user && !esPremium(user) && familiares.length > 0 && (
