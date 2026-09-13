@@ -235,7 +235,7 @@
 
 .hint {
   font-size: 0.78rem;
-  color: #7d3a00;
+  color: #ffffff;
   background: rgba(230,126,34,0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -243,7 +243,8 @@
   border-radius: 7px;
   padding: 8px 12px;
   line-height: 1.5;
-  font-weight: 700;
+  font-weight: 800;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.4);
 }
 
 .installBox {
