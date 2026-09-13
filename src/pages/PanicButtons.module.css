@@ -20,8 +20,10 @@
   -webkit-backdrop-filter: var(--card-blur);
 }
 
-.avisoPlanTexto strong { font-size: 0.9rem; color: var(--text); display: block; margin-bottom: 4px; }
+.avisoPlanTexto strong { font-size: 0.9rem; color: var(--text); display: block; margin-bottom: 8px; }
 .avisoPlanTexto p { font-size: 0.82rem; color: var(--text2); line-height: 1.5; margin: 0; }
+.avisoPlanLista { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.avisoPlanLista li { font-size: 0.82rem; color: var(--text2); line-height: 1.45; }
 
 .avisoPlanCerrar {
   background: #e6a817;

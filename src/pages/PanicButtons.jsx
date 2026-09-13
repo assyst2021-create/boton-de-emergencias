@@ -241,8 +241,15 @@ export default function PanicButtons() {
       {avisoPlan && user && !esPremium(user) && (
         <div className={styles.avisoPlan}>
           <div className={styles.avisoPlanTexto}>
-            <strong>🎉 ¡Bienvenido al Plan de Prueba!</strong>
-            <p>Tienes: <strong>2 alertas</strong> · <strong>1 familiar</strong> · <strong>2 sesiones en vivo</strong>. Cuando se agoten, activa el Plan Premium con renovación anual.</p>
+            <strong>{t('planTrialNombre')}</strong>
+            <ul className={styles.avisoPlanLista}>
+              <li>{t('planTrialF1')}</li>
+              <li>{t('planTrialF2')}</li>
+              <li>{t('planTrialF3')}</li>
+              <li>{t('planTrialF4')}</li>
+              <li>{t('planTrialF5')}</li>
+              <li>{t('planTrialF6')}</li>
+            </ul>
           </div>
           <button
             className={styles.avisoPlanCerrar}
