@@ -171,19 +171,22 @@
 }
 
 .paisSelect {
-  background: var(--bg2);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.80);
+  border: 1.5px solid rgba(255,255,255,0.5);
   border-radius: 10px;
-  color: var(--text);
-  font-size: 1rem;
-  padding: 10px 8px;
-  min-width: 90px;
+  color: #1a1a2e;
+  font-size: 0.85rem;
+  padding: 10px 6px;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .telInput {
   flex: 1;
+  min-width: 0;
 }
 
 .passwordWrap {
