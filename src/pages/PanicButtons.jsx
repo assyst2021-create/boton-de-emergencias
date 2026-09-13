@@ -241,7 +241,7 @@ export default function PanicButtons() {
       {avisoPlan && user && !esPremium(user) && (
         <div className={styles.avisoPlan}>
           <div className={styles.avisoPlanTexto}>
-            <strong>{t('planTrialNombre')}</strong>
+            <strong>🎉 ¡Bienvenido al {t('planTrialNombre')}!</strong>
             <ul className={styles.avisoPlanLista}>
               <li>{t('planTrialF1')}</li>
               <li>{t('planTrialF2')}</li>
