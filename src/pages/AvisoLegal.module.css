@@ -1,3 +1,89 @@
+/* ── Sección bienvenida ── */
+.bienvenidaTitulo {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--text);
+  text-align: center;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.bienvenidaSub {
+  font-size: 0.88rem;
+  color: var(--text2);
+  text-align: center;
+  margin: 0;
+  max-width: 420px;
+}
+
+.bienvenidaCaja {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bienvenidaTexto {
+  font-size: 0.87rem;
+  color: var(--text2);
+  margin: 0;
+  line-height: 1.55;
+}
+
+.bienvenidaSubtitulo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.bienvenidaLista {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bienvenidaLista li {
+  font-size: 0.83rem;
+  color: var(--text2);
+  line-height: 1.5;
+}
+
+.bienvenidaAviso {
+  font-size: 0.8rem;
+  color: var(--text2);
+  background: rgba(231, 76, 60, 0.08);
+  border-left: 3px solid rgba(231, 76, 60, 0.5);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.separador {
+  width: 100%;
+  max-width: 560px;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.instruccionTitulo {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+  align-self: flex-start;
+  max-width: 560px;
+}
+
 /* Contenedor exterior con scroll */
 .outerScroll {
   width: 100%;

@@ -84,8 +84,11 @@ function AppInner() {
   }
 
   function marcarAvisoLegal() {
-    localStorage.setItem(`aviso_${session.user.id}`, '1')
+    const uid = session.user.id
+    localStorage.setItem(`aviso_${uid}`, '1')
+    localStorage.setItem(`bienvenida_${uid}`, '1')
     setAvisoLegalAceptado(true)
+    setBienvenidaVista(true)
   }
 
   function marcarContrato() {
@@ -101,8 +104,7 @@ function AppInner() {
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
   if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
-  if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
-  if (!avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
+  if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />

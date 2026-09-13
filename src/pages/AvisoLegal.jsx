@@ -187,11 +187,41 @@ export default function AvisoLegal({ onAceptar }) {
     <div className={styles.wrap}>
       <div className={aStyles.outerScroll}>
         <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
-        <div className={styles.emoji}>📄</div>
-        <h1 className={styles.titulo}>Documentos legales</h1>
-        <p className={styles.subtitulo}>ASSYST · Botón de Emergencia</p>
+        <div className={styles.emoji}>🚨</div>
+        <h1 className={aStyles.bienvenidaTitulo}>¡Bienvenido a<br />Botón de Emergencia!</h1>
+        <p className={aStyles.bienvenidaSub}>Tu seguridad y la de quienes quieres, ahora están más conectadas.</p>
+
+        <div className={aStyles.bienvenidaCaja}>
+          <p className={aStyles.bienvenidaTexto}>
+            El Botón de Emergencia es una herramienta creada por ASSYST para ayudarte a comunicar una situación de emergencia a tus familiares o contactos vinculados.
+          </p>
+
+          <p className={aStyles.bienvenidaSubtitulo}>Con tu suscripción podrás:</p>
+          <ul className={aStyles.bienvenidaLista}>
+            <li>Activar una alerta de emergencia.</li>
+            <li>Compartir la ubicación GPS obtenida en el momento en que actives una alerta.</li>
+            <li>Mantener conectados a tus familiares o contactos de confianza.</li>
+            <li>Utilizar las funciones de comunicación disponibles en la aplicación.</li>
+            <li>Contar con mantenimiento y actualizaciones durante tu año de suscripción.</li>
+          </ul>
+
+          <p className={aStyles.bienvenidaSubtitulo}>Antes de comenzar:</p>
+          <ul className={aStyles.bienvenidaLista}>
+            <li>Permite el acceso a la ubicación cuando la aplicación lo solicite.</li>
+            <li>Registra correctamente tus datos.</li>
+            <li>Vincula únicamente a familiares o contactos de confianza.</li>
+            <li>Mantén activos el GPS, una señal o conexión mínima y los permisos necesarios.</li>
+          </ul>
+
+          <p className={aStyles.bienvenidaAviso}>
+            ⚠️ La aplicación requiere que el celular cuente con señal o conectividad mínima para poder enviar una alerta. Si no hay cobertura o la señal es insuficiente, la alerta puede no enviarse o presentar demora.
+          </p>
+        </div>
+
+        <div className={aStyles.separador} />
+        <p className={aStyles.instruccionTitulo}>📋 Documentos legales</p>
         <p className={aStyles.instruccion}>
-          Abre cada documento, léelo completo y marca la casilla para aceptarlo.
+          Abre cada documento, léelo completo y el check se habilitará automáticamente. Cuando hayas aceptado los cuatro, podrás continuar.
         </p>
 
         <div className={aStyles.lista}>
