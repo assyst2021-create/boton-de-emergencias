@@ -68,13 +68,13 @@ function AppInner() {
     if (!session) { setInitDone(false); setGpsPrompt(false); setContratoAceptado(false); setAvisoLegalAceptado(false) }
   }, [session, initDone])
 
-  // GPS check para usuarios recurrentes (ya pasaron Bienvenida):
-  // 'granted' -> nada; 'denied' -> pantalla de desbloqueo; 'prompt' -> pedir permiso de nuevo
+  // GPS check: solo interrumpe si el usuario bloqueó explícitamente ('denied').
+  // 'prompt' significa que el navegador aún no tiene decisión persistida;
+  // en ese caso dejamos pasar y el permiso se pedirá cuando se active una alerta.
   useEffect(() => {
     if (initDone && bienvenidaVista && avisoLegalAceptado) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
-        if (result.state === 'granted') setGpsPrompt(false)
-        else setGpsPrompt(result.state) // 'denied' | 'prompt'
+        setGpsPrompt(result.state === 'denied' ? 'denied' : false)
       }).catch(() => setGpsPrompt(false))
     }
   }, [initDone, bienvenidaVista, avisoLegalAceptado])
@@ -109,7 +109,6 @@ function AppInner() {
   if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
-  if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
