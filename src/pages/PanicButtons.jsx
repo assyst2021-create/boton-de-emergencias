@@ -138,7 +138,16 @@ export default function PanicButtons() {
 
     if (numeros.length > 0) {
       setRespaldo({ numeros, cuerpo, contactos: familiares })
-      window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
+      if (ES_IOS && numeros.length > 1) {
+        // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
+        numeros.forEach((n, i) => {
+          setTimeout(() => {
+            window.location.href = `sms:${n}&body=${encodeURIComponent(cuerpo)}`
+          }, i * 1200)
+        })
+      } else {
+        window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
+      }
     } else {
       setRespaldo(null)
       setTimeout(() => setConfirmacion(null), 5000)
