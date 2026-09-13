@@ -28,6 +28,7 @@ function AppInner() {
   const [contratoAceptado, setContratoAceptado] = useState(false)
   const [initDone, setInitDone] = useState(false)
   const [gpsPrompt, setGpsPrompt] = useState(false)
+  const [notifPrompt, setNotifPrompt] = useState(false)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
   const [soloVerLegal, setSoloVerLegal] = useState(false)
 
@@ -68,14 +69,16 @@ function AppInner() {
     if (!session) { setInitDone(false); setGpsPrompt(false); setContratoAceptado(false); setAvisoLegalAceptado(false) }
   }, [session, initDone])
 
-  // GPS check: solo interrumpe si el usuario bloqueó explícitamente ('denied').
-  // 'prompt' significa que el navegador aún no tiene decisión persistida;
-  // en ese caso dejamos pasar y el permiso se pedirá cuando se active una alerta.
   useEffect(() => {
     if (initDone && bienvenidaVista && avisoLegalAceptado) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         setGpsPrompt(result.state === 'denied' ? 'denied' : false)
       }).catch(() => setGpsPrompt(false))
+
+      // Notificaciones: mostrar pantalla si aún no se ha dado permiso
+      if ('Notification' in window && Notification.permission === 'default') {
+        setNotifPrompt(true)
+      }
     }
   }, [initDone, bienvenidaVista, avisoLegalAceptado])
 
@@ -109,6 +112,7 @@ function AppInner() {
   if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
+  if (notifPrompt) return <NotifRequestScreen onContinuar={() => setNotifPrompt(false)} />
 
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
@@ -208,6 +212,44 @@ function GpsPromptScreen({ onContinuar }) {
         </div>
         <button onClick={reVerificar} style={{ background: 'var(--rojo)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%' }}>
           {t('gpsYaActive')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function NotifRequestScreen({ onContinuar }) {
+  const [pidiendo, setPidiendo] = useState(false)
+
+  async function pedirPermiso() {
+    setPidiendo(true)
+    try {
+      await Notification.requestPermission()
+    } catch (_) {}
+    setPidiendo(false)
+    onContinuar()
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+      <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+        <img src="/logo-empresa.png" alt="" style={{ width: 80, height: 80, objectFit: 'contain', mixBlendMode: 'multiply' }} />
+        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.3rem' }}>Activar notificaciones</h2>
+        <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0 }}>
+          Necesitamos enviarte alertas cuando tus familiares activen el botón de emergencia. Activa las notificaciones para no perderte ninguna alerta.
+        </p>
+        <button
+          onClick={pedirPermiso}
+          disabled={pidiendo}
+          style={{ background: 'var(--verde)', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px', borderRadius: 10, width: '100%', border: 'none', cursor: 'pointer' }}
+        >
+          {pidiendo ? 'Activando...' : 'Activar notificaciones'}
+        </button>
+        <button
+          onClick={onContinuar}
+          style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: '0.875rem', cursor: 'pointer', padding: '4px' }}
+        >
+          Ahora no
         </button>
       </div>
     </div>
