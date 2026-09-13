@@ -30,6 +30,7 @@ a { color: inherit; }
   --radius: 14px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --logo-blend: multiply;        /* quita fondo blanco del PNG en modo claro */
+  --logo-filter: none;
   --card-blur: blur(0px);        /* sin blur en modo claro */
   --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }
@@ -44,7 +45,8 @@ a { color: inherit; }
   --border: rgba(255,255,255,0.18);
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
-  --logo-blend: screen;          /* screen en negro = muestra solo partes brillantes del logo */
+  --logo-blend: multiply;
+  --logo-filter: invert(1);      /* invierte blanco→negro: desaparece sobre fondo negro */
   --card-blur: blur(18px);
   --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
@@ -112,7 +114,8 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--text2); }
 
-/* Watermark de fondo — blend mode adaptable al tema */
+/* Watermark de fondo — blend mode y filter adaptables al tema */
 .watermark-bg {
   mix-blend-mode: var(--logo-blend);
+  filter: var(--logo-filter);
 }
