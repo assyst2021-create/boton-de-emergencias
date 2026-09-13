@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
+import ElegirPlan from './ElegirPlan'
 import { useTema } from '../ThemeContext'
 
 export const AppActionsContext = createContext({})
@@ -27,7 +28,7 @@ export default function Perfil({ onCerrar }) {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUid(user.id)
-      supabase.from('users').select('full_name, username, auto_alert_enabled').eq('id', user.id).maybeSingle()
+      supabase.from('users').select('full_name, username, auto_alert_enabled, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
           if (data) {
             setPerfil(data)
@@ -70,12 +71,15 @@ export default function Perfil({ onCerrar }) {
         {paso === 'menu' && (
           <div className={styles.menu}>
             {perfil && (
-              <div className={styles.perfilCard}>
+              <button className={styles.perfilCard} onClick={() => setPaso('plan')}>
                 <div className={styles.perfilInfo}>
                   <span className={styles.perfilNombre}>{perfil.full_name}</span>
                   <span className={styles.perfilUsername}>@{perfil.username}</span>
                 </div>
-              </div>
+                <span className={perfil.is_premium ? styles.planBadgePremium : styles.planBadgeGratis}>
+                  {perfil.is_premium ? '👑 Premium' : '🎁 Gratis'}
+                </span>
+              </button>
             )}
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
@@ -119,6 +123,13 @@ export default function Perfil({ onCerrar }) {
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>Botón de Emergencias · v1.1.1</div>
+          </div>
+        )}
+
+        {paso === 'plan' && (
+          <div className={styles.form} style={{ padding: 0 }}>
+            <ElegirPlan onElegido={() => setPaso('menu')} />
+            <button type="button" className={styles.volver} style={{ margin: '0 16px 16px' }} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
 
