@@ -86,8 +86,9 @@
   font-size: 0.95rem;
   font-weight: 800;
   background: none;
-  color: #000000;
+  color: #ffffff;
   transition: all 0.2s;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 
 .tabActive {
@@ -110,8 +111,9 @@
 
 .field label {
   font-size: 0.85rem;
-  font-weight: 900;
-  color: #000000;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 
 .error {
@@ -261,12 +263,13 @@
 .resetLink {
   background: none;
   border: none;
-  color: #000000;
+  color: #ffffff;
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 .resetLink:hover { color: var(--accent); }
 .resetLink:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -299,8 +302,8 @@
 .form input,
 .form select {
   background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.25);
-  color: #000000;
+  border-color: rgba(255,255,255,0.30);
+  color: #ffffff;
   font-weight: 700;
 }
-.form input::placeholder { color: rgba(0,0,0,0.55); font-weight: 600; }
+.form input::placeholder { color: rgba(255,255,255,0.6); font-weight: 500; }
