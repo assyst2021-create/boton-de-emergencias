@@ -91,6 +91,10 @@
 .tabs {
   display: flex;
   border-bottom: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px 12px 0 0;
 }
 
 .tab, .tabActive {
