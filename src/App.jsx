@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { suscribirPush } from './pushSubscription'
 import { ThemeProvider } from './ThemeContext'
 import { supabase } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
@@ -80,6 +81,11 @@ function AppInner() {
       // Notificaciones: mostrar pantalla si aún no se ha dado permiso
       if ('Notification' in window && Notification.permission === 'default') {
         setNotifPrompt(true)
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        // Ya tiene permiso: suscribir al push silenciosamente
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) suscribirPush(supabase, user.id)
+        })
       }
     }
   }, [initDone, bienvenidaVista, avisoLegalAceptado])
@@ -265,6 +271,8 @@ function NotifRequestScreen({ onContinuar }) {
     setPidiendo(true)
     try {
       await Notification.requestPermission()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await suscribirPush(supabase, user.id)
     } catch (_) {}
     setPidiendo(false)
     onContinuar()

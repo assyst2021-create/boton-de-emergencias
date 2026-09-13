@@ -2,15 +2,10 @@
  * Service worker del Botón de Emergencias.
  *
  * Estrategia: red primero, caché como respaldo.
- * En una app de emergencias servir contenido viejo es peligroso, así que
- * siempre se intenta la red y solo se recurre al caché cuando no hay señal.
- * Eso permite que la app abra aunque no haya internet, en vez de mostrar la
- * pantalla de error del navegador.
  */
 
-const CACHE = 'boton-emergencias-v1'
+const CACHE = 'boton-emergencias-v2'
 
-// Lo mínimo para que la app arranque sin señal.
 const BASICOS = [
   '/',
   '/index.html',
@@ -18,12 +13,12 @@ const BASICOS = [
   '/logo.png',
   '/icon-192.png',
   '/icon-512.png',
+  '/alerta.mp3',
 ]
 
 self.addEventListener('install', evento => {
   evento.waitUntil(
     caches.open(CACHE)
-      // Si algún archivo falla no se cae la instalación entera.
       .then(c => Promise.allSettled(BASICOS.map(u => c.add(u))))
       .then(() => self.skipWaiting()),
   )
@@ -43,9 +38,6 @@ self.addEventListener('fetch', evento => {
   const peticion = evento.request
   const url = new URL(peticion.url)
 
-  // Nunca tocar Supabase ni ningún servicio externo: una alerta o una
-  // ubicación servidas desde caché mandarían a la familia al lugar
-  // equivocado. Esos datos siempre tienen que venir frescos.
   if (url.origin !== self.location.origin) return
   if (peticion.method !== 'GET') return
 
@@ -61,11 +53,56 @@ self.addEventListener('fetch', evento => {
       .catch(() =>
         caches.match(peticion).then(guardada => {
           if (guardada) return guardada
-          // Rutas internas: la app es de una sola página, así que
-          // cualquier ruta se resuelve con el index.
           if (peticion.mode === 'navigate') return caches.match('/index.html')
           return Response.error()
         }),
       ),
+  )
+})
+
+// ── PUSH NOTIFICATIONS ──────────────────────────────────────────────────────
+
+self.addEventListener('push', evento => {
+  let datos = {}
+  try { datos = evento.data?.json() || {} } catch (_) {}
+
+  const tipo = datos.tipo || 'red'
+  const emoji = tipo === 'red' ? '🔴' : tipo === 'orange' ? '🟠' : '🟢'
+  const titulo = datos.titulo || `${emoji} ¡Alerta de emergencia!`
+  const cuerpo = datos.cuerpo || 'Un familiar necesita tu ayuda ahora.'
+
+  const opciones = {
+    body: cuerpo,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    image: datos.imagen || undefined,
+    vibrate: [300, 100, 300, 100, 300, 100, 600],
+    requireInteraction: true,
+    silent: false,
+    tag: `alerta-${datos.alertaId || Date.now()}`,
+    renotify: true,
+    data: { url: datos.url || '/?tab=historial', alertaId: datos.alertaId },
+    actions: [
+      { action: 'ver', title: '📍 Ver ubicación' },
+      { action: 'ok',  title: '✓ Entendido' },
+    ],
+  }
+
+  evento.waitUntil(
+    self.registration.showNotification(titulo, opciones)
+  )
+})
+
+self.addEventListener('notificationclick', evento => {
+  evento.notification.close()
+  const url = evento.notification.data?.url || '/'
+
+  evento.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientes => {
+        const existente = clientes.find(c => c.url.includes(self.location.origin))
+        if (existente) return existente.focus().then(c => c.navigate(url))
+        return self.clients.openWindow(url)
+      })
   )
 })
