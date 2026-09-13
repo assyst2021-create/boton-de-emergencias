@@ -197,9 +197,9 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
                 >
                   <span
                     className={`${aStyles.circulo} ${listo ? aStyles.circuloDone : ''}`}
-                    style={!listo ? { borderColor: color, color } : {}}
+                    style={!listo ? { borderColor: color } : {}}
                   >
-                    {listo ? '✓' : idx + 1}
+                    {listo ? '✓' : ''}
                   </span>
                   <span className={aStyles.docInfo}>
                     <span className={aStyles.docNombre}>{doc.titulo}</span>
