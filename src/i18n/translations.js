@@ -145,7 +145,7 @@
     // Ubicacion en tiempo real
     navUbicacion: 'En vivo',
     ubiTitulo: 'Ubicación en tiempo real',
-    ubiSubtitulo: 'Tus familiares te ven moverte en el mapa, como en WhatsApp.',
+    ubiSubtitulo: 'Tus familiares te ven moverte en el mapa en tiempo real.',
     ubiCompartir: 'Compartir mi ubicación',
     ubiDetener: 'Dejar de compartir',
     ubiCompartiendo: 'Compartiendo en vivo',
@@ -376,7 +376,7 @@
     // Ubicacion en tiempo real
     navUbicacion: 'Live',
     ubiTitulo: 'Live location',
-    ubiSubtitulo: 'Your family watches you move on the map, like on WhatsApp.',
+    ubiSubtitulo: 'Your family watches you move on the map in real time.',
     ubiCompartir: 'Share my location',
     ubiDetener: 'Stop sharing',
     ubiCompartiendo: 'Sharing live',
@@ -604,7 +604,7 @@
     // Ubicacion en tiempo real
     navUbicacion: 'Ao vivo',
     ubiTitulo: 'Localização em tempo real',
-    ubiSubtitulo: 'Sua família vê você se mover no mapa, como no WhatsApp.',
+    ubiSubtitulo: 'Sua família vê você se mover no mapa em tempo real.',
     ubiCompartir: 'Compartilhar minha localização',
     ubiDetener: 'Parar de compartilhar',
     ubiCompartiendo: 'Compartilhando ao vivo',

@@ -208,6 +208,13 @@
 .filaInfo strong { font-size: 0.88rem; }
 .hace { font-size: 0.72rem; color: var(--text2); margin-top: 1px; }
 
+.estadoBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
+
 .filaAcciones { display: flex; align-items: center; gap: 6px; }
 
 .verMapa, .verMapaActivo {

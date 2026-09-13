@@ -86,17 +86,23 @@ export default function Ubicacion() {
     const ids = (links || []).map(l => l.user_id)
     if (ids.length === 0) { setFamiliares([]); return }
 
-    const { data: ubis } = await supabase
-      .from('live_locations')
-      .select('*')
-      .in('user_id', ids)
-      .eq('activo', true)
+    const [{ data: ubis }, { data: alertas }] = await Promise.all([
+      supabase.from('live_locations').select('*').in('user_id', ids).eq('activo', true),
+      supabase.from('alerts').select('sender_id, status_type, created_at').in('sender_id', ids).order('created_at', { ascending: false }),
+    ])
 
     const porId = Object.fromEntries((ubis || []).map(u => [u.user_id, u]))
+    // Última alerta por persona (ya vienen ordenadas desc)
+    const ultimaAlerta = {}
+    for (const a of (alertas || [])) {
+      if (!ultimaAlerta[a.sender_id]) ultimaAlerta[a.sender_id] = a.status_type
+    }
+
     setFamiliares((links || []).map(l => ({
       id: l.user_id,
       nombre: l.users?.full_name || l.users?.username || '—',
       ubicacion: porId[l.user_id] || null,
+      ultimoEstado: ultimaAlerta[l.user_id] || null,
     })))
   }
 
@@ -257,6 +263,7 @@ export default function Ubicacion() {
         ) : enVivo.map(f => {
           // Mas de un minuto sin moverse: puede que ya no este transmitiendo.
           const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > 60000
+          const badge = estadoBadge(f.ultimoEstado)
           return (
           <div key={f.id} className={styles.fila}>
             <span className={viejo ? styles.puntoViejo : styles.punto} />
@@ -265,6 +272,7 @@ export default function Ubicacion() {
               <span className={viejo ? styles.haceViejo : styles.hace}>
                 {viejo ? `⚠️ ${t('ubiDesactualizado')} · ` : ''}{haceCuanto(f.ubicacion.updated_at, t)}
               </span>
+              <span className={styles.estadoBadge} style={{ color: badge.color }}>{badge.emoji} {badge.label}</span>
             </div>
             <div className={styles.filaAcciones}>
               {/* Centra el mapa de arriba en vez de sacarte de la app */}
@@ -274,14 +282,14 @@ export default function Ubicacion() {
               >
                 {enfocado === f.id ? `✓ ${t('ubiEnMapa')}` : t('ubiAbrirMapa')}
               </button>
-              {/* Solo para quien necesite la ruta para llegar */}
+              {/* Abre Google Maps con ruta de navegación hasta la persona */}
               <a
                 className={styles.comoLlegar}
-                href={`https://maps.google.com/?q=${f.ubicacion.latitude},${f.ubicacion.longitude}`}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${f.ubicacion.latitude},${f.ubicacion.longitude}`}
                 target="_blank" rel="noreferrer"
                 title={t('ubiComoLlegar')}
               >
-                ↗
+                🧭
               </a>
             </div>
           </div>
@@ -292,6 +300,12 @@ export default function Ubicacion() {
       <div className={styles.pb} />
     </div>
   )
+}
+
+function estadoBadge(statusType) {
+  if (statusType === 'red')    return { emoji: '🔴', label: 'EN PELIGRO', color: '#c0392b' }
+  if (statusType === 'orange') return { emoji: '🟠', label: 'HERIDO', color: '#e67e22' }
+  return { emoji: '🟢', label: 'ESTOY BIEN', color: '#1E8449' }
 }
 
 function haceCuanto(iso, t) {
@@ -384,12 +398,23 @@ function Mapa({ yo, familiares, enfocado, t }) {
     familiares.forEach(f => {
       if (!f.ubicacion) return
       const inicial = (f.nombre || '?')[0].toUpperCase()
-      const icon = L.divIcon({ className: '', html: `<div class="lf-fam">${inicial}</div>`, iconSize: [38, 38], iconAnchor: [19, 19] })
+      const badge = estadoBadge(f.ultimoEstado)
+      const borderColor = badge.color
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="lf-fam" style="border-color:${borderColor};background:${borderColor}">${inicial}</div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+      })
       const pos = [f.ubicacion.latitude, f.ubicacion.longitude]
       if (famMarkersRef.current[f.id]) {
         famMarkersRef.current[f.id].setLatLng(pos)
+        famMarkersRef.current[f.id].setIcon(icon)
+        famMarkersRef.current[f.id].setPopupContent(`<b>${f.nombre}</b><br>${badge.emoji} ${badge.label}`)
       } else {
-        famMarkersRef.current[f.id] = L.marker(pos, { icon }).bindPopup(`👤 ${f.nombre}`).addTo(map)
+        famMarkersRef.current[f.id] = L.marker(pos, { icon })
+          .bindPopup(`<b>${f.nombre}</b><br>${badge.emoji} ${badge.label}`)
+          .addTo(map)
         if (!fittedRef.current) { map.setView(pos, 15); fittedRef.current = true }
       }
     })
