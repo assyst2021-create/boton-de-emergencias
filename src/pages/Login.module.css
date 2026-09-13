@@ -130,8 +130,14 @@
 .field label {
   font-size: 0.85rem;
   font-weight: 900;
-  color: #ffffff;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.75);
+  color: #1a1a2e;
+  text-shadow: none;
+  display: inline-block;
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 6px;
+  padding: 1px 7px;
 }
 
 .error {
@@ -279,15 +285,18 @@
 }
 
 .resetLink {
-  background: none;
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border: none;
-  color: #ffffff;
+  border-radius: 6px;
+  color: #1a1a2e;
   font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
   text-decoration: underline;
-  padding: 0;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+  padding: 1px 7px;
+  text-shadow: none;
 }
 .resetLink:hover { color: var(--accent); }
 .resetLink:disabled { opacity: 0.5; cursor: not-allowed; }
