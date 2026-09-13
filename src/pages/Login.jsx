@@ -146,7 +146,9 @@ export default function Login() {
   return (
     <div className={styles.wrap}>
       <div className={styles.logo}>
-        <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+        <div className={styles.logoWrap}>
+          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+        </div>
         <h1>{t('appNombre')}</h1>
       </div>
 

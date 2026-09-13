@@ -17,7 +17,7 @@
   content: '';
   position: fixed;
   inset: 0;
-  background: rgba(10, 20, 40, 0.20);
+  background: rgba(10, 20, 40, 0.08);
   z-index: 0;
 }
 
@@ -30,13 +30,18 @@
   text-align: center;
 }
 
+.logoWrap {
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.50));
+  animation: latido 2.2s ease-in-out infinite;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
 .logoImg {
   width: 110px;
   height: 110px;
   object-fit: contain;
-  margin-bottom: 10px;
-  animation: latido 2.2s ease-in-out infinite;
-  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.50));
+  display: block;
   mix-blend-mode: multiply;
 }
 
@@ -66,15 +71,15 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--radius);
   width: 100%;
   max-width: 420px;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.20);
 }
 
 .tabs {
@@ -88,7 +93,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   background: none;
-  color: var(--text2);
+  color: #1a1a2e;
   transition: all 0.2s;
 }
 
@@ -112,8 +117,8 @@
 
 .field label {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text2);
+  font-weight: 700;
+  color: #1a1a2e;
 }
 
 .error {
@@ -263,7 +268,7 @@
 .resetLink {
   background: none;
   border: none;
-  color: var(--text2);
+  color: #1a1a2e;
   font-size: 0.8rem;
   cursor: pointer;
   text-decoration: underline;
@@ -282,16 +287,25 @@
 .idiomaLabel { font-size: 1.1rem; }
 .idiomaSelect {
   flex: 1;
-  background: var(--card);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.55);
+  border: 1.5px solid rgba(0,0,0,0.18);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.88rem;
-  color: var(--text);
+  color: #1a1a2e;
   cursor: pointer;
   appearance: auto;
 }
 
-.usernameOk { font-size: 0.78rem; color: #2ecc71; font-weight: 600; margin-top: 3px; display: block; }
+.usernameOk { font-size: 0.78rem; color: #27ae60; font-weight: 600; margin-top: 3px; display: block; }
 .usernameTaken { font-size: 0.78rem; color: var(--rojo); font-weight: 600; margin-top: 3px; display: block; }
-.usernameChecking { font-size: 0.78rem; color: var(--text2); margin-top: 3px; display: block; }
+.usernameChecking { font-size: 0.78rem; color: #1a1a2e; margin-top: 3px; display: block; }
+
+/* Inputs dentro del login con fondo semi-transparente y texto negro */
+.form input,
+.form select {
+  background: rgba(255,255,255,0.55);
+  border-color: rgba(0,0,0,0.18);
+  color: #1a1a2e;
+}
+.form input::placeholder { color: rgba(0,0,0,0.4); }
