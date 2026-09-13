@@ -10,3 +10,120 @@
   color: var(--text);
   margin: 0;
 }
+
+.metaBox {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.metaFila {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin: 0;
+}
+
+.btnWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.avisoScroll {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin: 0;
+  text-align: center;
+}
+
+.btnDeshabilitado {
+  background: var(--border);
+  color: var(--text2);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+  width: 100%;
+  cursor: not-allowed;
+  opacity: 0.6;
+  border: none;
+}
+
+/* AvisoLegal combined screen */
+.docBloque {
+  width: 100%;
+  max-width: 560px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.docHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.docIcon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.docTitulo {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.docSub {
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin: 0;
+  margin-top: 2px;
+}
+
+.checksWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+  margin-top: 8px;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent, #e74c3c);
+}

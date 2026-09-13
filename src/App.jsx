@@ -4,8 +4,7 @@ import { supabase } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
-import Disclaimer from './pages/Disclaimer'
-import Privacidad from './pages/Privacidad'
+import AvisoLegal from './pages/AvisoLegal'
 import ElegirPlan from './pages/ElegirPlan'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
@@ -24,8 +23,7 @@ export default function App() {
 function AppInner() {
   const [session, setSession] = useState(undefined)
   const [bienvenidaVista, setBienvenidaVista] = useState(false)
-  const [disclaimerAceptado, setDisclaimerAceptado] = useState(false)
-  const [privacidadVista, setPrivacidadVista] = useState(false)
+  const [avisoLegalAceptado, setAvisoLegalAceptado] = useState(false)
   const [planElegido, setPlanElegido] = useState(false)
   const [contratoAceptado, setContratoAceptado] = useState(false)
   const [initDone, setInitDone] = useState(false)
@@ -43,8 +41,10 @@ function AppInner() {
     if (session && !initDone) {
       const uid = session.user.id
       setBienvenidaVista(!!localStorage.getItem(`bienvenida_${uid}`))
-      setDisclaimerAceptado(!!localStorage.getItem(`disclaimer_${uid}`))
-      setPrivacidadVista(!!localStorage.getItem(`privacidad_${uid}`))
+      // Compatibilidad: si ya aceptó ambos docs por separado, marcar combinado también
+      const avisoOk = !!localStorage.getItem(`aviso_${uid}`) ||
+        (!!localStorage.getItem(`disclaimer_${uid}`) && !!localStorage.getItem(`privacidad_${uid}`))
+      setAvisoLegalAceptado(avisoOk)
       setContratoAceptado(!!localStorage.getItem(`contrato_${uid}`))
 
       if (!!localStorage.getItem(`planElegido_${uid}`)) {
@@ -64,13 +64,13 @@ function AppInner() {
           })
       }
     }
-    if (!session) { setInitDone(false); setGpsPrompt(false); setContratoAceptado(false) }
+    if (!session) { setInitDone(false); setGpsPrompt(false); setContratoAceptado(false); setAvisoLegalAceptado(false) }
   }, [session, initDone])
 
   // GPS check para usuarios recurrentes (ya pasaron Bienvenida):
   // 'granted' -> nada; 'denied' -> pantalla de desbloqueo; 'prompt' -> pedir permiso de nuevo
   useEffect(() => {
-    if (initDone && bienvenidaVista && disclaimerAceptado && privacidadVista) {
+    if (initDone && bienvenidaVista && avisoLegalAceptado) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
         if (result.state === 'granted') setGpsPrompt(false)
         else setGpsPrompt(result.state) // 'denied' | 'prompt'
@@ -83,14 +83,9 @@ function AppInner() {
     setBienvenidaVista(true)
   }
 
-  function marcarDisclaimer() {
-    localStorage.setItem(`disclaimer_${session.user.id}`, '1')
-    setDisclaimerAceptado(true)
-  }
-
-  function marcarPrivacidad() {
-    localStorage.setItem(`privacidad_${session.user.id}`, '1')
-    setPrivacidadVista(true)
+  function marcarAvisoLegal() {
+    localStorage.setItem(`aviso_${session.user.id}`, '1')
+    setAvisoLegalAceptado(true)
   }
 
   function marcarContrato() {
@@ -107,8 +102,7 @@ function AppInner() {
   if (!session) return <Login />
   if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (!bienvenidaVista) return <Bienvenida onContinuar={marcarBienvenida} />
-  if (!disclaimerAceptado) return <Disclaimer onAceptar={marcarDisclaimer} />
-  if (!privacidadVista) return <Privacidad onAceptar={marcarPrivacidad} />
+  if (!avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
@@ -117,12 +111,12 @@ function AppInner() {
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
     <AppActionsContext.Provider value={{
       verBienvenida: () => setBienvenidaVista(false),
-      verTerminos: () => setDisclaimerAceptado(false),
-      verPrivacidad: () => setPrivacidadVista(false),
+      verTerminos: () => setAvisoLegalAceptado(false),
+      verPrivacidad: () => setAvisoLegalAceptado(false),
       verContrato: () => setContratoAceptado(false),
       bienvenidaLeida: bienvenidaVista,
-      avisoLeido: disclaimerAceptado,
-      privacidadLeida: privacidadVista,
+      avisoLeido: avisoLegalAceptado,
+      privacidadLeida: avisoLegalAceptado,
       contratoLeido: contratoAceptado,
     }}>
       <img
