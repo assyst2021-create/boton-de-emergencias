@@ -25,8 +25,10 @@
 }
 
 .card {
-  background: var(--bg2);
-  border: 1.5px solid var(--border);
+  background: rgba(14,10,22,0.86);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid rgba(255,255,255,0.18);
   border-radius: var(--radius) var(--radius) 0 0;
   width: 100%;
   padding: 24px 20px 32px;
@@ -35,6 +37,7 @@
   gap: 16px;
   max-height: 88dvh;
   overflow-y: auto;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.40);
 }
 
 .header {
@@ -64,8 +67,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--card);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255,255,255,0.20);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 4px;
@@ -106,8 +111,10 @@
 }
 
 .opcion {
-  background: var(--card);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255,255,255,0.15);
   color: var(--text);
   font-size: 1rem;
   font-weight: 600;

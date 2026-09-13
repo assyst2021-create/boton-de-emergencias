@@ -45,14 +45,17 @@
 }
 
 .alerta {
-  background: var(--card);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255,255,255,0.14);
   border-left: 4px solid;
   border-radius: var(--radius);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.20);
 }
 
 .alertaTop {
