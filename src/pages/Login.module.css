@@ -170,18 +170,39 @@
   align-items: center;
 }
 
-.paisSelect {
+.paisPill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: rgba(255,255,255,0.80);
   border: 1.5px solid rgba(255,255,255,0.5);
   border-radius: 10px;
-  color: #1a1a2e;
-  font-size: 0.85rem;
-  padding: 10px 6px;
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  padding: 10px 10px;
   cursor: pointer;
   flex-shrink: 0;
+  user-select: none;
+}
+
+.paisBandera {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.paisCodigo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  white-space: nowrap;
+}
+
+.paisSelectOverlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
 }
 
 .telInput {

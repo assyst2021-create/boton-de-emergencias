@@ -216,17 +216,21 @@ export default function Login() {
             <div className={styles.field}>
               <label>{t('telefono')}</label>
               <div className={styles.telWrap}>
-                <select
-                  className={styles.paisSelect}
-                  value={pais.codigo + pais.nombre}
-                  onChange={e => setPais(PAISES.find(p => p.codigo + p.nombre === e.target.value))}
-                >
-                  {PAISES.map(p => (
-                    <option key={p.codigo + p.nombre} value={p.codigo + p.nombre}>
-                      {p.bandera} {p.codigo}
-                    </option>
-                  ))}
-                </select>
+                <div className={styles.paisPill}>
+                  <span className={styles.paisBandera}>{pais.bandera}</span>
+                  <span className={styles.paisCodigo}>{pais.codigo}</span>
+                  <select
+                    className={styles.paisSelectOverlay}
+                    value={pais.codigo + pais.nombre}
+                    onChange={e => setPais(PAISES.find(p => p.codigo + p.nombre === e.target.value))}
+                  >
+                    {PAISES.map(p => (
+                      <option key={p.codigo + p.nombre} value={p.codigo + p.nombre}>
+                        {p.bandera} {p.codigo} — {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <input
                   type="tel"
                   placeholder="300 000 0000"
