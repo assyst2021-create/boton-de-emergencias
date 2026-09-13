@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import styles from './Disclaimer.module.css'
 import pStyles from './Privacidad.module.css'
 import aStyles from './AvisoLegal.module.css'
@@ -8,13 +8,13 @@ import aStyles from './AvisoLegal.module.css'
 const PRIVACIDAD = [
   { titulo: '1. INTRODUCCIÓN', texto: 'La presente Política de Privacidad establece las condiciones bajo las cuales ASSYST recopila, utiliza, almacena y protege la información personal de los usuarios de Botón de Emergencia, aplicación creada y desarrollada por ASSYST bajo la marca SST Hecho Fácil. Su finalidad es informar de manera clara y transparente qué información se solicita, para qué se utiliza y cuáles son las opciones disponibles para el usuario.' },
   { titulo: '2. RESPONSABLE DEL TRATAMIENTO Y CONTACTO', texto: 'ASSYST es el responsable de la aplicación y de la gestión de la información personal que los usuarios proporcionan directamente mediante el registro y uso de sus funcionalidades.\n\nPara consultas relacionadas con privacidad, tratamiento de datos, actualización de información o solicitudes de eliminación de la cuenta:\n\nCorreo electrónico: assyst2021@ssthechofacil.com' },
-  { titulo: '3. INFORMACIÓN QUE RECOPILAMOS', texto: 'Al registrarse y utilizar la aplicación, podemos recopilar:\n\n🔹 Nombre completo.\n🔹 Nombre de usuario.\n🔹 Correo electrónico.\n🔹 Número de teléfono.\n🔹 Información necesaria para gestionar y mantener la cuenta.\n🔹 Ubicación GPS, únicamente cuando el usuario activa voluntariamente una función de alerta.\n\nASSYST no recopila la ubicación GPS de manera permanente.' },
-  { titulo: '4. CÓMO UTILIZAMOS LA INFORMACIÓN', texto: '🔹 Crear, identificar y administrar la cuenta del usuario.\n🔹 Permitir el acceso y uso de las funcionalidades de la aplicación.\n🔹 Facilitar el inicio de sesión y la recuperación de la contraseña.\n🔹 Facilitar el contacto entre el usuario y los familiares vinculados.\n🔹 Enviar la ubicación GPS a los familiares vinculados cuando el usuario activa una alerta.\n🔹 Mantener la seguridad, integridad y correcto funcionamiento de la aplicación.\n🔹 Cumplir las obligaciones legales aplicables.' },
+  { titulo: '3. INFORMACIÓN QUE RECOPILAMOS', texto: 'Al registrarse y utilizar la aplicación, podemos recopilar:\n\n· Nombre completo.\n· Nombre de usuario.\n· Correo electrónico.\n· Número de teléfono.\n· Información necesaria para gestionar y mantener la cuenta.\n· Ubicación GPS, únicamente cuando el usuario activa voluntariamente una función de alerta.\n\nASSYST no recopila la ubicación GPS de manera permanente.' },
+  { titulo: '4. CÓMO UTILIZAMOS LA INFORMACIÓN', texto: '· Crear, identificar y administrar la cuenta del usuario.\n· Permitir el acceso y uso de las funcionalidades de la aplicación.\n· Facilitar el inicio de sesión y la recuperación de la contraseña.\n· Facilitar el contacto entre el usuario y los familiares vinculados.\n· Enviar la ubicación GPS a los familiares vinculados cuando el usuario activa una alerta.\n· Mantener la seguridad, integridad y correcto funcionamiento de la aplicación.\n· Cumplir las obligaciones legales aplicables.' },
   { titulo: '5. UBICACIÓN GPS Y FUNCIONES DE ALERTA', texto: 'La aplicación puede utilizar la ubicación GPS exclusivamente para apoyar sus funciones de alerta, cuando el usuario presiona voluntariamente el botón correspondiente.\n\nLa ubicación GPS no será utilizada como mecanismo de vigilancia, rastreo, monitoreo permanente ni para fines relacionados con relaciones sentimentales, infidelidades, celos o conflictos de pareja.\n\nRESPONSABILIDAD: El uso de la ubicación es responsabilidad del usuario. ASSYST no se hace responsable por el uso indebido de la información de ubicación.' },
   { titulo: '6. COMPARTICIÓN Y ACCESO A LOS DATOS', texto: 'ASSYST no vende los datos personales de los usuarios. Cuando se activa una alerta, la ubicación podrá ser puesta a disposición de los familiares o contactos que el propio usuario haya vinculado dentro de la aplicación.' },
-  { titulo: '7. ALMACENAMIENTO Y SEGURIDAD', texto: 'Los datos se almacenan en Supabase con:\n\n🔹 Cifrado en tránsito mediante HTTPS.\n🔹 Row Level Security (RLS) para que cada usuario solo acceda a su propia información.\n\nNingún sistema tecnológico puede garantizar un riesgo absolutamente nulo frente a accesos no autorizados.' },
+  { titulo: '7. ALMACENAMIENTO Y SEGURIDAD', texto: 'Los datos se almacenan en Supabase con:\n\n· Cifrado en tránsito mediante HTTPS.\n· Row Level Security (RLS) para que cada usuario solo acceda a su propia información.\n\nNingún sistema tecnológico puede garantizar un riesgo absolutamente nulo frente a accesos no autorizados.' },
   { titulo: '8. CONSERVACIÓN DE LA INFORMACIÓN', texto: 'La información personal se conservará mientras sea necesaria para mantener la cuenta y prestar las funcionalidades de la aplicación, así como para atender obligaciones legales.' },
-  { titulo: '9. DERECHOS DEL USUARIO', texto: '🔹 Conocer qué información personal es objeto de tratamiento.\n🔹 Solicitar la actualización o corrección de información incorrecta.\n🔹 Solicitar la eliminación de su cuenta y datos personales.\n🔹 Presentar consultas o reclamaciones relacionadas con el tratamiento de sus datos.' },
+  { titulo: '9. DERECHOS DEL USUARIO', texto: '· Conocer qué información personal es objeto de tratamiento.\n· Solicitar la actualización o corrección de información incorrecta.\n· Solicitar la eliminación de su cuenta y datos personales.\n· Presentar consultas o reclamaciones relacionadas con el tratamiento de sus datos.' },
   { titulo: '10. ELIMINACIÓN O ACTUALIZACIÓN DE DATOS', texto: 'El usuario podrá solicitar la eliminación de su cuenta escribiendo a assyst2021@ssthechofacil.com. La solicitud se gestionará en un plazo máximo de quince (15) días hábiles.' },
   { titulo: '11. DATOS DE MENORES DE EDAD', texto: 'La aplicación no está diseñada para solicitar deliberadamente información personal de menores de edad sin las autorizaciones exigidas por la normativa aplicable.' },
   { titulo: '12. MODIFICACIONES DE LA POLÍTICA', texto: 'ASSYST podrá actualizar esta Política cuando sea necesario. Se recomienda a los usuarios revisarla periódicamente.\n\nÚltima actualización: 10 de septiembre de 2026' },
@@ -24,9 +24,9 @@ const TERMINOS = [
   { titulo: '1. DEFINICIONES', texto: 'a) «Usuario»: persona que se registra, accede o utiliza Botón de Emergencia.\nb) «Aplicación»: Botón de Emergencia, sus funcionalidades, actualizaciones y componentes relacionados.\nc) «Contactos vinculados»: familiares o personas que el usuario incorpora y autoriza dentro de la aplicación.\nd) «Alerta de emergencia»: activación voluntaria realizada por el usuario mediante la funcionalidad correspondiente.\ne) «Ubicación»: información de localización GPS obtenida cuando el usuario activa voluntariamente una alerta.' },
   { titulo: '2. ACEPTACIÓN DE LOS TÉRMINOS', texto: 'El acceso y uso de Botón de Emergencia implica la aceptación de estos Términos y de la Política de Privacidad. Si el usuario no está de acuerdo, deberá abstenerse de utilizar la aplicación.' },
   { titulo: '3. REGISTRO Y CUENTA', texto: 'La cuenta es de uso personal. El usuario se compromete a suministrar información verdadera y a proteger sus credenciales de acceso.' },
-  { titulo: '4. RESPONSABILIDAD DEL USUARIO', texto: 'El usuario es el único responsable del uso que realice de la aplicación. Cualquier utilización indebida —incluyendo vigilancia, rastreo, acoso o uso de la ubicación con fines distintos a una emergencia— será responsabilidad exclusiva del usuario.' },
+  { titulo: '4. RESPONSABILIDAD DEL USUARIO', texto: 'El usuario es el único responsable del uso que realice de la aplicación. Cualquier utilización indebida, incluyendo vigilancia, rastreo, acoso o uso de la ubicación con fines distintos a una emergencia, será responsabilidad exclusiva del usuario.' },
   { titulo: '5. FINALIDAD DE LA ALERTA', texto: 'La alerta debe activarse únicamente cuando exista una situación real que justifique su uso. El usuario debe evitar activaciones falsas, fraudulentas o abusivas.' },
-  { titulo: '6. NO SUSTITUCIÓN DE SERVICIOS OFICIALES', texto: 'Botón de Emergencia no sustituye los servicios oficiales de emergencia.\n\nEn Colombia, ante una emergencia contacte:\n🔹 123 — Número Único de Emergencias\n🔹 119 — Bomberos\n🔹 132 — Cruz Roja\n\nLa aplicación es únicamente un mecanismo tecnológico complementario.' },
+  { titulo: '6. NO SUSTITUCIÓN DE SERVICIOS OFICIALES', texto: 'Botón de Emergencia no sustituye los servicios oficiales de emergencia.\n\nEn Colombia, ante una emergencia contacte:\n· 123 — Número Único de Emergencias\n· 119 — Bomberos\n· 132 — Cruz Roja\n\nLa aplicación es únicamente un mecanismo tecnológico complementario.' },
   { titulo: '7. CONECTIVIDAD Y FUNCIONAMIENTO', texto: 'En zonas sin cobertura, con señal GPS insuficiente, batería agotada o permisos restringidos, una alerta puede no enviarse o no mostrar correctamente la ubicación. ASSYST no garantiza la transmisión inmediata en todas las circunstancias.' },
   { titulo: '8. CONDUCTAS PROHIBIDAS', texto: 'El usuario no podrá utilizar la aplicación para:\n\na) Vigilar, rastrear o controlar indebidamente a otra persona.\nb) Usar la ubicación para fines sentimentales, celos o investigación personal ajena a una emergencia.\nc) Acosar, amenazar o causar perjuicios a otras personas.\nd) Realizar activaciones falsas o fraudulentas.\ne) Suplantar la identidad de otra persona.\nf) Intentar vulnerar componentes técnicos de la aplicación.\ng) Utilizar la aplicación para actividades ilícitas.' },
   { titulo: '9. PROPIEDAD INTELECTUAL', texto: 'La aplicación, su diseño, textos, software, marcas y logotipos pertenecen a ASSYST. El usuario recibe únicamente una autorización limitada para utilizar el servicio conforme a estos Términos.' },
@@ -66,66 +66,48 @@ const AVISO = [
   { titulo: '8. ACEPTACIÓN DEL AVISO LEGAL', texto: 'Al seleccionar la opción correspondiente, el usuario declara que ha leído, comprendido y aceptado el presente Aviso Legal y se compromete a utilizar la aplicación de manera responsable y de acuerdo con su finalidad de apoyo a la comunicación durante situaciones de emergencia.\n\nASSYST · Correo: assyst2021@ssthechofacil.com\nÚltima actualización: 10 de septiembre de 2026' },
 ]
 
+/* Color de acento por documento */
+const DOC_COLOR = {
+  privacidad: '#2980b9',
+  terminos:   '#e67e22',
+  contrato:   '#1E8449',
+  aviso:      '#8e44ad',
+}
+
 const DOCS = [
-  {
-    id: 'privacidad',
-    icon: '🔒',
-    titulo: 'Política de Privacidad',
-    sub: 'Cómo recopilamos, usamos y protegemos tu información',
-    secciones: PRIVACIDAD,
-    checkLabel: 'He leído y acepto la Política de Privacidad',
-  },
-  {
-    id: 'terminos',
-    icon: '⚠️',
-    titulo: 'Términos de Uso',
-    sub: 'Condiciones de acceso y uso de la aplicación',
-    secciones: TERMINOS,
-    checkLabel: 'He leído y acepto los Términos de Uso',
-  },
-  {
-    id: 'contrato',
-    icon: '📋',
-    titulo: 'Contrato de Servicio',
-    sub: 'Suscripción anual · $20.000 COP/año',
-    secciones: CONTRATO,
-    checkLabel: 'He leído y acepto el Contrato de Servicio',
-  },
-  {
-    id: 'aviso',
-    icon: '🛡️',
-    titulo: 'Aviso Legal',
-    sub: 'Limitaciones y responsabilidades del servicio',
-    secciones: AVISO,
-    checkLabel: 'He leído y acepto el Aviso Legal',
-  },
+  { id: 'privacidad', titulo: 'Política de Privacidad',       sub: 'Recopilación, uso y protección de tu información', secciones: PRIVACIDAD },
+  { id: 'terminos',   titulo: 'Términos de Uso',              sub: 'Condiciones de acceso y uso de la aplicación',    secciones: TERMINOS  },
+  { id: 'contrato',   titulo: 'Contrato de Servicio',         sub: 'Suscripción anual · $20.000 COP/año',            secciones: CONTRATO  },
+  { id: 'aviso',      titulo: 'Aviso Legal',                  sub: 'Limitaciones y responsabilidades del servicio',  secciones: AVISO     },
 ]
 
-/* ── Modal pantalla completa para leer un documento ─────────── */
+/* ── Modal pantalla completa ─────────────────────────────────── */
 
 function DocModal({ doc, onCerrar }) {
+  const color = DOC_COLOR[doc.id]
   return (
     <div className={aStyles.modal}>
       <div className={aStyles.modalScroll}>
-        <div className={aStyles.modalHeader}>
+        <div className={aStyles.modalHeader} style={{ background: color }}>
           <span className={aStyles.modalTitulo}>{doc.titulo}</span>
         </div>
 
         <div className={aStyles.modalBody}>
           {doc.secciones.map((s, i) => (
-            <div key={i}>
-              {i > 0 && <hr className={styles.divider} />}
-              <div className={pStyles.seccion}>
-                <p className={pStyles.titulo2}>{s.titulo}</p>
-                <p className={styles.parrafo} style={{ whiteSpace: 'pre-line' }}>{s.texto}</p>
-              </div>
+            <div key={i} className={aStyles.modalSeccion}>
+              <p className={aStyles.modalSeccionTitulo}>{s.titulo}</p>
+              <p className={aStyles.modalSeccionTexto} style={{ whiteSpace: 'pre-line' }}>{s.texto}</p>
             </div>
           ))}
         </div>
 
         <div className={aStyles.modalFooter}>
-          <button className={styles.btn} onClick={onCerrar}>
-            ✓ Cerrar
+          <button
+            className={aStyles.btnCerrar}
+            style={{ background: color }}
+            onClick={onCerrar}
+          >
+            Cerrar y marcar como leído
           </button>
         </div>
       </div>
@@ -139,8 +121,6 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
   const [checks, setChecks] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
   const [docAbierto, setDocAbierto] = useState(null)
 
-  function abrirDoc(id) { setDocAbierto(id) }
-
   function cerrarDoc() {
     if (docAbierto && !soloVer) {
       setChecks(prev => ({ ...prev, [docAbierto]: true }))
@@ -148,17 +128,22 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
     setDocAbierto(null)
   }
 
-  const todosAceptados = checks.privacidad && checks.terminos && checks.contrato && checks.aviso
+  const leidos = Object.values(checks).filter(Boolean).length
+  const todosAceptados = leidos === 4
   const docActivo = DOCS.find(d => d.id === docAbierto)
 
   return (
     <div className={styles.wrap}>
       <div className={aStyles.outerScroll}>
-        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
-        <div className={styles.emoji}>🚨</div>
-        <h1 className={aStyles.bienvenidaTitulo}>¡Bienvenido a<br />Botón de Emergencia!</h1>
-        <p className={aStyles.bienvenidaSub}>Tu seguridad y la de quienes quieres, ahora están más conectadas.</p>
 
+        {/* Hero con logo */}
+        <div className={aStyles.hero}>
+          <img src="/logo-empresa.png" alt="Botón de Emergencia" className={aStyles.heroLogo} />
+          <h1 className={aStyles.bienvenidaTitulo}>Bienvenido a<br />Botón de Emergencia</h1>
+          <p className={aStyles.bienvenidaSub}>Tu seguridad y la de quienes quieres, ahora están más conectadas.</p>
+        </div>
+
+        {/* Caja informativa */}
         <div className={aStyles.bienvenidaCaja}>
           <p className={aStyles.bienvenidaTexto}>
             El Botón de Emergencia es una herramienta creada por ASSYST para ayudarte a comunicar una situación de emergencia a tus familiares o contactos vinculados.
@@ -182,45 +167,70 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
           </ul>
 
           <p className={aStyles.bienvenidaAviso}>
-            ⚠️ La aplicación requiere que el celular cuente con señal o conectividad mínima para poder enviar una alerta. Si no hay cobertura o la señal es insuficiente, la alerta puede no enviarse o presentar demora.
+            La aplicación requiere que el celular cuente con señal o conectividad mínima para poder enviar una alerta. Si no hay cobertura o la señal es insuficiente, la alerta puede no enviarse o presentar demora.
           </p>
         </div>
 
-        <div className={aStyles.separador} />
-        <p className={aStyles.instruccionTitulo}>📋 Documentos legales</p>
+        {/* Sección documentos */}
+        <div className={aStyles.seccionDocs}>
+          <p className={aStyles.instruccionTitulo}>Documentos legales</p>
+          <p className={aStyles.instruccionSub}>Lee cada documento para habilitar el acceso a la aplicación</p>
 
-        <div className={aStyles.lista}>
-          {DOCS.map((doc, idx) => (
-            <button
-              key={doc.id}
-              className={`${aStyles.docFila} ${checks[doc.id] ? aStyles.docFilaDone : ''}`}
-              onClick={() => abrirDoc(doc.id)}
-            >
-              <span className={`${aStyles.circulo} ${checks[doc.id] ? aStyles.circuloDone : ''}`}>
-                {checks[doc.id] ? '✓' : idx + 1}
-              </span>
-              <span className={aStyles.docNombre}>{doc.titulo}</span>
-              <span className={aStyles.docArrow}>›</span>
-            </button>
-          ))}
+          {/* Barra de progreso */}
+          <div className={aStyles.progreso}>
+            <div className={aStyles.progresoBarra}>
+              <div className={aStyles.progresoFill} style={{ width: `${(leidos / 4) * 100}%` }} />
+            </div>
+            <p className={aStyles.progresoTexto}>{leidos} de 4 documentos leídos</p>
+          </div>
+
+          <div className={aStyles.lista}>
+            {DOCS.map((doc, idx) => {
+              const listo = checks[doc.id]
+              const color = DOC_COLOR[doc.id]
+              return (
+                <button
+                  key={doc.id}
+                  className={`${aStyles.docCard} ${listo ? aStyles.docCardDone : ''}`}
+                  style={{ borderLeftColor: listo ? '#2ecc71' : color }}
+                  onClick={() => setDocAbierto(doc.id)}
+                >
+                  <span
+                    className={`${aStyles.circulo} ${listo ? aStyles.circuloDone : ''}`}
+                    style={!listo ? { borderColor: color, color } : {}}
+                  >
+                    {listo ? '✓' : idx + 1}
+                  </span>
+                  <span className={aStyles.docInfo}>
+                    <span className={aStyles.docNombre}>{doc.titulo}</span>
+                    <span className={`${aStyles.docEstado} ${listo ? aStyles.docEstadoDone : ''}`}>
+                      {listo ? 'Leído' : doc.sub}
+                    </span>
+                  </span>
+                  <span className={aStyles.docArrow}>›</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        <div className={pStyles.checksWrap} style={{ marginTop: 16 }}>
+        {/* Botón continuar */}
+        <div className={aStyles.footerWrap}>
           {soloVer ? (
-            <button className={styles.btn} onClick={onAceptar}>← Volver</button>
+            <button className={aStyles.btnContinuar} onClick={onAceptar}>← Volver</button>
           ) : (
             <button
-              className={todosAceptados ? styles.btn : pStyles.btnDeshabilitado}
+              className={todosAceptados ? aStyles.btnContinuar : aStyles.btnDeshabilitado}
               onClick={todosAceptados ? onAceptar : undefined}
               disabled={!todosAceptados}
             >
-              {todosAceptados ? '✅ Continuar' : 'Lee los cuatro documentos para continuar'}
+              {todosAceptados ? 'Continuar' : 'Lee los cuatro documentos para continuar'}
             </button>
           )}
         </div>
+
       </div>
 
-      {/* Modal pantalla completa */}
       {docActivo && <DocModal doc={docActivo} onCerrar={cerrarDoc} />}
     </div>
   )

@@ -1,8 +1,39 @@
-/* ── Sección bienvenida ── */
+/* ── Outer scroll ── */
+.outerScroll {
+  width: 100%;
+  max-height: 100dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 0 48px;
+  box-sizing: border-box;
+  gap: 0;
+}
+
+/* ── Hero ── */
+.hero {
+  width: 100%;
+  background: linear-gradient(160deg, #1a5e32 0%, #1E8449 60%, #239b56 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 24px 32px;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.heroLogo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.28));
+}
+
 .bienvenidaTitulo {
   font-size: 1.5rem;
   font-weight: 900;
-  color: var(--text);
+  color: #fff;
   text-align: center;
   margin: 0;
   line-height: 1.25;
@@ -10,29 +41,32 @@
 
 .bienvenidaSub {
   font-size: 0.88rem;
-  color: var(--text2);
+  color: rgba(255,255,255,0.82);
   text-align: center;
   margin: 0;
-  max-width: 420px;
+  max-width: 380px;
+  line-height: 1.5;
 }
 
+/* ── Caja informativa ── */
 .bienvenidaCaja {
   background: var(--card);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  padding: 20px 20px;
   width: 100%;
-  max-width: 560px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-sizing: border-box;
 }
 
 .bienvenidaTexto {
   font-size: 0.87rem;
   color: var(--text2);
   margin: 0;
-  line-height: 1.55;
+  line-height: 1.6;
+  text-decoration: none;
 }
 
 .bienvenidaSubtitulo {
@@ -40,6 +74,7 @@
   font-weight: 700;
   color: var(--text);
   margin: 0;
+  text-decoration: none;
 }
 
 .bienvenidaLista {
@@ -53,123 +88,205 @@
 .bienvenidaLista li {
   font-size: 0.83rem;
   color: var(--text2);
-  line-height: 1.5;
+  line-height: 1.55;
+  text-decoration: none;
 }
 
 .bienvenidaAviso {
   font-size: 0.8rem;
   color: var(--text2);
-  background: rgba(231, 76, 60, 0.08);
-  border-left: 3px solid rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.07);
+  border-left: 3px solid rgba(231, 76, 60, 0.45);
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
+  text-decoration: none;
 }
 
-.separador {
+/* ── Sección documentos ── */
+.seccionDocs {
   width: 100%;
-  max-width: 560px;
-  height: 1px;
-  background: var(--border);
-  margin: 4px 0;
+  max-width: 600px;
+  padding: 20px 20px 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .instruccionTitulo {
-  font-size: 1rem;
-  font-weight: 800;
+  font-size: 1.05rem;
+  font-weight: 900;
   color: var(--text);
   margin: 0;
-  width: 100%;
-  max-width: 560px;
   text-align: center;
 }
 
-/* Contenedor exterior con scroll */
-.outerScroll {
-  width: 100%;
-  max-height: 100dvh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 24px 16px 40px;
-  box-sizing: border-box;
-  gap: 8px;
-}
-
-.instruccion {
-  font-size: 0.82rem;
+.instruccionSub {
+  font-size: 0.78rem;
   color: var(--text2);
   text-align: center;
   margin: 0;
-  max-width: 440px;
 }
 
+/* ── Progreso ── */
+.progreso {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.progresoBarra {
+  height: 5px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progresoFill {
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(.4,0,.2,1);
+}
+
+.progresoTexto {
+  font-size: 0.73rem;
+  color: var(--text2);
+  text-align: right;
+  margin: 0;
+}
+
+/* ── Lista ── */
 .lista {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  max-width: 560px;
+  gap: 9px;
 }
 
-/* ── Filas de documentos ── */
-.docFila {
+/* ── Tarjeta de documento ── */
+.docCard {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
   width: 100%;
   background: var(--card);
   border: 1.5px solid var(--border);
+  border-left-width: 4px;
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 13px 15px;
   cursor: pointer;
   text-align: left;
   color: var(--text);
-  transition: border-color 0.2s, background 0.2s;
+  transition: box-shadow 0.2s, transform 0.1s;
+  text-decoration: none;
 }
 
-.docFila:hover {
-  background: var(--card2, var(--card));
+.docCard:hover {
+  box-shadow: 0 3px 14px rgba(0,0,0,0.09);
+  transform: translateY(-1px);
 }
 
-.docFilaDone {
+.docCard:active {
+  transform: scale(0.99);
+}
+
+.docCardDone {
   border-color: #2ecc71;
 }
 
 .circulo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  border: 2.5px solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text2);
+  font-size: 0.95rem;
+  font-weight: 800;
   flex-shrink: 0;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
 }
 
 .circuloDone {
-  border-color: #2ecc71;
   background: #2ecc71;
-  color: #fff;
+  border-color: #2ecc71 !important;
+  color: #fff !important;
+}
+
+.docInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
 }
 
 .docNombre {
-  flex: 1;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 800;
   color: var(--text);
+  text-decoration: none;
+}
+
+.docEstado {
+  font-size: 0.71rem;
+  color: var(--text2);
+  text-decoration: none;
+}
+
+.docEstadoDone {
+  color: #2ecc71;
+  font-weight: 600;
 }
 
 .docArrow {
   font-size: 1.4rem;
   color: var(--text2);
   line-height: 1;
+  transition: transform 0.2s;
+}
+
+.docCard:hover .docArrow {
+  transform: translateX(3px);
+}
+
+/* ── Footer botón ── */
+.footerWrap {
+  width: 100%;
+  max-width: 600px;
+  padding: 20px 20px 0;
+  box-sizing: border-box;
+}
+
+.btnContinuar {
+  width: 100%;
+  background: #1E8449;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 15px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btnContinuar:hover { opacity: 0.9; }
+
+.btnDeshabilitado {
+  width: 100%;
+  background: var(--border);
+  color: var(--text2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 15px;
+  border-radius: 12px;
+  border: none;
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 /* ── Modal pantalla completa ── */
@@ -180,6 +297,12 @@
   background: var(--bg, #fff);
   display: flex;
   flex-direction: column;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 .modalScroll {
@@ -193,34 +316,74 @@
 .modalHeader {
   position: sticky;
   top: 0;
-  background: var(--bg, #fff);
-  border-bottom: 1px solid var(--border);
+  z-index: 2;
+  display: flex;
+  align-items: center;
   padding: 16px 20px;
-  z-index: 1;
 }
 
 .modalTitulo {
   font-size: 1rem;
   font-weight: 800;
-  color: var(--text);
+  color: #fff;
+  flex: 1;
+  text-decoration: none;
 }
 
 .modalBody {
   flex: 1;
-  padding: 16px 20px;
+  padding: 8px 20px 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
   max-width: 680px;
   width: 100%;
   align-self: center;
   box-sizing: border-box;
 }
 
+.modalSeccion {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.modalSeccion:last-child {
+  border-bottom: none;
+}
+
+.modalSeccionTitulo {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+  text-decoration: none;
+}
+
+.modalSeccionTexto {
+  font-size: 0.84rem;
+  color: var(--text2);
+  margin: 0;
+  line-height: 1.65;
+  text-decoration: none;
+}
+
 .modalFooter {
-  padding: 20px;
+  padding: 16px 20px 28px;
   max-width: 680px;
   width: 100%;
   align-self: center;
   box-sizing: border-box;
 }
+
+.btnCerrar {
+  width: 100%;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 15px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btnCerrar:hover { opacity: 0.88; }
