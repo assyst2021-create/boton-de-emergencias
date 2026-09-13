@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
@@ -145,17 +145,52 @@ function AppInner() {
         }}
       />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<><PanicButtons /><Nav /></>} />
-          <Route path="/historial" element={<><Historial /><Nav /></>} />
-          <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
-          <Route path="/ubicacion" element={<><Ubicacion /><Nav /></>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <SwipeRouter />
       </BrowserRouter>
       {mostrarPerfil && <Perfil onCerrar={() => setMostrarPerfil(false)} />}
     </AppActionsContext.Provider>
     </NavContext.Provider>
+  )
+}
+
+const RUTAS = ['/', '/historial', '/familia', '/ubicacion']
+
+function SwipeRouter() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const touchStart = useRef(null)
+
+  const onTouchStart = useCallback((e) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }, [])
+
+  const onTouchEnd = useCallback((e) => {
+    if (!touchStart.current) return
+    const dx = e.changedTouches[0].clientX - touchStart.current.x
+    const dy = e.changedTouches[0].clientY - touchStart.current.y
+    touchStart.current = null
+    // Solo swipe horizontal (eje X dominante) con al menos 60px
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    const idx = RUTAS.indexOf(location.pathname)
+    if (idx === -1) return
+    if (dx < 0 && idx < RUTAS.length - 1) navigate(RUTAS[idx + 1])
+    if (dx > 0 && idx > 0) navigate(RUTAS[idx - 1])
+  }, [location.pathname, navigate])
+
+  return (
+    <div
+      style={{ minHeight: '100dvh', touchAction: 'pan-y' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      <Routes>
+        <Route path="/" element={<><PanicButtons /><Nav /></>} />
+        <Route path="/historial" element={<><Historial /><Nav /></>} />
+        <Route path="/familia" element={<><GrupoFamiliar /><Nav /></>} />
+        <Route path="/ubicacion" element={<><Ubicacion /><Nav /></>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   )
 }
 
