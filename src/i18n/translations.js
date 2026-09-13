@@ -13,7 +13,7 @@
     instalarIosPaso3: 'Toca "Agregar" para confirmar',
     instalarChromeInstr: 'En Chrome: toca ⋮ (esquina superior derecha) → "Añadir a pantalla de inicio"',
     correo: 'Correo electrónico', correoPh: 'tu@correo.com',
-    hintContrasena: 'Mínimo 6 caracteres. Recuerda bien tu contraseña — por seguridad no podemos recuperarla si la olvidas.',
+    hintContrasena: 'Mínimo 6 caracteres. Recuerda bien tu contraseña.',
     errorCampos: 'Completa todos los campos', errorEspacios: 'El usuario no puede tener espacios',
     errorContrasenaCorta: 'La contraseña debe tener al menos 6 caracteres',
     errorUsuarioExiste: 'Ese nombre de usuario ya existe, elige otro',
