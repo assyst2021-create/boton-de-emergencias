@@ -11,10 +11,11 @@ export default function Perfil({ onCerrar }) {
   const { t, lang, cambiarIdioma } = useLanguage()
   const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
   const [paso, setPaso] = useState('menu')
-  const [form, setForm] = useState({ nueva: '', confirmar: '' })
+  const [form, setForm] = useState({ actual: '', nueva: '', confirmar: '' })
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [verActual, setVerActual] = useState(false)
   const [verNueva, setVerNueva] = useState(false)
   const [verConfirmar, setVerConfirmar] = useState(false)
   const [perfil, setPerfil] = useState(null)
@@ -46,13 +47,21 @@ export default function Perfil({ onCerrar }) {
   async function cambiarContrasena(e) {
     e.preventDefault()
     setError('')
+    if (!form.actual) { setError('Ingresa tu contraseña actual'); return }
     if (form.nueva.length < 6) { setError(t('errorMin')); return }
     if (form.nueva !== form.confirmar) { setError(t('errorNoCoinciden')); return }
     setCargando(true)
+    // Reautenticar con la contraseña actual antes de cambiar
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const { error: reAuthError } = await supabase.auth.signInWithPassword({
+      email: authUser.email,
+      password: form.actual,
+    })
+    if (reAuthError) { setError('La contraseña actual no es correcta'); setCargando(false); return }
     const { error } = await supabase.auth.updateUser({ password: form.nueva })
     if (error) { setError(t('errorCambio')); setCargando(false); return }
     setExito(t('exitoCambio'))
-    setForm({ nueva: '', confirmar: '' })
+    setForm({ actual: '', nueva: '', confirmar: '' })
     setCargando(false)
     setTimeout(() => { setExito(''); setPaso('menu') }, 2500)
   }
@@ -187,6 +196,13 @@ export default function Perfil({ onCerrar }) {
         {paso === 'contrasena' && (
           <form onSubmit={cambiarContrasena} className={styles.form}>
             <p className={styles.desc}>{t('ingresarDesc')}</p>
+            <div className={styles.field}>
+              <label>Contraseña actual</label>
+              <div className={styles.passwordWrap}>
+                <input type={verActual ? 'text' : 'password'} placeholder="Tu contraseña actual" value={form.actual} onChange={set('actual')} autoComplete="current-password" />
+                <button type="button" className={styles.eyeBtn} onClick={() => setVerActual(v => !v)}>{verActual ? '🙈' : '👁️'}</button>
+              </div>
+            </div>
             <div className={styles.field}>
               <label>{t('nuevaContrasena')}</label>
               <div className={styles.passwordWrap}>
