@@ -114,93 +114,113 @@
   max-width: 560px;
 }
 
-/* ── Acordeón ── */
-.acordeon {
+/* ── Filas de documentos ── */
+.docFila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
   background: var(--card);
   border: 1.5px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.acordeonDone {
-  border-color: #2ecc71;
-}
-
-.acordeonHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
   padding: 14px 16px;
   cursor: pointer;
   text-align: left;
   color: var(--text);
+  transition: border-color 0.2s, background 0.2s;
 }
 
-.acordeonIcon {
-  font-size: 1.4rem;
+.docFila:hover {
+  background: var(--card2, var(--card));
+}
+
+.docFilaDone {
+  border-color: #2ecc71;
+}
+
+.circulo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text2);
   flex-shrink: 0;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 
-.acordeonTextos {
+.circuloDone {
+  border-color: #2ecc71;
+  background: #2ecc71;
+  color: #fff;
+}
+
+.docNombre {
   flex: 1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.docArrow {
+  font-size: 1.4rem;
+  color: var(--text2);
+  line-height: 1;
+}
+
+/* ── Modal pantalla completa ── */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--bg, #fff);
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.acordeonTitulo {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.acordeonSub {
-  font-size: 0.75rem;
-  color: var(--text2);
-}
-
-.acordeonChevron {
-  font-size: 1.3rem;
-  color: var(--text2);
-  transition: transform 0.2s;
-  line-height: 1;
-  display: inline-block;
-  transform: rotate(90deg);
-}
-
-.rotado {
-  transform: rotate(-90deg);
-}
-
-.acordeonCheck {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-
-/* ── Cuerpo del acordeón ── */
-.acordeonBody {
-  max-height: 52vh;
+.modalScroll {
+  flex: 1;
   overflow-y: auto;
-  padding: 0 16px 4px;
-  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Zona de aceptación al final del cuerpo */
-.checkZona {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 0 12px;
-  gap: 8px;
+.modalHeader {
+  position: sticky;
+  top: 0;
+  background: var(--bg, #fff);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  z-index: 1;
 }
 
-.checkActivo span {
+.modalTitulo {
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--text);
-  font-weight: 600;
+}
+
+.modalBody {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 680px;
+  width: 100%;
+  align-self: center;
+  box-sizing: border-box;
+}
+
+.modalFooter {
+  padding: 20px;
+  max-width: 680px;
+  width: 100%;
+  align-self: center;
+  box-sizing: border-box;
 }

@@ -101,41 +101,17 @@ const DOCS = [
   },
 ]
 
-/* ── Componente acordeón por documento ─────────────────────── */
+/* ── Modal pantalla completa para leer un documento ─────────── */
 
-function DocAcordeon({ doc, onLeido, leido, checked, onCheck, soloVer }) {
-  const [abierto, setAbierto] = useState(false)
-  const bodyRef = useRef(null)
-
-  function alHacerScroll() {
-    if (leido) return
-    const el = bodyRef.current
-    if (!el) return
-    if (el.scrollHeight - el.scrollTop - el.clientHeight <= 60) {
-      onLeido()
-    }
-  }
-
-  function toggleAbrir() {
-    setAbierto(v => !v)
-  }
-
+function DocModal({ doc, onCerrar }) {
   return (
-    <div className={`${aStyles.acordeon} ${checked ? aStyles.acordeonDone : ''}`}>
-      {/* Header */}
-      <button className={aStyles.acordeonHeader} onClick={toggleAbrir} aria-expanded={abierto}>
-        <span className={aStyles.acordeonIcon}>{doc.icon}</span>
-        <div className={aStyles.acordeonTextos}>
-          <span className={aStyles.acordeonTitulo}>{doc.titulo}</span>
-          <span className={aStyles.acordeonSub}>{doc.sub}</span>
+    <div className={aStyles.modal}>
+      <div className={aStyles.modalScroll}>
+        <div className={aStyles.modalHeader}>
+          <span className={aStyles.modalTitulo}>{doc.titulo}</span>
         </div>
-        <span className={`${aStyles.acordeonChevron} ${abierto ? aStyles.rotado : ''}`}>›</span>
-        {checked && <span className={aStyles.acordeonCheck}>✅</span>}
-      </button>
 
-      {/* Body */}
-      {abierto && (
-        <div className={aStyles.acordeonBody} ref={bodyRef} onScroll={alHacerScroll}>
+        <div className={aStyles.modalBody}>
           {doc.secciones.map((s, i) => (
             <div key={i}>
               {i > 0 && <hr className={styles.divider} />}
@@ -145,26 +121,14 @@ function DocAcordeon({ doc, onLeido, leido, checked, onCheck, soloVer }) {
               </div>
             </div>
           ))}
-          {/* Zona de aceptación dentro del acordeón */}
-          {!soloVer && (
-            <div className={aStyles.checkZona}>
-              {!leido ? (
-                <p className={pStyles.avisoScroll}>📖 Desplázate hasta el final para habilitar</p>
-              ) : (
-                <label className={`${pStyles.checkLabel} ${checked ? aStyles.checkActivo : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={e => onCheck(e.target.checked)}
-                    className={pStyles.checkbox}
-                  />
-                  <span>{doc.checkLabel}</span>
-                </label>
-              )}
-            </div>
-          )}
         </div>
-      )}
+
+        <div className={aStyles.modalFooter}>
+          <button className={styles.btn} onClick={onCerrar}>
+            ✓ Cerrar
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -172,18 +136,20 @@ function DocAcordeon({ doc, onLeido, leido, checked, onCheck, soloVer }) {
 /* ── Pantalla principal ─────────────────────────────────────── */
 
 export default function AvisoLegal({ onAceptar, soloVer = false }) {
-  const [leidos, setLeidos] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
   const [checks, setChecks] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
+  const [docAbierto, setDocAbierto] = useState(null)
 
-  function marcarLeido(id) {
-    setLeidos(prev => ({ ...prev, [id]: true }))
-  }
+  function abrirDoc(id) { setDocAbierto(id) }
 
-  function marcarCheck(id, val) {
-    setChecks(prev => ({ ...prev, [id]: val }))
+  function cerrarDoc() {
+    if (docAbierto && !soloVer) {
+      setChecks(prev => ({ ...prev, [docAbierto]: true }))
+    }
+    setDocAbierto(null)
   }
 
   const todosAceptados = checks.privacidad && checks.terminos && checks.contrato && checks.aviso
+  const docActivo = DOCS.find(d => d.id === docAbierto)
 
   return (
     <div className={styles.wrap}>
@@ -222,21 +188,20 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
 
         <div className={aStyles.separador} />
         <p className={aStyles.instruccionTitulo}>📋 Documentos legales</p>
-        <p className={aStyles.instruccion}>
-          Abre cada documento, léelo completo y el check se habilitará automáticamente. Cuando hayas aceptado los cuatro, podrás continuar.
-        </p>
 
         <div className={aStyles.lista}>
-          {DOCS.map(doc => (
-            <DocAcordeon
+          {DOCS.map((doc, idx) => (
+            <button
               key={doc.id}
-              doc={doc}
-              leido={leidos[doc.id]}
-              checked={checks[doc.id]}
-              onLeido={() => marcarLeido(doc.id)}
-              onCheck={val => marcarCheck(doc.id, val)}
-              soloVer={soloVer}
-            />
+              className={`${aStyles.docFila} ${checks[doc.id] ? aStyles.docFilaDone : ''}`}
+              onClick={() => abrirDoc(doc.id)}
+            >
+              <span className={`${aStyles.circulo} ${checks[doc.id] ? aStyles.circuloDone : ''}`}>
+                {checks[doc.id] ? '✓' : idx + 1}
+              </span>
+              <span className={aStyles.docNombre}>{doc.titulo}</span>
+              <span className={aStyles.docArrow}>›</span>
+            </button>
           ))}
         </div>
 
@@ -244,16 +209,19 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
           {soloVer ? (
             <button className={styles.btn} onClick={onAceptar}>← Volver</button>
           ) : (
-          <button
-            className={todosAceptados ? styles.btn : pStyles.btnDeshabilitado}
-            onClick={todosAceptados ? onAceptar : undefined}
-            disabled={!todosAceptados}
-          >
-            {todosAceptados ? '✅ Continuar' : 'Acepta los cuatro documentos para continuar'}
-          </button>
+            <button
+              className={todosAceptados ? styles.btn : pStyles.btnDeshabilitado}
+              onClick={todosAceptados ? onAceptar : undefined}
+              disabled={!todosAceptados}
+            >
+              {todosAceptados ? '✅ Continuar' : 'Lee los cuatro documentos para continuar'}
+            </button>
           )}
         </div>
       </div>
+
+      {/* Modal pantalla completa */}
+      {docActivo && <DocModal doc={docActivo} onCerrar={cerrarDoc} />}
     </div>
   )
 }
