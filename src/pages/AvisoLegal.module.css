@@ -344,11 +344,6 @@
 
 .modalSeccion {
   padding: 16px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.modalSeccion:last-child {
-  border-bottom: none;
 }
 
 .modalSeccionTitulo {
@@ -361,10 +356,16 @@
 
 .modalSeccionTexto {
   font-size: 0.84rem;
-  color: var(--text2);
+  color: var(--text2) !important;
   margin: 0;
   line-height: 1.65;
-  text-decoration: none;
+  text-decoration: none !important;
+}
+
+.modalSeccionTexto a,
+.modalSeccionTexto * {
+  color: inherit !important;
+  text-decoration: none !important;
 }
 
 .modalFooter {

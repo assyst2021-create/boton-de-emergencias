@@ -66,13 +66,7 @@ const AVISO = [
   { titulo: '8. ACEPTACIÓN DEL AVISO LEGAL', texto: 'Al seleccionar la opción correspondiente, el usuario declara que ha leído, comprendido y aceptado el presente Aviso Legal y se compromete a utilizar la aplicación de manera responsable y de acuerdo con su finalidad de apoyo a la comunicación durante situaciones de emergencia.\n\nASSYST · Correo: assyst2021@ssthechofacil.com\nÚltima actualización: 10 de septiembre de 2026' },
 ]
 
-/* Color de acento por documento */
-const DOC_COLOR = {
-  privacidad: '#2980b9',
-  terminos:   '#e67e22',
-  contrato:   '#1E8449',
-  aviso:      '#8e44ad',
-}
+const DOC_COLOR = '#2980b9'
 
 const DOCS = [
   { id: 'privacidad', titulo: 'Política de Privacidad',       sub: 'Recopilación, uso y protección de tu información', secciones: PRIVACIDAD },
@@ -84,11 +78,10 @@ const DOCS = [
 /* ── Modal pantalla completa ─────────────────────────────────── */
 
 function DocModal({ doc, onCerrar }) {
-  const color = DOC_COLOR[doc.id]
   return (
     <div className={aStyles.modal}>
       <div className={aStyles.modalScroll}>
-        <div className={aStyles.modalHeader} style={{ background: color }}>
+        <div className={aStyles.modalHeader} style={{ background: DOC_COLOR }}>
           <span className={aStyles.modalTitulo}>{doc.titulo}</span>
         </div>
 
@@ -104,7 +97,7 @@ function DocModal({ doc, onCerrar }) {
         <div className={aStyles.modalFooter}>
           <button
             className={aStyles.btnCerrar}
-            style={{ background: color }}
+            style={{ background: DOC_COLOR }}
             onClick={onCerrar}
           >
             Cerrar y marcar como leído
@@ -118,7 +111,8 @@ function DocModal({ doc, onCerrar }) {
 /* ── Pantalla principal ─────────────────────────────────────── */
 
 export default function AvisoLegal({ onAceptar, soloVer = false }) {
-  const [checks, setChecks] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
+  const allTrue = { privacidad: true, terminos: true, contrato: true, aviso: true }
+  const [checks, setChecks] = useState(soloVer ? allTrue : { privacidad: false, terminos: false, contrato: false, aviso: false })
   const [docAbierto, setDocAbierto] = useState(null)
 
   function cerrarDoc() {
@@ -187,17 +181,16 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
           <div className={aStyles.lista}>
             {DOCS.map((doc, idx) => {
               const listo = checks[doc.id]
-              const color = DOC_COLOR[doc.id]
               return (
                 <button
                   key={doc.id}
                   className={`${aStyles.docCard} ${listo ? aStyles.docCardDone : ''}`}
-                  style={{ borderLeftColor: listo ? '#2ecc71' : color }}
+                  style={{ borderLeftColor: listo ? '#2ecc71' : DOC_COLOR }}
                   onClick={() => setDocAbierto(doc.id)}
                 >
                   <span
                     className={`${aStyles.circulo} ${listo ? aStyles.circuloDone : ''}`}
-                    style={!listo ? { borderColor: color } : {}}
+                    style={!listo ? { borderColor: DOC_COLOR } : {}}
                   >
                     {listo ? '✓' : ''}
                   </span>
