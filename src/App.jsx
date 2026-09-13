@@ -131,15 +131,16 @@ function AppInner() {
         src="/logo-empresa.png"
         alt=""
         aria-hidden="true"
+        className="watermark-bg"
         style={{
           position: 'fixed',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 'min(320px, 80vw)',
-          height: 'min(320px, 80vw)',
+          width: 'min(440px, 94vw)',
+          height: 'min(440px, 94vw)',
           objectFit: 'contain',
-          opacity: 0.06,
+          opacity: 0.09,
           pointerEvents: 'none',
           zIndex: 0,
           userSelect: 'none',

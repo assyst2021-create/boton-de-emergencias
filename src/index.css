@@ -44,7 +44,7 @@ a { color: inherit; }
   --border: rgba(255,255,255,0.18);
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
-  --logo-blend: normal;          /* sin blend en oscuro para que el logo se vea */
+  --logo-blend: screen;          /* screen en negro = muestra solo partes brillantes del logo */
   --card-blur: blur(18px);
   --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
@@ -111,3 +111,8 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--text2); }
+
+/* Watermark de fondo — blend mode adaptable al tema */
+.watermark-bg {
+  mix-blend-mode: var(--logo-blend);
+}
