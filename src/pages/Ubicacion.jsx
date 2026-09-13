@@ -106,12 +106,15 @@ export default function Ubicacion() {
     })))
   }
 
-  /** Realtime: repinta el mapa cada vez que alguien mueve su punto. */
+  /** Realtime: repinta el mapa cuando alguien mueve su punto o manda una alerta nueva. */
   function escuchar(uid) {
     if (canalRef.current) return
     canalRef.current = supabase.channel('ubicaciones-vivo')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'live_locations' },
+        () => cargarFamiliares(uid))
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'alerts' },
         () => cargarFamiliares(uid))
       .subscribe()
   }
