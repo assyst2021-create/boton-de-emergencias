@@ -2,28 +2,31 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+}
+
+/* ── Zona superior: fondo blanco ── */
+.topSection {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px 20px;
-  gap: 28px;
-  position: relative;
+  padding: 36px 20px 24px;
+  gap: 16px;
+}
+
+/* ── Zona inferior: foto de fondo ── */
+.bottomSection {
+  flex: 1;
   background-image: url('/bg-familia.jpg.png');
   background-size: cover;
-  background-position: center top;
+  background-position: center center;
   background-repeat: no-repeat;
-}
-
-.wrap::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 20, 40, 0.08);
-  z-index: 0;
-}
-
-.wrap > * {
-  position: relative;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 20px 40px;
 }
 
 .logo {
@@ -36,7 +39,7 @@
   object-fit: contain;
   margin-bottom: 10px;
   animation: latido 2.2s ease-in-out infinite;
-  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.50));
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.25));
 }
 
 @keyframes latido {
@@ -51,29 +54,27 @@
 .logo h1 {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #fff;
+  color: #1a1a2e;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
 }
 
 .logo p {
   font-size: 0.9rem;
-  color: #ffd580;
+  color: var(--naranja);
   font-weight: 600;
   margin-top: 2px;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.4);
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid rgba(255, 255, 255, 0.40);
   border-radius: var(--radius);
   width: 100%;
   max-width: 420px;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.20);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
 }
 
 .tabs {

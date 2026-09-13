@@ -145,42 +145,45 @@ export default function Login() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.logo}>
-        <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
-        <h1>{t('appNombre')}</h1>
+      <div className={styles.topSection}>
+        <div className={styles.logo}>
+          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+          <h1>{t('appNombre')}</h1>
+        </div>
+
+        {instalada ? (
+          <div className={styles.installBox}>
+            <span>{t('appInstalada')}</span>
+          </div>
+        ) : installPrompt ? (
+          <div className={styles.installSection}>
+            <button className={styles.installBtn} onClick={instalarApp}>
+              ⬇️ {t('instalarApp')}
+            </button>
+          </div>
+        ) : (
+          <div className={styles.installSection}>
+            <button className={styles.installBtn} onClick={() => setVerPasos(v => !v)}>
+              ⬇️ {t('instalarApp')}
+            </button>
+            {verPasos && (
+              <div className={styles.installCard}>
+                {esIOS ? (
+                  <ol className={styles.installSteps}>
+                    <li>{t('instalarIosPaso1')}</li>
+                    <li>{t('instalarIosPaso2')}</li>
+                    <li>{t('instalarIosPaso3')}</li>
+                  </ol>
+                ) : (
+                  <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {instalada ? (
-        <div className={styles.installBox}>
-          <span>{t('appInstalada')}</span>
-        </div>
-      ) : installPrompt ? (
-        <div className={styles.installSection}>
-          <button className={styles.installBtn} onClick={instalarApp}>
-            ⬇️ {t('instalarApp')}
-          </button>
-        </div>
-      ) : (
-        <div className={styles.installSection}>
-          <button className={styles.installBtn} onClick={() => setVerPasos(v => !v)}>
-            ⬇️ {t('instalarApp')}
-          </button>
-          {verPasos && (
-            <div className={styles.installCard}>
-              {esIOS ? (
-                <ol className={styles.installSteps}>
-                  <li>{t('instalarIosPaso1')}</li>
-                  <li>{t('instalarIosPaso2')}</li>
-                  <li>{t('instalarIosPaso3')}</li>
-                </ol>
-              ) : (
-                <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
+      <div className={styles.bottomSection}>
       <div className={styles.card}>
         <div className={styles.tabs}>
           <button className={modo === 'login' ? styles.tabActive : styles.tab} onClick={() => { setModo('login'); setError('') }}>{t('ingresar')}</button>
@@ -287,6 +290,7 @@ export default function Login() {
             {cargando ? t('procesando') : modo === 'login' ? t('ingresar') : t('crearCuenta')}
           </button>
         </form>
+      </div>
       </div>
     </div>
   )
