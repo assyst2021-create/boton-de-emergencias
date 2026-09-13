@@ -42,7 +42,7 @@
     // GrupoFamiliar
     grupoTitulo: 'Grupo familiar',
     agregarFamiliar: 'Agregar familiar',
-    usernameFamiliar: 'Usuario a agregar',
+    usernameFamiliar: '@usuario (nombre de usuario)',
     enviarSolicitud: 'Enviar solicitud',
     pendientes: 'Solicitudes pendientes',
     aceptar: 'Aceptar', rechazar: 'Rechazar',
@@ -277,7 +277,7 @@
     verMapa: '📍 View location',
     grupoTitulo: 'Family group',
     agregarFamiliar: 'Add family member',
-    usernameFamiliar: 'Username to add',
+    usernameFamiliar: '@username',
     enviarSolicitud: 'Send request',
     pendientes: 'Pending requests',
     aceptar: 'Accept', rechazar: 'Reject',

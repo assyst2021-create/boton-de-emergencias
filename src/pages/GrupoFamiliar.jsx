@@ -53,7 +53,7 @@ export default function GrupoFamiliar() {
     setBuscando(true)
     setResultado(null)
     // Primero busca exacto, luego parcial si no encuentra
-    const termino = busqueda.toLowerCase().trim()
+    const termino = busqueda.toLowerCase().trim().replace(/^@/, '')
     let { data } = await supabase
       .from('users')
       .select('id, full_name, username')
