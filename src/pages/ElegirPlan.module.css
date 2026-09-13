@@ -20,6 +20,12 @@
   font-size: 3rem;
 }
 
+.logoImg {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+
 .titulo {
   font-size: 1.75rem;
   font-weight: 800;

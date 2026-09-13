@@ -11,7 +11,6 @@ import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
 import GrupoFamiliar from './pages/GrupoFamiliar'
 import Ubicacion from './pages/Ubicacion'
-import ContratoServicio from './pages/ContratoServicio'
 import { AppActionsContext } from './pages/Perfil'
 import Perfil from './pages/Perfil'
 import Nav from './components/Nav'
@@ -113,7 +112,6 @@ function AppInner() {
   if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
   if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
-  if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (notifPrompt) return <NotifRequestScreen onContinuar={() => setNotifPrompt(false)} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === true) return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />

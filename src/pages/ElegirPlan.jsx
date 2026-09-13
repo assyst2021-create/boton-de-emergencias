@@ -31,7 +31,7 @@ export default function ElegirPlan({ onElegido }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.top}>
-        <div className={styles.icono}>🆘</div>
+        <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
         <h1 className={styles.titulo}>{t('planTitulo')}</h1>
         <p className={styles.sub}>{t('planSub')}</p>
       </div>
