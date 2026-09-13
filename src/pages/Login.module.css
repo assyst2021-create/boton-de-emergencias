@@ -2,31 +2,28 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-}
-
-/* ── Zona superior: fondo blanco ── */
-.topSection {
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 36px 20px 24px;
-  gap: 16px;
-}
-
-/* ── Zona inferior: foto de fondo ── */
-.bottomSection {
-  flex: 1;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 20px;
   background-image: url('/bg-familia.jpg.png');
   background-size: cover;
-  background-position: center center;
+  background-position: center 15%;
   background-repeat: no-repeat;
+}
+
+.topSection {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 24px 20px 40px;
+  gap: 16px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.bottomSection {
+  width: 100%;
+  max-width: 420px;
 }
 
 .logo {
@@ -54,8 +51,9 @@
 .logo h1 {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #1a1a2e;
+  color: #ffffff;
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.6);
 }
 
 .logo p {

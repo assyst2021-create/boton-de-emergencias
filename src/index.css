@@ -29,7 +29,7 @@ a { color: inherit; }
   --accent: #E67E22;
   --radius: 14px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --logo-blend: multiply;        /* quita fondo blanco del PNG en modo claro */
+  --logo-blend: normal;
   --logo-filter: none;
   --card-blur: blur(0px);        /* sin blur en modo claro */
   --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
@@ -45,8 +45,8 @@ a { color: inherit; }
   --border: rgba(255,255,255,0.18);
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
-  --logo-blend: normal;          /* sin multiply: invert(1) solo convierte blanco en negro */
-  --logo-filter: invert(1);      /* blanco→negro: se funde con fondo negro */
+  --logo-blend: normal;
+  --logo-filter: none;
   --card-blur: blur(18px);
   --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
