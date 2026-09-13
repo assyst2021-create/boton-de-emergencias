@@ -1,7 +1,5 @@
 .wrap {
-  height: 100dvh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: 100dvh;
   background: var(--bg);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
