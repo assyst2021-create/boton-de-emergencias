@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import styles from './Disclaimer.module.css'
 import pStyles from './Privacidad.module.css'
+import aStyles from './AvisoLegal.module.css'
+
+/* ── Contenidos ─────────────────────────────────────────────── */
 
 const PRIVACIDAD = [
   { titulo: '1. INTRODUCCIÓN', texto: 'La presente Política de Privacidad establece las condiciones bajo las cuales ASSYST recopila, utiliza, almacena y protege la información personal de los usuarios de Botón de Emergencia, aplicación creada y desarrollada por ASSYST bajo la marca SST Hecho Fácil. Su finalidad es informar de manera clara y transparente qué información se solicita, para qué se utiliza y cuáles son las opciones disponibles para el usuario.' },
@@ -32,48 +35,108 @@ const TERMINOS = [
   { titulo: '12. LEGISLACIÓN APLICABLE Y CONTACTO', texto: 'Estos Términos se rigen por la legislación colombiana.\n\nASSYST · Botón de Emergencia\nassyst2021@ssthechofacil.com' },
 ]
 
-export default function AvisoLegal({ onAceptar }) {
-  const [llegóAlFinal, setLlegóAlFinal] = useState(false)
-  const [checkPriv, setCheckPriv] = useState(false)
-  const [checkTerm, setCheckTerm] = useState(false)
+const CONTRATO = [
+  { titulo: '1. VIGENCIA Y SUSCRIPCIÓN ANUAL', texto: 'La Suscripción Anual tiene una vigencia de un (1) año contado desde la fecha en que se confirme el pago, por un valor de VEINTE MIL PESOS COLOMBIANOS ($20.000 COP). El pago corresponde a una suscripción anual para mantener el servicio activo y permitir las actividades de mantenimiento, actualización y mejora de la aplicación.' },
+  { titulo: '2. VALOR Y CONDICIONES DEL PAGO', texto: 'El valor de la Suscripción Anual es de VEINTE MIL PESOS COLOMBIANOS ($20.000 COP) por un (1) año de servicio. El cobro es anual y permite mantener activa la aplicación, así como contribuir a las labores de mantenimiento, actualización, soporte y mejora continua del servicio.' },
+  { titulo: '3. MANTENIMIENTO Y ACTUALIZACIÓN', texto: 'Durante cada año de vigencia de la suscripción se realizarán actividades de mantenimiento y actualización de la aplicación. Estas actividades tienen como finalidad mantener el servicio operativo, actualizado y en proceso de mejora continua. Las actualizaciones podrán incluir mejoras técnicas, correcciones, ajustes de seguridad y nuevas funcionalidades, de acuerdo con las necesidades y evolución del servicio.' },
+  { titulo: '4. REEMBOLSOS, DEVOLUCIONES Y DERECHOS DEL CONSUMIDOR', texto: 'Los pagos efectuados por el usuario no serán reembolsables, salvo cuando exista un derecho de devolución, reversión, retracto u otra obligación de reembolso reconocida por la legislación colombiana aplicable, o cuando ASSYST determine expresamente lo contrario.' },
+  { titulo: '5. USO RESPONSABLE DE LA APLICACIÓN', texto: 'El usuario es el único responsable del uso que realice de la aplicación, de la información que proporcione, de los permisos concedidos al dispositivo y de los familiares o contactos que vincule dentro del servicio.\n\nCualquier utilización indebida de la aplicación, incluyendo vigilancia, seguimiento, rastreo, acoso, control indebido de otra persona, utilización de la ubicación para investigar relaciones sentimentales, infidelidades, celos, conflictos de pareja, activaciones falsas, fraude o cualquier finalidad distinta a la atención y comunicación de situaciones de emergencia, será responsabilidad exclusiva del usuario que realice dicha utilización, en la medida permitida por la legislación aplicable.' },
+  { titulo: '6. UBICACIÓN GPS', texto: 'La ubicación GPS se utiliza como función de apoyo a las alertas y se obtiene en el momento en que el usuario activa voluntariamente una alerta de emergencia. La ubicación enviada corresponde a la información obtenida por el dispositivo en ese momento. La aplicación no proporciona ubicación en tiempo real, seguimiento continuo ni vigilancia permanente.' },
+  { titulo: '7. NATURALEZA DEL SERVICIO Y SERVICIOS OFICIALES DE EMERGENCIA', texto: 'Botón de Emergencia es una herramienta tecnológica de apoyo y comunicación ante situaciones de emergencia. No constituye un servicio de atención de emergencias, rescate, ambulancia, policía, bomberos, vigilancia privada ni monitoreo profesional.\n\nLa activación de una alerta no garantiza que los familiares, contactos, autoridades u organismos de emergencia reciban, visualicen o atiendan la alerta en un tiempo determinado.\n\nEn Colombia, ante una situación de emergencia, el usuario deberá comunicarse directamente con los servicios oficiales correspondientes, incluyendo el Número Único de Emergencias 123, Bomberos 119 o Cruz Roja 132, según corresponda.' },
+  { titulo: '8. LIMITACIONES TÉCNICAS', texto: 'El funcionamiento de las alertas, GPS, SMS, WhatsApp y demás funcionalidades depende de la disponibilidad de internet o red de comunicaciones, de contar con señal o conectividad mínima disponible, señal GPS, batería, permisos y configuración del dispositivo, sistema operativo, servicios de terceros y demás condiciones técnicas. En lugares sin cobertura o con señal insuficiente, una alerta puede no enviarse, presentar demora o no transmitir correctamente la ubicación.' },
+  { titulo: '9. HISTORIAL DE ALERTAS', texto: 'El historial de alertas tendrá el comportamiento de conservación indicado por las funcionalidades disponibles en la aplicación. Cuando corresponda, podrá existir auto-borrado a las 24 horas y otras opciones de gestión del historial.' },
+  { titulo: '10. TRATAMIENTO DE DATOS PERSONALES', texto: 'El tratamiento de los datos personales se realizará de acuerdo con la Política de Privacidad de Botón de Emergencia, que forma parte de las condiciones aplicables al uso del servicio. Determinadas funcionalidades de comunicación, como SMS y WhatsApp, pueden requerir la intervención de redes, operadores o proveedores tecnológicos necesarios para entregar las comunicaciones.' },
+  { titulo: '11. RESPONSABILIDAD SOBRE LOS CONTACTOS VINCULADOS', texto: 'El usuario es responsable de los familiares o contactos que vincule al servicio y de las autorizaciones que les otorgue mediante las funcionalidades de la aplicación. El usuario deberá procurar que las personas vinculadas sean contactos legítimos y adecuados para recibir alertas o información de ubicación relacionada con emergencias.' },
+  { titulo: '12. SUSPENSIÓN O RESTRICCIÓN DEL SERVICIO', texto: 'ASSYST podrá restringir o suspender el acceso al servicio cuando existan indicios de utilización fraudulenta, abusiva, ilegal o contraria a este Contrato de Servicio, sin perjuicio de los derechos que correspondan al usuario conforme a la legislación aplicable.' },
+  { titulo: '13. PROPIEDAD INTELECTUAL', texto: 'La aplicación Botón de Emergencia, su diseño, estructura, contenidos, elementos gráficos, software, funcionalidades, marcas y demás componentes protegibles son propiedad de ASSYST o se utilizan con las autorizaciones correspondientes. El usuario recibe una autorización de uso limitada al funcionamiento normal del servicio y no adquiere derechos de propiedad sobre sus componentes.' },
+  { titulo: '14. SOPORTE Y CONTACTO', texto: 'Para consultas, soporte o solicitudes relacionadas con el servicio, el usuario podrá comunicarse con ASSYST a través del correo electrónico: assyst2021@ssthechofacil.com.' },
+  { titulo: '15. MODIFICACIONES DEL CONTRATO', texto: 'ASSYST podrá actualizar o modificar este Contrato de Servicio cuando resulte necesario por cambios en el funcionamiento de la aplicación, nuevas funcionalidades, requisitos técnicos o disposiciones aplicables. Las modificaciones relevantes serán comunicadas o puestas a disposición del usuario por los medios disponibles en la aplicación.' },
+  { titulo: '16. LEGISLACIÓN APLICABLE', texto: 'Este Contrato de Servicio se regirá por las normas aplicables de la República de Colombia, sin perjuicio de los derechos que correspondan al consumidor conforme a la legislación vigente.' },
+  { titulo: '17. ACEPTACIÓN', texto: 'Al seleccionar «Leído y de acuerdo», el usuario declara que ha tenido acceso a este Contrato de Servicio, que lo ha leído, comprendido y aceptado, junto con los documentos que correspondan al servicio, incluyendo los Términos de Uso, Aviso Legal y Política de Privacidad. La aceptación electrónica podrá conservarse como evidencia de la manifestación de voluntad del usuario, de acuerdo con los mecanismos habilitados por la aplicación.' },
+]
 
-  function alHacerScroll(e) {
-    if (llegóAlFinal) return
-    const el = e.target
+const AVISO = [
+  { titulo: '1. LA APLICACIÓN NO REEMPLAZA LOS SERVICIOS OFICIALES DE EMERGENCIA', texto: 'Botón de Emergencia no sustituye los servicios oficiales de emergencia, seguridad, rescate, atención médica, bomberos ni ninguna otra autoridad o entidad competente. En caso de una emergencia, el usuario deberá comunicarse directamente con los servicios oficiales correspondientes. En Colombia, entre los números de atención se encuentran el 123 (Número Único de Emergencias), 119 (Bomberos) y 132 (Cruz Roja).' },
+  { titulo: '2. CONDICIONES TÉCNICAS Y CONECTIVIDAD', texto: 'El funcionamiento de la aplicación depende, entre otros factores, de la disponibilidad de conexión a internet o de red de comunicaciones, una señal mínima disponible, señal GPS, permisos otorgados al dispositivo, batería, configuración del equipo, sistema operativo y condiciones técnicas del dispositivo utilizado.' },
+  { titulo: '3. USO DE LA UBICACIÓN GPS', texto: 'La función de ubicación GPS está destinada exclusivamente al apoyo de las funciones de alerta de emergencia. La ubicación se obtiene cuando el usuario activa voluntariamente el botón de emergencia o alerta, con el propósito de facilitar que los familiares o contactos vinculados conozcan la ubicación correspondiente al momento de la alerta. La aplicación no proporciona ubicación en tiempo real ni seguimiento continuo.' },
+  { titulo: '4. USO RESPONSABLE DE LA APLICACIÓN', texto: 'El usuario es el único responsable del uso que realice de la aplicación, así como de la información que proporcione, los permisos concedidos al dispositivo y los familiares o contactos que vincule dentro del servicio.\n\nCualquier utilización indebida de la aplicación, incluyendo vigilancia, seguimiento, rastreo, acoso, control indebido de otra persona, uso de la ubicación con fines distintos a una emergencia, uso fraudulento o cualquier otra utilización contraria a la finalidad de Botón de Emergencia, será responsabilidad exclusiva del usuario que realice, autorice o permita dicho uso.\n\nASSYST no será responsable por el uso indebido que el usuario realice de la aplicación, de sus funcionalidades o de la información de ubicación obtenida mediante esta, cuando dicho uso sea ajeno a la finalidad para la cual fue diseñada la aplicación y se encuentre dentro de lo permitido por la legislación aplicable.' },
+  { titulo: '5. LIMITACIONES DEL SERVICIO', texto: 'ASSYST realiza esfuerzos razonables para mantener el funcionamiento de la aplicación; sin embargo, determinadas circunstancias pueden afectar el servicio, incluyendo fallas de conectividad, redes de telecomunicaciones, GPS, batería, permisos, configuración del dispositivo, sistema operativo, hardware, software u otros factores técnicos fuera del control directo de ASSYST.\n\nEn consecuencia, ASSYST no garantiza que todas las alertas sean transmitidas, recibidas o visualizadas de manera inmediata en todas las circunstancias.' },
+  { titulo: '6. RESPONSABILIDAD SOBRE LA INFORMACIÓN DE UBICACIÓN', texto: 'El usuario es responsable del uso que realice de la información de ubicación recibida a través de la aplicación y de las personas a quienes haya autorizado o vinculado como familiares o contactos.\n\nEn la medida permitida por la legislación aplicable, ASSYST no será responsable por el uso indebido, abusivo, fraudulento o ajeno a la finalidad de emergencia que terceros realicen de la información de ubicación a la que hayan tenido acceso por autorización del propio usuario.' },
+  { titulo: '7. LA ALERTA NO GARANTIZA LA RESPUESTA DE TERCEROS', texto: 'La activación de una alerta no garantiza que los familiares, contactos, autoridades, organismos de socorro u otras personas respondan dentro de un tiempo determinado ni que se produzca una intervención efectiva.\n\nBotón de Emergencia constituye una herramienta tecnológica de apoyo y no presta por sí misma servicios de ambulancia, policía, bomberos, rescate, vigilancia privada ni atención directa de emergencias.' },
+  { titulo: '8. ACEPTACIÓN DEL AVISO LEGAL', texto: 'Al seleccionar la opción correspondiente, el usuario declara que ha leído, comprendido y aceptado el presente Aviso Legal y se compromete a utilizar la aplicación de manera responsable y de acuerdo con su finalidad de apoyo a la comunicación durante situaciones de emergencia.\n\nASSYST · Correo: assyst2021@ssthechofacil.com\nÚltima actualización: 10 de septiembre de 2026' },
+]
+
+const DOCS = [
+  {
+    id: 'privacidad',
+    icon: '🔒',
+    titulo: 'Política de Privacidad',
+    sub: 'Cómo recopilamos, usamos y protegemos tu información',
+    secciones: PRIVACIDAD,
+    checkLabel: 'He leído y acepto la Política de Privacidad',
+  },
+  {
+    id: 'terminos',
+    icon: '⚠️',
+    titulo: 'Términos de Uso',
+    sub: 'Condiciones de acceso y uso de la aplicación',
+    secciones: TERMINOS,
+    checkLabel: 'He leído y acepto los Términos de Uso',
+  },
+  {
+    id: 'contrato',
+    icon: '📋',
+    titulo: 'Contrato de Servicio',
+    sub: 'Suscripción anual · $20.000 COP/año',
+    secciones: CONTRATO,
+    checkLabel: 'He leído y acepto el Contrato de Servicio',
+  },
+  {
+    id: 'aviso',
+    icon: '🛡️',
+    titulo: 'Aviso Legal',
+    sub: 'Limitaciones y responsabilidades del servicio',
+    secciones: AVISO,
+    checkLabel: 'He leído y acepto el Aviso Legal',
+  },
+]
+
+/* ── Componente acordeón por documento ─────────────────────── */
+
+function DocAcordeon({ doc, onLeido, leido, checked, onCheck }) {
+  const [abierto, setAbierto] = useState(false)
+  const bodyRef = useRef(null)
+
+  function alHacerScroll() {
+    if (leido) return
+    const el = bodyRef.current
+    if (!el) return
     if (el.scrollHeight - el.scrollTop - el.clientHeight <= 60) {
-      setLlegóAlFinal(true)
+      onLeido()
     }
   }
 
-  const puedeAceptar = checkPriv && checkTerm
+  function toggleAbrir() {
+    setAbierto(v => !v)
+  }
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.scroll} onScroll={alHacerScroll}>
-        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
-        <div className={styles.emoji}>📋</div>
-        <h1 className={styles.titulo}>Documentos Legales</h1>
-        <p className={styles.subtitulo}>ASSYST · Botón de Emergencia</p>
-
-        <div className={pStyles.metaBox}>
-          <p className={pStyles.metaFila}><strong>Responsable:</strong> ASSYST</p>
-          <p className={pStyles.metaFila}><strong>Contacto:</strong> assyst2021@ssthechofacil.com</p>
-          <p className={pStyles.metaFila}><strong>Última actualización:</strong> 10 de septiembre de 2026</p>
+    <div className={`${aStyles.acordeon} ${checked ? aStyles.acordeonDone : ''}`}>
+      {/* Header */}
+      <button className={aStyles.acordeonHeader} onClick={toggleAbrir} aria-expanded={abierto}>
+        <span className={aStyles.acordeonIcon}>{doc.icon}</span>
+        <div className={aStyles.acordeonTextos}>
+          <span className={aStyles.acordeonTitulo}>{doc.titulo}</span>
+          <span className={aStyles.acordeonSub}>{doc.sub}</span>
         </div>
+        <span className={`${aStyles.acordeonChevron} ${abierto ? aStyles.rotado : ''}`}>›</span>
+        {checked && <span className={aStyles.acordeonCheck}>✅</span>}
+      </button>
 
-        {/* ── POLÍTICA DE PRIVACIDAD ── */}
-        <div className={pStyles.docBloque}>
-          <div className={pStyles.docHeader}>
-            <span className={pStyles.docIcon}>🔒</span>
-            <div>
-              <p className={pStyles.docTitulo}>Política de Privacidad</p>
-              <p className={pStyles.docSub}>Cómo recopilamos, usamos y protegemos tu información</p>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.caja}>
-          {PRIVACIDAD.map((s, i) => (
+      {/* Body */}
+      {abierto && (
+        <div className={aStyles.acordeonBody} ref={bodyRef} onScroll={alHacerScroll}>
+          {doc.secciones.map((s, i) => (
             <div key={i}>
               {i > 0 && <hr className={styles.divider} />}
               <div className={pStyles.seccion}>
@@ -82,56 +145,75 @@ export default function AvisoLegal({ onAceptar }) {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* ── TÉRMINOS DE USO ── */}
-        <div className={pStyles.docBloque} style={{ marginTop: 20 }}>
-          <div className={pStyles.docHeader}>
-            <span className={pStyles.docIcon}>⚠️</span>
-            <div>
-              <p className={pStyles.docTitulo}>Términos de Uso</p>
-              <p className={pStyles.docSub}>Condiciones de acceso y uso de la aplicación</p>
-            </div>
+          {/* Zona de aceptación dentro del acordeón */}
+          <div className={aStyles.checkZona}>
+            {!leido ? (
+              <p className={pStyles.avisoScroll}>📖 Desplázate hasta el final para habilitar</p>
+            ) : (
+              <label className={`${pStyles.checkLabel} ${checked ? aStyles.checkActivo : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={e => onCheck(e.target.checked)}
+                  className={pStyles.checkbox}
+                />
+                <span>{doc.checkLabel}</span>
+              </label>
+            )}
           </div>
         </div>
+      )}
+    </div>
+  )
+}
 
-        <div className={styles.caja}>
-          <p className={styles.parrafo}>
-            Los presentes Términos regulan el acceso y utilización de la aplicación <strong>Botón de Emergencia</strong>, desarrollada por ASSYST. <strong>La aplicación no constituye un servicio oficial de atención de emergencias ni reemplaza a las autoridades o entidades de socorro.</strong>
-          </p>
-          {TERMINOS.map((s, i) => (
-            <div key={i}>
-              <hr className={styles.divider} />
-              <div className={pStyles.seccion}>
-                <p className={pStyles.titulo2}>{s.titulo}</p>
-                <p className={styles.parrafo} style={{ whiteSpace: 'pre-line' }}>{s.texto}</p>
-              </div>
-            </div>
+/* ── Pantalla principal ─────────────────────────────────────── */
+
+export default function AvisoLegal({ onAceptar }) {
+  const [leidos, setLeidos] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
+  const [checks, setChecks] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
+
+  function marcarLeido(id) {
+    setLeidos(prev => ({ ...prev, [id]: true }))
+  }
+
+  function marcarCheck(id, val) {
+    setChecks(prev => ({ ...prev, [id]: val }))
+  }
+
+  const todosAceptados = checks.privacidad && checks.terminos && checks.contrato && checks.aviso
+
+  return (
+    <div className={styles.wrap}>
+      <div className={aStyles.outerScroll}>
+        <img src="/logo-empresa.png" alt="" className={styles.logoEmpresa} />
+        <div className={styles.emoji}>📄</div>
+        <h1 className={styles.titulo}>Documentos legales</h1>
+        <p className={styles.subtitulo}>ASSYST · Botón de Emergencia</p>
+        <p className={aStyles.instruccion}>
+          Abre cada documento, léelo completo y marca la casilla para aceptarlo.
+        </p>
+
+        <div className={aStyles.lista}>
+          {DOCS.map(doc => (
+            <DocAcordeon
+              key={doc.id}
+              doc={doc}
+              leido={leidos[doc.id]}
+              checked={checks[doc.id]}
+              onLeido={() => marcarLeido(doc.id)}
+              onCheck={val => marcarCheck(doc.id, val)}
+            />
           ))}
         </div>
 
-        {/* ── CHECKS Y BOTÓN ── */}
-        <div className={pStyles.checksWrap}>
-          {!llegóAlFinal ? (
-            <p className={pStyles.avisoScroll}>📖 Lee los documentos completos para continuar</p>
-          ) : (
-            <>
-              <label className={pStyles.checkLabel}>
-                <input type="checkbox" checked={checkPriv} onChange={e => setCheckPriv(e.target.checked)} className={pStyles.checkbox} />
-                <span>He leído y acepto la <strong>Política de Privacidad</strong></span>
-              </label>
-              <label className={pStyles.checkLabel}>
-                <input type="checkbox" checked={checkTerm} onChange={e => setCheckTerm(e.target.checked)} className={pStyles.checkbox} />
-                <span>He leído y acepto los <strong>Términos de Uso</strong></span>
-              </label>
-            </>
-          )}
+        <div className={pStyles.checksWrap} style={{ marginTop: 16 }}>
           <button
-            className={puedeAceptar ? styles.btn : pStyles.btnDeshabilitado}
-            onClick={puedeAceptar ? onAceptar : undefined}
-            disabled={!puedeAceptar}
+            className={todosAceptados ? styles.btn : pStyles.btnDeshabilitado}
+            onClick={todosAceptados ? onAceptar : undefined}
+            disabled={!todosAceptados}
           >
-            {puedeAceptar ? '✅ Continuar' : llegóAlFinal ? 'Marca ambas casillas para continuar' : '⬇ Desplázate para leer todo'}
+            {todosAceptados ? '✅ Continuar' : 'Acepta los tres documentos para continuar'}
           </button>
         </div>
       </div>
