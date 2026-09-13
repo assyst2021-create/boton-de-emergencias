@@ -29,6 +29,7 @@ function AppInner() {
   const [initDone, setInitDone] = useState(false)
   const [gpsPrompt, setGpsPrompt] = useState(false)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  const [soloVerLegal, setSoloVerLegal] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -105,6 +106,7 @@ function AppInner() {
   if (!session) return <Login />
   if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
+  if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === 'prompt') return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
@@ -112,10 +114,10 @@ function AppInner() {
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
     <AppActionsContext.Provider value={{
-      verBienvenida: () => setBienvenidaVista(false),
-      verTerminos: () => setAvisoLegalAceptado(false),
-      verPrivacidad: () => setAvisoLegalAceptado(false),
-      verContrato: () => setContratoAceptado(false),
+      verBienvenida: () => setSoloVerLegal(true),
+      verTerminos: () => setSoloVerLegal(true),
+      verPrivacidad: () => setSoloVerLegal(true),
+      verContrato: () => setSoloVerLegal(true),
       bienvenidaLeida: bienvenidaVista,
       avisoLeido: avisoLegalAceptado,
       privacidadLeida: avisoLegalAceptado,

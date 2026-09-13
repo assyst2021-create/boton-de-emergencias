@@ -103,7 +103,7 @@ const DOCS = [
 
 /* ── Componente acordeón por documento ─────────────────────── */
 
-function DocAcordeon({ doc, onLeido, leido, checked, onCheck }) {
+function DocAcordeon({ doc, onLeido, leido, checked, onCheck, soloVer }) {
   const [abierto, setAbierto] = useState(false)
   const bodyRef = useRef(null)
 
@@ -146,21 +146,23 @@ function DocAcordeon({ doc, onLeido, leido, checked, onCheck }) {
             </div>
           ))}
           {/* Zona de aceptación dentro del acordeón */}
-          <div className={aStyles.checkZona}>
-            {!leido ? (
-              <p className={pStyles.avisoScroll}>📖 Desplázate hasta el final para habilitar</p>
-            ) : (
-              <label className={`${pStyles.checkLabel} ${checked ? aStyles.checkActivo : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={e => onCheck(e.target.checked)}
-                  className={pStyles.checkbox}
-                />
-                <span>{doc.checkLabel}</span>
-              </label>
-            )}
-          </div>
+          {!soloVer && (
+            <div className={aStyles.checkZona}>
+              {!leido ? (
+                <p className={pStyles.avisoScroll}>📖 Desplázate hasta el final para habilitar</p>
+              ) : (
+                <label className={`${pStyles.checkLabel} ${checked ? aStyles.checkActivo : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => onCheck(e.target.checked)}
+                    className={pStyles.checkbox}
+                  />
+                  <span>{doc.checkLabel}</span>
+                </label>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -169,7 +171,7 @@ function DocAcordeon({ doc, onLeido, leido, checked, onCheck }) {
 
 /* ── Pantalla principal ─────────────────────────────────────── */
 
-export default function AvisoLegal({ onAceptar }) {
+export default function AvisoLegal({ onAceptar, soloVer = false }) {
   const [leidos, setLeidos] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
   const [checks, setChecks] = useState({ privacidad: false, terminos: false, contrato: false, aviso: false })
 
@@ -233,18 +235,23 @@ export default function AvisoLegal({ onAceptar }) {
               checked={checks[doc.id]}
               onLeido={() => marcarLeido(doc.id)}
               onCheck={val => marcarCheck(doc.id, val)}
+              soloVer={soloVer}
             />
           ))}
         </div>
 
         <div className={pStyles.checksWrap} style={{ marginTop: 16 }}>
+          {soloVer ? (
+            <button className={styles.btn} onClick={onAceptar}>← Volver</button>
+          ) : (
           <button
             className={todosAceptados ? styles.btn : pStyles.btnDeshabilitado}
             onClick={todosAceptados ? onAceptar : undefined}
             disabled={!todosAceptados}
           >
-            {todosAceptados ? '✅ Continuar' : 'Acepta los tres documentos para continuar'}
+            {todosAceptados ? '✅ Continuar' : 'Acepta los cuatro documentos para continuar'}
           </button>
+          )}
         </div>
       </div>
     </div>

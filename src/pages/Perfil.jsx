@@ -79,16 +79,8 @@ export default function Perfil({ onCerrar }) {
               {t('cambiarIdioma')}
             </button>
             <button className={styles.opcion} onClick={() => { onCerrar(); verBienvenida?.() }}>
-              <span>{t('verBienvenida')}</span>
-              {bienvenidaLeida && <span className={styles.leido}>{t('leido')}</span>}
-            </button>
-            <button className={styles.opcion} onClick={() => { onCerrar(); verTerminos?.() }}>
-              <span>{t('verAviso')}</span>
-              {avisoLeido && <span className={styles.leido}>{t('leido')}</span>}
-            </button>
-            <button className={styles.opcion} onClick={() => { onCerrar(); verPrivacidad?.() }}>
-              <span>{t('verPrivacidad')}</span>
-              {privacidadLeida && <span className={styles.leido}>{t('leido')}</span>}
+              <span>📄 Información y documentos legales</span>
+              <span className={styles.leido}>✅ Leído</span>
             </button>
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               {t('cambiarContrasena')}
@@ -98,10 +90,6 @@ export default function Perfil({ onCerrar }) {
             </button>
             <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
               {t('btnHuellitas')}
-            </button>
-            <button className={styles.opcion} onClick={() => { onCerrar(); verContrato?.() }}>
-              <span>{t('perfilContrato')}</span>
-              {contratoLeido && <span className={styles.leido}>{t('leido')}</span>}
             </button>
             <div className={styles.opcionToggle}>
               <span>{t('autoAlertaLabel')}</span>
