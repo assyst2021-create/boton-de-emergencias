@@ -20,6 +20,18 @@
   -webkit-backdrop-filter: var(--card-blur);
 }
 
+.avisoPremium {
+  background: rgba(230,168,23,0.13);
+  border: 1.5px solid rgba(230,168,23,0.55);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.avisoPremiumSub { font-size: 0.78rem; color: #b7860b; font-weight: 700; margin: -4px 0 4px; }
+
 .avisoPlanTexto strong { font-size: 0.9rem; color: var(--text); display: block; margin-bottom: 8px; }
 .avisoPlanTexto p { font-size: 0.82rem; color: var(--text2); line-height: 1.5; margin: 0; }
 .avisoPlanLista { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }

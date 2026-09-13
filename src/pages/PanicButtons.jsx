@@ -35,6 +35,7 @@ export default function PanicButtons() {
   const [confirmacion, setConfirmacion] = useState(null)
   const [mostrarLimite, setMostrarLimite] = useState(null)
   const [avisoPlan, setAvisoPlan] = useState(false)
+  const [avisoPremium, setAvisoPremium] = useState(false)
   const [gps, setGps] = useState('buscando')
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
@@ -96,6 +97,9 @@ export default function PanicButtons() {
     setUser(perfil)
     if (!esPremium(perfil) && !localStorage.getItem(`trialAviso_${authUser.id}`)) {
       setAvisoPlan(true)
+    }
+    if (esPremium(perfil) && !localStorage.getItem(`premiumAviso_${authUser.id}`)) {
+      setAvisoPremium(true)
     }
 
     const { data: links } = await supabase
@@ -256,6 +260,33 @@ export default function PanicButtons() {
             onClick={() => {
               localStorage.setItem(`trialAviso_${user.id}`, '1')
               setAvisoPlan(false)
+            }}
+          >
+            Entendido ✓
+          </button>
+        </div>
+      )}
+
+      {avisoPremium && user && esPremium(user) && (
+        <div className={styles.avisoPremium}>
+          <div className={styles.avisoPlanTexto}>
+            <strong>🎉 ¡Bienvenido al {t('planPremiumNombre')}!</strong>
+            <p className={styles.avisoPremiumSub}>{t('planPermanente')}</p>
+            <ul className={styles.avisoPlanLista}>
+              <li>{t('planPremiumF1')}</li>
+              <li>{t('planPremiumF2')}</li>
+              <li>{t('planPremiumF3')}</li>
+              <li>{t('planPremiumF4')}</li>
+              <li>{t('planPremiumF5')}</li>
+              <li>{t('planPremiumF6')}</li>
+            </ul>
+          </div>
+          <button
+            className={styles.avisoPlanCerrar}
+            style={{ background: '#e6a817', color: '#fff' }}
+            onClick={() => {
+              localStorage.setItem(`premiumAviso_${user.id}`, '1')
+              setAvisoPremium(false)
             }}
           >
             Entendido ✓
