@@ -73,8 +73,10 @@ function AppInner() {
   useEffect(() => {
     if (initDone && bienvenidaVista && avisoLegalAceptado) {
       navigator.permissions.query({ name: 'geolocation' }).then(result => {
-        setGpsPrompt(result.state === 'denied' ? 'denied' : false)
-      }).catch(() => setGpsPrompt(false))
+        if (result.state === 'denied') setGpsPrompt('denied')
+        else if (result.state === 'prompt') setGpsPrompt(true)
+        else setGpsPrompt(false)
+      }).catch(() => setGpsPrompt(true))
 
       // Notificaciones: mostrar pantalla si aún no se ha dado permiso
       if ('Notification' in window && Notification.permission === 'default') {
@@ -112,8 +114,9 @@ function AppInner() {
   if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
   if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
   if (!contratoAceptado) return <ContratoServicio onAceptar={marcarContrato} />
-  if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (notifPrompt) return <NotifRequestScreen onContinuar={() => setNotifPrompt(false)} />
+  if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
+  if (gpsPrompt === true) return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />
 
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true) }}>
@@ -219,7 +222,7 @@ function GpsRequestScreen({ onContinuar }) {
   if (bloqueada) return <GpsPromptScreen onContinuar={onContinuar} />
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <div style={{ fontSize: '3.5rem' }}>📍</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('permisoUbicacion')}</h2>
@@ -241,7 +244,7 @@ function GpsPromptScreen({ onContinuar }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <div style={{ fontSize: '3.5rem' }}>🚫</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('gpsBloqueada')}</h2>
@@ -270,7 +273,7 @@ function NotifRequestScreen({ onContinuar }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
+    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <img src="/logo-empresa.png" alt="" style={{ width: 80, height: 80, objectFit: 'contain', mixBlendMode: 'multiply' }} />
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.3rem' }}>Activar notificaciones</h2>
