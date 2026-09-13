@@ -36,8 +36,8 @@ const TERMINOS = [
 ]
 
 const CONTRATO = [
-  { titulo: '1. VIGENCIA Y SUSCRIPCIÓN ANUAL', texto: 'La Suscripción Anual tiene una vigencia de un (1) año contado desde la fecha en que se confirme el pago, por un valor de VEINTE MIL PESOS COLOMBIANOS ($20.000 COP). El pago corresponde a una suscripción anual para mantener el servicio activo y permitir las actividades de mantenimiento, actualización y mejora de la aplicación.' },
-  { titulo: '2. VALOR Y CONDICIONES DEL PAGO', texto: 'El valor de la Suscripción Anual es de VEINTE MIL PESOS COLOMBIANOS ($20.000 COP) por un (1) año de servicio. El cobro es anual y permite mantener activa la aplicación, así como contribuir a las labores de mantenimiento, actualización, soporte y mejora continua del servicio.' },
+  { titulo: '1. VIGENCIA Y SUSCRIPCIÓN ANUAL', texto: 'La Suscripción Anual tiene una vigencia de un (1) año contado desde la fecha en que se confirme el pago. El pago corresponde a una suscripción anual para mantener el servicio activo y permitir las actividades de mantenimiento, actualización y mejora de la aplicación.' },
+  { titulo: '2. CONDICIONES DEL PAGO', texto: 'El cobro corresponde a una suscripción anual que permite mantener activa la aplicación, así como contribuir a las labores de mantenimiento, actualización, soporte y mejora continua del servicio.' },
   { titulo: '3. MANTENIMIENTO Y ACTUALIZACIÓN', texto: 'Durante cada año de vigencia de la suscripción se realizarán actividades de mantenimiento y actualización de la aplicación. Estas actividades tienen como finalidad mantener el servicio operativo, actualizado y en proceso de mejora continua. Las actualizaciones podrán incluir mejoras técnicas, correcciones, ajustes de seguridad y nuevas funcionalidades, de acuerdo con las necesidades y evolución del servicio.' },
   { titulo: '4. REEMBOLSOS, DEVOLUCIONES Y DERECHOS DEL CONSUMIDOR', texto: 'Los pagos efectuados por el usuario no serán reembolsables, salvo cuando exista un derecho de devolución, reversión, retracto u otra obligación de reembolso reconocida por la legislación aplicable en la jurisdicción del usuario, o cuando ASSYST determine expresamente lo contrario.' },
   { titulo: '5. USO RESPONSABLE DE LA APLICACIÓN', texto: 'El usuario es el único responsable del uso que realice de la aplicación, de la información que proporcione, de los permisos concedidos al dispositivo y de los familiares o contactos que vincule dentro del servicio.\n\nCualquier utilización indebida de la aplicación, incluyendo vigilancia, seguimiento, rastreo, acoso, control indebido de otra persona, utilización de la ubicación para investigar relaciones sentimentales, infidelidades, celos, conflictos de pareja, activaciones falsas, fraude o cualquier finalidad distinta a la atención y comunicación de situaciones de emergencia, será responsabilidad exclusiva del usuario que realice dicha utilización, en la medida permitida por la legislación aplicable.' },
@@ -71,7 +71,7 @@ const DOC_COLOR = '#2980b9'
 const DOCS = [
   { id: 'privacidad', titulo: 'Política de Privacidad',       sub: 'Recopilación, uso y protección de tu información', secciones: PRIVACIDAD },
   { id: 'terminos',   titulo: 'Términos de Uso',              sub: 'Condiciones de acceso y uso de la aplicación',    secciones: TERMINOS  },
-  { id: 'contrato',   titulo: 'Contrato de Servicio',         sub: 'Suscripción anual · $20.000 COP/año',            secciones: CONTRATO  },
+  { id: 'contrato',   titulo: 'Contrato de Servicio',         sub: 'Condiciones de la suscripción anual',            secciones: CONTRATO  },
   { id: 'aviso',      titulo: 'Aviso Legal',                  sub: 'Limitaciones y responsabilidades del servicio',  secciones: AVISO     },
 ]
 
