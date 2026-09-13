@@ -8,7 +8,7 @@
   gap: 20px;
   background-image: url('/bg-familia.jpg.png');
   background-size: cover;
-  background-position: center 15%;
+  background-position: center top;
   background-repeat: no-repeat;
 }
 
@@ -64,15 +64,15 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1.5px solid rgba(255, 255, 255, 0.40);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius);
   width: 100%;
   max-width: 420px;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
 }
 
 .tabs {
@@ -221,9 +221,9 @@
 .installBtn:hover { opacity: 0.88; }
 
 .installCard {
-  background: rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1.5px solid var(--naranja);
   border-radius: 12px;
   padding: 14px 16px;
@@ -297,8 +297,8 @@
 /* Inputs dentro del login con fondo semi-transparente y texto negro */
 .form input,
 .form select {
-  background: rgba(255,255,255,0.55);
-  border-color: rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.35);
   color: #1a1a2e;
 }
-.form input::placeholder { color: rgba(0,0,0,0.4); }
+.form input::placeholder { color: rgba(0,0,0,0.45); }
