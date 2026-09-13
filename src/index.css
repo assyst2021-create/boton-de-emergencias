@@ -45,8 +45,8 @@ a { color: inherit; }
   --border: rgba(255,255,255,0.18);
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
-  --logo-blend: multiply;
-  --logo-filter: invert(1);      /* invierte blanco→negro: desaparece sobre fondo negro */
+  --logo-blend: normal;          /* sin multiply: invert(1) solo convierte blanco en negro */
+  --logo-filter: invert(1);      /* blanco→negro: se funde con fondo negro */
   --card-blur: blur(18px);
   --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
