@@ -96,6 +96,37 @@
   width: fit-content;
 }
 
+.alertaAcciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sinUbicacion {
+  font-size: 0.8rem;
+  color: var(--text2);
+  padding: 6px 0;
+}
+
+.contactBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 1.1rem;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.contactBtn:active { background: var(--border); }
+.contactBtn svg { display: block; color: #25d366; }
+
 .sinGps {
   font-size: 0.8rem;
   color: var(--text2);

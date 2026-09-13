@@ -156,11 +156,33 @@ export default function PanicButtons() {
     guardarEnHistorial(boton)
   }
 
+  /** Intenta obtener posición actualizada; devuelve posRef.current si falla. */
+  function obtenerPosicion() {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) return resolve(posRef.current)
+      if (posRef.current) {
+        // Tenemos posición en caché, intentar refrescar con timeout corto
+        navigator.geolocation.getCurrentPosition(
+          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
+          () => resolve(posRef.current),
+          { timeout: 4000, maximumAge: 30000 }
+        )
+      } else {
+        // Sin posición en caché, esperar hasta 6s
+        navigator.geolocation.getCurrentPosition(
+          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
+          () => resolve(null),
+          { timeout: 6000, maximumAge: 60000 }
+        )
+      }
+    })
+  }
+
   /** Guarda la alerta sin bloquear el aviso a la familia. */
   async function guardarEnHistorial(boton) {
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
-    const p = posRef.current
+    const p = await obtenerPosicion()
     let authUser = null
     try {
       const { data: { user: u } } = await conTiempoLimite(supabase.auth.getUser(), 8000)
