@@ -78,11 +78,10 @@ function DocModal({ doc, onCerrar }) {
   return (
     <div className={aStyles.modal}>
       <div className={aStyles.modalScroll}>
-        <div className={aStyles.modalHeader} style={{ background: DOC_COLOR }}>
-          <span className={aStyles.modalTitulo}>{doc.titulo}</span>
-        </div>
+        <div className={aStyles.modalHeader} style={{ background: DOC_COLOR }} />
 
         <div className={aStyles.modalBody}>
+          <p className={aStyles.modalDocTitulo}>{doc.titulo}</p>
           {doc.secciones.map((s, i) => (
             <div key={i} className={aStyles.modalSeccion}>
               <p className={aStyles.modalSeccionTitulo}>{s.titulo}</p>
