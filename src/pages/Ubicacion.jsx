@@ -94,23 +94,14 @@ export default function Ubicacion() {
     const ids = (links || []).map(l => l.user_id)
     if (ids.length === 0) { setFamiliares([]); return }
 
-    const [{ data: ubis }, { data: alertas }] = await Promise.all([
-      supabase.from('live_locations').select('*').in('user_id', ids).eq('activo', true),
-      supabase.from('alerts').select('sender_id, status_type, created_at').in('sender_id', ids).order('created_at', { ascending: false }),
-    ])
+    const { data: ubis } = await supabase
+      .from('live_locations').select('*').in('user_id', ids).eq('activo', true)
 
     const porId = Object.fromEntries((ubis || []).map(u => [u.user_id, u]))
-    // Última alerta por persona (ya vienen ordenadas desc)
-    const ultimaAlerta = {}
-    for (const a of (alertas || [])) {
-      if (!ultimaAlerta[a.sender_id]) ultimaAlerta[a.sender_id] = a.status_type
-    }
-
     setFamiliares((links || []).map(l => ({
       id: l.user_id,
       nombre: l.users?.full_name || l.users?.username || '—',
       ubicacion: porId[l.user_id] || null,
-      ultimoEstado: ultimaAlerta[l.user_id] || null,
     })))
   }
 
@@ -309,12 +300,6 @@ export default function Ubicacion() {
       <div className={styles.pb} />
     </div>
   )
-}
-
-function estadoBadge(statusType) {
-  if (statusType === 'red')    return { emoji: '🔴', label: 'EN PELIGRO', color: '#c0392b' }
-  if (statusType === 'orange') return { emoji: '🟠', label: 'HERIDO', color: '#e67e22' }
-  return { emoji: '🟢', label: 'ESTOY BIEN', color: '#1E8449' }
 }
 
 function haceCuanto(iso, t) {

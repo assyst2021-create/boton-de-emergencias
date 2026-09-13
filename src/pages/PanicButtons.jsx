@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { puedeEnviarAlerta, alertasRestantes, esPremium } from '../plan'
+import { puedeEnviarAlerta, alertasRestantes, esPremium, ALERTAS_TRIAL } from '../plan'
 import { useNavContext } from '../components/NavContext'
 
 const BOTONES = [
@@ -395,7 +395,7 @@ export default function PanicButtons() {
 
       {user && !esPremium(user) && familiares.length > 0 && (
         <div className={styles.contador}>
-          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / 2
+          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / {ALERTAS_TRIAL}
         </div>
       )}
 
