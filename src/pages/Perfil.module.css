@@ -382,8 +382,8 @@
   text-align: center;
 }
 .huellitasMascota {
-  width: 150px;
-  height: 150px;
+  width: 240px;
+  height: 240px;
   object-fit: contain;
   mix-blend-mode: multiply;
 }
