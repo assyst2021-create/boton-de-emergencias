@@ -274,7 +274,6 @@ export default function Ubicacion() {
         ) : enVivo.map(f => {
           // Mas de un minuto sin moverse: puede que ya no este transmitiendo.
           const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > 60000
-          const badge = estadoBadge(f.ultimoEstado)
           return (
           <div key={f.id} className={styles.fila}>
             <span className={viejo ? styles.puntoViejo : styles.punto} />
@@ -283,7 +282,6 @@ export default function Ubicacion() {
               <span className={viejo ? styles.haceViejo : styles.hace}>
                 {viejo ? `⚠️ ${t('ubiDesactualizado')} · ` : ''}{haceCuanto(f.ubicacion.updated_at, t)}
               </span>
-              <span className={styles.estadoBadge} style={{ color: badge.color }}>{badge.emoji} {badge.label}</span>
             </div>
             <div className={styles.filaAcciones}>
               {/* Centra el mapa de arriba en vez de sacarte de la app */}
@@ -343,7 +341,8 @@ function Mapa({ yo, familiares, enfocado, t }) {
     s.textContent = `
       @keyframes lfpulse{0%{box-shadow:0 0 0 0 rgba(30,132,73,.55)}70%{box-shadow:0 0 0 14px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
       .lf-yo{width:18px;height:18px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);animation:lfpulse 2s ease-out infinite}
-      .lf-fam{width:38px;height:38px;border-radius:50%;background:#E67E22;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;font-family:system-ui,sans-serif}
+      .lf-fam{width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid #E67E22;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+      .lf-fam-label{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;padding:2px 7px;border-radius:6px;font-family:system-ui,sans-serif;pointer-events:none}
     `
     document.head.appendChild(s)
   }, [])
@@ -408,23 +407,18 @@ function Mapa({ yo, familiares, enfocado, t }) {
     })
     familiares.forEach(f => {
       if (!f.ubicacion) return
-      const inicial = (f.nombre || '?')[0].toUpperCase()
-      const badge = estadoBadge(f.ultimoEstado)
-      const borderColor = badge.color
+      const nombre = f.nombre || '?'
       const icon = L.divIcon({
         className: '',
-        html: `<div class="lf-fam" style="border-color:${borderColor};background:${borderColor}">${inicial}</div>`,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
+        html: `<div style="position:relative"><div class="lf-fam">👤</div><div class="lf-fam-label">${nombre}</div></div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       })
       const pos = [f.ubicacion.latitude, f.ubicacion.longitude]
       if (famMarkersRef.current[f.id]) {
         famMarkersRef.current[f.id].setLatLng(pos)
-        famMarkersRef.current[f.id].setIcon(icon)
-        famMarkersRef.current[f.id].setPopupContent(`<b>${f.nombre}</b><br>${badge.emoji} ${badge.label}`)
       } else {
         famMarkersRef.current[f.id] = L.marker(pos, { icon })
-          .bindPopup(`<b>${f.nombre}</b><br>${badge.emoji} ${badge.label}`)
           .addTo(map)
         if (!fittedRef.current) { map.setView(pos, 15); fittedRef.current = true }
       }
