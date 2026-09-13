@@ -21,7 +21,6 @@
   padding: 32px 24px 24px;
   gap: 12px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--border);
 }
 
 .heroLogo {
@@ -52,7 +51,6 @@
 /* ── Caja informativa ── */
 .bienvenidaCaja {
   background: var(--card);
-  border-bottom: 1px solid var(--border);
   padding: 20px 20px;
   width: 100%;
   max-width: 600px;
@@ -88,9 +86,15 @@
 
 .bienvenidaLista li {
   font-size: 0.83rem;
-  color: var(--text2);
+  color: var(--text2) !important;
   line-height: 1.55;
-  text-decoration: none;
+  text-decoration: none !important;
+}
+
+.bienvenidaCaja a,
+.bienvenidaCaja a:visited {
+  color: var(--text2) !important;
+  text-decoration: none !important;
 }
 
 .bienvenidaAviso {
