@@ -10,6 +10,9 @@ a { color: inherit; }
   animation: paginaEntrada 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ══════════════════════════════════════════
+   MODO CLARO (por defecto)
+═══════════════════════════════════════════ */
 :root {
   --rojo: #C0392B;
   --rojo-hover: #a93226;
@@ -17,31 +20,71 @@ a { color: inherit; }
   --naranja-hover: #ca6f1e;
   --verde: #1E8449;
   --verde-hover: #196f3d;
-  --bg: transparent;
-  --bg2: rgba(255,255,255,0.07);
-  --card: rgba(255,255,255,0.10);
-  --border: rgba(255,255,255,0.18);
-  --text: #f0f0f8;
-  --text2: rgba(240,240,248,0.58);
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --card: #ffffff;
+  --border: #e0e0e0;
+  --text: #1a1a2e;
+  --text2: #6b7280;
   --accent: #E67E22;
   --radius: 14px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --glass-blur: blur(18px);
-  --glass-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  --logo-blend: multiply;        /* quita fondo blanco del PNG en modo claro */
+  --card-blur: blur(0px);        /* sin blur en modo claro */
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }
 
+/* ══════════════════════════════════════════
+   MODO OSCURO / GLASS
+═══════════════════════════════════════════ */
+[data-tema="oscuro"] {
+  --bg: #000000;
+  --bg2: rgba(255,255,255,0.07);
+  --card: rgba(255,255,255,0.10);
+  --border: rgba(255,255,255,0.18);
+  --text: #ffffff;
+  --text2: rgba(255,255,255,0.72);
+  --logo-blend: normal;          /* sin blend en oscuro para que el logo se vea */
+  --card-blur: blur(18px);
+  --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+
+/* Fondo negro puro en modo oscuro */
+[data-tema="oscuro"] body {
+  background: #000000;
+}
+
+/* Inputs/selects en modo oscuro */
+[data-tema="oscuro"] input,
+[data-tema="oscuro"] select,
+[data-tema="oscuro"] textarea {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.22);
+  color: #ffffff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+[data-tema="oscuro"] input::placeholder,
+[data-tema="oscuro"] textarea::placeholder {
+  color: rgba(255,255,255,0.38);
+}
+
+[data-tema="oscuro"] select option {
+  background: #1a1020;
+  color: #ffffff;
+}
+
+/* ══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
 body {
-  /* Gradiente oscuro con los colores de la app: rojo arriba-izq, verde abajo-der */
-  background:
-    radial-gradient(ellipse at 12% 8%,  rgba(192,57,43,0.30) 0%, transparent 48%),
-    radial-gradient(ellipse at 88% 92%, rgba(30,132,73,0.25)  0%, transparent 48%),
-    radial-gradient(ellipse at 60% 40%, rgba(230,126,34,0.08) 0%, transparent 60%),
-    #0e0e18;
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.35s ease, color 0.25s ease;
 }
 
 #root {
@@ -51,37 +94,20 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-
-button {
-  cursor: pointer;
-  border: none;
-  font-family: var(--font);
-}
+button { cursor: pointer; border: none; font-family: var(--font); }
 
 input, select, textarea {
   font-family: var(--font);
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.20);
-  color: #f0f0f8;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 1rem;
   width: 100%;
   outline: none;
   transition: border-color 0.2s;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
-input:focus, select:focus, textarea:focus {
-  border-color: var(--accent);
-}
-
-input::placeholder, textarea::placeholder {
-  color: rgba(240,240,248,0.40);
-}
-
-select option {
-  background: #1a1020;
-  color: #f0f0f8;
-}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--text2); }

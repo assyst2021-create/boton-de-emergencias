@@ -7,12 +7,12 @@
   z-index: 100;
   overflow: hidden;
   white-space: nowrap;
-  background: rgba(10,10,20,0.72);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
   padding: 12px 0;
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .topBandaTexto {
@@ -21,7 +21,7 @@
   font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: rgba(240,240,248,0.65);
+  color: var(--text2);
   animation: bandaTopScroll 60s linear infinite;
 }
 
@@ -34,7 +34,7 @@
   .topBandaTexto { animation: none; }
 }
 
-/* Barra inferior: nav + banda */
+/* Barra inferior */
 .barra {
   position: fixed;
   bottom: 0;
@@ -47,12 +47,12 @@
 }
 
 .nav {
-  background: rgba(10,10,20,0.75);
+  background: var(--bg2);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border-top: 1px solid rgba(255,255,255,0.14);
+  border-top: 1px solid var(--border);
   display: flex;
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.35);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
 }
 
 .tab {
@@ -61,12 +61,12 @@
   flex-direction: column;
   align-items: center;
   padding: 10px 0 8px;
-  color: rgba(240,240,248,0.42);
+  color: var(--text2);
   transition: color 0.2s;
   gap: 3px;
 }
 
-.tab.active { color: var(--naranja); }
+.tab.active { color: var(--accent); }
 
 .icon { font-size: 1.4rem; }
 .label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
@@ -75,10 +75,10 @@
 .banda {
   overflow: hidden;
   white-space: nowrap;
-  background: rgba(10,10,20,0.80);
+  background: var(--bg2);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--border);
   padding: 12px 0;
 }
 
@@ -88,7 +88,7 @@
   font-size: 0.92rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: rgba(240,240,248,0.55);
+  color: var(--text2);
   animation: bandaScroll 60s linear infinite;
 }
 

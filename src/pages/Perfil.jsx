@@ -3,12 +3,14 @@ import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
+import { useTema } from '../ThemeContext'
 
 export const AppActionsContext = createContext({})
 export const useAppActions = () => useContext(AppActionsContext)
 
 export default function Perfil({ onCerrar }) {
   const { t, lang, cambiarIdioma } = useLanguage()
+  const { tema, toggleTema } = useTema()
   const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
   const [paso, setPaso] = useState('menu')
   const [form, setForm] = useState({ nueva: '', confirmar: '' })
@@ -91,6 +93,18 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
               {t('btnHuellitas')}
             </button>
+            <div className={styles.opcionToggle}>
+              <span>Modo de pantalla</span>
+              <button
+                className={tema === 'oscuro' ? styles.toggleOn : styles.toggleOff}
+                onClick={toggleTema}
+                aria-pressed={tema === 'oscuro'}
+                style={tema === 'oscuro' ? { background: '#1a1a2e' } : {}}
+              >
+                {tema === 'oscuro' ? '🌙 Oscuro' : '☀️ Claro'}
+              </button>
+            </div>
+
             <div className={styles.opcionToggle}>
               <span>{t('autoAlertaLabel')}</span>
               <button

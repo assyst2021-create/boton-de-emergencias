@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { ThemeProvider } from './ThemeContext'
 import { supabase } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
@@ -17,7 +18,7 @@ import Nav from './components/Nav'
 import { NavContext } from './components/NavContext'
 
 export default function App() {
-  return <LanguageProvider><AppInner /></LanguageProvider>
+  return <ThemeProvider><LanguageProvider><AppInner /></LanguageProvider></ThemeProvider>
 }
 
 function AppInner() {

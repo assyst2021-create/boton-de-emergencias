@@ -14,9 +14,9 @@
 /* ── Hero ── */
 .hero {
   width: 100%;
-  background: rgba(14,10,22,0.70);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--bg);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29,8 +29,7 @@
   width: 88px;
   height: 88px;
   object-fit: contain;
-  mix-blend-mode: normal;
-  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  mix-blend-mode: var(--logo-blend);
 }
 
 .bienvenidaTitulo {
@@ -179,10 +178,10 @@
   align-items: center;
   gap: 13px;
   width: 100%;
-  background: rgba(255,255,255,0.09);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(255,255,255,0.16);
+  background: var(--card);
+  backdrop-filter: var(--card-blur);
+  -webkit-backdrop-filter: var(--card-blur);
+  border: 1.5px solid var(--border);
   border-left-width: 4px;
   border-radius: 12px;
   padding: 13px 15px;
@@ -191,11 +190,11 @@
   color: var(--text);
   transition: box-shadow 0.2s, transform 0.1s;
   text-decoration: none;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.20);
+  box-shadow: var(--card-shadow);
 }
 
 .docCard:hover {
-  box-shadow: 0 6px 24px rgba(0,0,0,0.30);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18);
   transform: translateY(-1px);
 }
 
@@ -305,9 +304,7 @@
   position: fixed;
   inset: 0;
   z-index: 999;
-  background: rgba(10,8,18,0.94);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   animation: slideUp 0.2s ease;
