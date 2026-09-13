@@ -76,7 +76,7 @@ function AppInner() {
         else setGpsPrompt(result.state) // 'denied' | 'prompt'
       }).catch(() => setGpsPrompt(false))
     }
-  }, [initDone, bienvenidaVista, disclaimerAceptado, privacidadVista])
+  }, [initDone, bienvenidaVista, avisoLegalAceptado])
 
   function marcarBienvenida() {
     localStorage.setItem(`bienvenida_${session.user.id}`, '1')
