@@ -24,6 +24,7 @@
   height: 44px;
   object-fit: contain;
   opacity: 0.8;
+  mix-blend-mode: multiply;
 }
 
 .emoji {
