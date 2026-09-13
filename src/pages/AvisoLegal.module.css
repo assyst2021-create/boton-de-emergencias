@@ -317,6 +317,8 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.2s ease;
+  /* iOS: overflow-y en hijos de fixed+flex se traba — overscroll-behavior lo estabiliza */
+  overscroll-behavior: contain;
 }
 
 @keyframes slideUp {
@@ -325,11 +327,13 @@
 }
 
 .modalScroll {
-  flex: 1;
-  overflow-y: auto;
+  /* height explícito en vez de flex:1 — evita el scroll pegado en iOS PWA */
+  height: 100%;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   display: flex;
   flex-direction: column;
-  -webkit-overflow-scrolling: touch;
 }
 
 .modalHeader {
