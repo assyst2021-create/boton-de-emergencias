@@ -188,7 +188,7 @@ function SwipeRouter() {
 
   return (
     <div
-      style={{ minHeight: '100dvh', touchAction: 'pan-y' }}
+      style={{ minHeight: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
