@@ -77,20 +77,20 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.01);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
   border-radius: var(--radius);
   width: 100%;
   max-width: 420px;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+  box-shadow: none;
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1.5px solid var(--border);
+  border-bottom: 1.5px solid rgba(255,255,255,0.35);
 }
 
 .tab, .tabActive {
@@ -99,13 +99,15 @@
   font-size: 0.95rem;
   font-weight: 800;
   background: none;
-  color: #000000;
+  color: #ffffff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.7);
   transition: all 0.2s;
 }
 
 .tabActive {
-  color: var(--accent);
-  border-bottom: 2px solid var(--accent);
+  color: var(--naranja);
+  border-bottom: 2px solid var(--naranja);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.7);
 }
 
 .form {
@@ -124,7 +126,8 @@
 .field label {
   font-size: 0.85rem;
   font-weight: 900;
-  color: #000000;
+  color: #ffffff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.75);
 }
 
 .error {
@@ -274,12 +277,13 @@
 .resetLink {
   background: none;
   border: none;
-  color: #000000;
+  color: #ffffff;
   font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.7);
 }
 .resetLink:hover { color: var(--accent); }
 .resetLink:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -294,8 +298,8 @@
 .idiomaLabel { font-size: 1.1rem; }
 .idiomaSelect {
   flex: 1;
-  background: rgba(255,255,255,0.55);
-  border: 1.5px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.80);
+  border: 1.5px solid rgba(255,255,255,0.5);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.88rem;
@@ -308,12 +312,12 @@
 .usernameTaken { font-size: 0.78rem; color: var(--rojo); font-weight: 600; margin-top: 3px; display: block; }
 .usernameChecking { font-size: 0.78rem; color: #1a1a2e; margin-top: 3px; display: block; }
 
-/* Inputs dentro del login con fondo semi-transparente y texto negro */
+/* Inputs dentro del login: fondo blanco traslúcido para legibilidad */
 .form input,
 .form select {
-  background: rgba(255,255,255,0.25);
-  border-color: rgba(0,0,0,0.15);
-  color: #000000;
+  background: rgba(255,255,255,0.80);
+  border-color: rgba(255,255,255,0.5);
+  color: #1a1a2e;
   font-weight: 700;
 }
 .form input::placeholder { color: rgba(0,0,0,0.45); font-weight: 500; }
