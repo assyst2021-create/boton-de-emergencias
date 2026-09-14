@@ -1,12 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { suscribirPush } from './pushSubscription'
 import { ThemeProvider } from './ThemeContext'
 import { supabase } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Bienvenida from './pages/Bienvenida'
-import AvisoLegal from './pages/AvisoLegal'
 import ElegirPlan from './pages/ElegirPlan'
 import PanicButtons from './pages/PanicButtons'
 import Historial from './pages/Historial'
@@ -16,6 +15,10 @@ import { AppActionsContext } from './pages/Perfil'
 import Perfil from './pages/Perfil'
 import Nav from './components/Nav'
 import { NavContext } from './components/NavContext'
+
+// Carga diferida: AvisoLegal incluye legalDocs.js (~35 KB) que solo se necesita
+// en el onboarding y cuando el usuario abre los documentos legales desde Opciones.
+const AvisoLegal = lazy(() => import('./pages/AvisoLegal'))
 
 export default function App() {
   return <ThemeProvider><LanguageProvider><AppInner /></LanguageProvider></ThemeProvider>
@@ -118,8 +121,8 @@ function AppInner() {
   if (!session) return <Login />
   // ElegirPlan solo aparece para cuentas recién creadas (no en inicio de sesión normal)
   if (!planElegido && sessionStorage.getItem('nuevoRegistro')) return <ElegirPlan onElegido={marcarPlanElegido} />
-  if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
-  if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
+  if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
+  if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
   if (notifPrompt) return <NotifRequestScreen onContinuar={() => setNotifPrompt(false)} />
   if (gpsPrompt === 'denied') return <GpsPromptScreen onContinuar={() => setGpsPrompt(false)} />
   if (gpsPrompt === true) return <GpsRequestScreen onContinuar={() => setGpsPrompt(false)} />

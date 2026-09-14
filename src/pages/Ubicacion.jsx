@@ -42,7 +42,7 @@ export default function Ubicacion() {
 
     // Al volver al tab, recargar por si el WebSocket estuvo pausado
     const uidRef = { current: null }
-    supabase.auth.getUser().then(({ data: { user } }) => { uidRef.current = user?.id })
+    supabase.auth.getSession().then(({ data: { session } }) => { uidRef.current = session?.user?.id })
     const onVisible = () => {
       if (document.visibilityState === 'visible' && uidRef.current) {
         cargarFamiliares(uidRef.current)
@@ -61,24 +61,22 @@ export default function Ubicacion() {
   }, [])
 
   async function init() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
-    const { data: p } = await supabase.from('users').select('*').eq('id', user.id).maybeSingle()
-    setPerfil(p)
-    await cargarFamiliares(user.id)
-    escuchar(user.id)
 
-    // Al recargar la pagina se pierde el temporizador, pero la fila sigue
-    // marcada como activa. Si no se reanuda, la familia veria un punto
-    // congelado creyendo que es tu posicion actual.
-    const { data: mia } = await supabase
-      .from('live_locations').select('activo, expires_at')
-      .eq('user_id', user.id).maybeSingle()
+    // perfil, familiares y estado live en paralelo
+    const [{ data: p }, , { data: mia }] = await Promise.all([
+      supabase.from('users').select('*').eq('id', user.id).maybeSingle(),
+      cargarFamiliares(user.id),
+      supabase.from('live_locations').select('activo, expires_at').eq('user_id', user.id).maybeSingle(),
+    ])
+    setPerfil(p)
+    escuchar(user.id)
 
     if (mia?.activo && new Date(mia.expires_at) > new Date()) {
       empezar(false)
     } else {
-      // La sesión no estaba activa: aseguramos que el estado local lo refleje
       setCompartiendo(false)
     }
   }

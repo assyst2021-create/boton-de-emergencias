@@ -13,20 +13,22 @@ export default function ElegirPlan({ onElegido }) {
   const [planActual, setPlanActual] = useState(null) // 'basico' | 'premium' | null
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user
       if (!user) return
       supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
           if (!data) return
           if (esPremium(data)) setPlanActual('premium')
-          else setPlanActual('basico') // todo usuario con cuenta tiene Plan Básico
+          else setPlanActual('basico')
         })
     })
   }, [])
 
   async function elegirBasico() {
     setCargando(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (user) await supabase.from('users').update({ plan: 'basico' }).eq('id', user.id)
     setCargando(false)
     onElegido()

@@ -91,23 +91,26 @@ export default function PanicButtons() {
   }, [])
 
   async function cargarDatos() {
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const authUser = session?.user
     if (!authUser) return null
-    const { data: perfil } = await supabase.from('users').select('*').eq('id', authUser.id).single()
+
+    // perfil y familiares en paralelo
+    const [{ data: perfil }, { data: links }] = await Promise.all([
+      supabase.from('users').select('*').eq('id', authUser.id).single(),
+      supabase.from('family_links')
+        .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, phone_number)')
+        .eq('user_id', authUser.id)
+        .eq('status', 'accepted'),
+    ])
     setUser(perfil)
+    setFamiliares(links || [])
     if (!esPremium(perfil) && !localStorage.getItem(`trialAviso_${authUser.id}`)) {
       setAvisoPlan(true)
     }
     if (esPremium(perfil) && !localStorage.getItem(`premiumAviso_${authUser.id}`)) {
       setAvisoPremium(true)
     }
-
-    const { data: links } = await supabase
-      .from('family_links')
-      .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, phone_number)')
-      .eq('user_id', authUser.id)
-      .eq('status', 'accepted')
-    setFamiliares(links || [])
     return authUser.id
   }
 

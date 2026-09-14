@@ -1,11 +1,12 @@
-import { useState, useContext, createContext, useEffect } from 'react'
+import { useState, useContext, createContext, useEffect, lazy, Suspense } from 'react'
 import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
 import ElegirPlan from './ElegirPlan'
-import AvisoLegal from './AvisoLegal'
 import { useTema } from '../ThemeContext'
+
+const AvisoLegal = lazy(() => import('./AvisoLegal'))
 
 export const AppActionsContext = createContext({})
 export const useAppActions = () => useContext(AppActionsContext)
@@ -26,7 +27,8 @@ export default function Perfil({ onCerrar }) {
   const [autoAlerta, setAutoAlerta] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user
       if (!user) return
       setUid(user.id)
       supabase.from('users').select('full_name, username, auto_alert_enabled, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
@@ -152,7 +154,9 @@ export default function Perfil({ onCerrar }) {
 
         {paso === 'legal' && (
           <div className={styles.form} style={{ padding: 0 }}>
-            <AvisoLegal soloVer onAceptar={() => setPaso('menu')} />
+            <Suspense fallback={<div style={{minHeight:200,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text2)'}}>{t('cargando')}</div>}>
+              <AvisoLegal soloVer onAceptar={() => setPaso('menu')} />
+            </Suspense>
             <button type="button" className={styles.volver} style={{ margin: '0 16px 16px' }} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
