@@ -71,15 +71,12 @@ export default function Perfil({ onCerrar }) {
         {paso === 'menu' && (
           <div className={styles.menu}>
             {perfil && (
-              <button className={styles.perfilCard} onClick={() => setPaso('plan')}>
+              <div className={styles.perfilCard}>
                 <div className={styles.perfilInfo}>
                   <span className={styles.perfilNombre}>{perfil.full_name}</span>
                   <span className={styles.perfilUsername}>@{perfil.username}</span>
                 </div>
-                <span className={perfil.is_premium ? styles.planBadgePremium : styles.planBadgeGratis}>
-                  {perfil.is_premium ? '👑 Premium' : '🎁 Gratis'}
-                </span>
-              </button>
+              </div>
             )}
             <button className={styles.opcion} onClick={() => setPaso('plan')}>
               <span>{t('verPlanes')}</span>
