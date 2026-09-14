@@ -4,6 +4,7 @@ import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
 import ElegirPlan from './ElegirPlan'
+import AvisoLegal from './AvisoLegal'
 import { useTema } from '../ThemeContext'
 
 export const AppActionsContext = createContext({})
@@ -87,7 +88,7 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
             </button>
-            <button className={styles.opcion} onClick={() => { onCerrar(); verBienvenida?.() }}>
+            <button className={styles.opcion} onClick={() => setPaso('legal')}>
               <span>📄 Información y documentos legales</span>
               <span className={styles.leido}>✅ Leído</span>
             </button>
@@ -145,6 +146,13 @@ export default function Perfil({ onCerrar }) {
         {paso === 'plan' && (
           <div className={styles.form} style={{ padding: 0 }}>
             <ElegirPlan onElegido={() => setPaso('menu')} />
+            <button type="button" className={styles.volver} style={{ margin: '0 16px 16px' }} onClick={() => setPaso('menu')}>{t('volver')}</button>
+          </div>
+        )}
+
+        {paso === 'legal' && (
+          <div className={styles.form} style={{ padding: 0 }}>
+            <AvisoLegal soloVer onAceptar={() => setPaso('menu')} />
             <button type="button" className={styles.volver} style={{ margin: '0 16px 16px' }} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
