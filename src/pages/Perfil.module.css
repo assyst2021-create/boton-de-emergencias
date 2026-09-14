@@ -76,10 +76,8 @@
   margin-bottom: 4px;
   width: 100%;
   text-align: left;
-  cursor: pointer;
-  transition: opacity 0.15s;
+  cursor: default;
 }
-.perfilCard:active { opacity: 0.75; }
 
 .planBadgePremium {
   margin-left: auto;
