@@ -61,7 +61,7 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planTrialF4')}</li>
             <li>{t('planTrialF5')}</li>
           </ul>
-          {planActual === 'basico' ? (
+          {(planActual === 'basico' || planActual === 'premium') ? (
             <div className={styles.planActualLabel}>✓ {t('planActivo')}</div>
           ) : (
             <button className={styles.btnTrial} onClick={elegirBasico} disabled={cargando}>
