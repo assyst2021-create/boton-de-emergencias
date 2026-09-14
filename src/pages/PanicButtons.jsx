@@ -369,13 +369,6 @@ export default function PanicButtons() {
         {t('instruccion')}
       </div>
 
-      {/* El aviso va arriba para que la banda quede pegada bajo el ultimo boton. */}
-      {familiares.length === 0 && (
-        <div className={styles.aviso}>
-          {t('sinFamiliares')}
-        </div>
-      )}
-
       <div className={gps === 'listo' ? styles.gpsOk : styles.gpsMal}>
         {gps === 'listo' && `📍 ${t('gpsListo')}`}
         {(gps === 'buscando' || gps === 'sin-permiso') && `⏳ ${t('gpsBuscando')}`}
