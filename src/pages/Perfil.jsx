@@ -82,15 +82,15 @@ export default function Perfil({ onCerrar }) {
             <button className={styles.opcion} onClick={() => setPaso('plan')}>
               <span>{t('verPlanes')}</span>
               <span className={perfil?.is_premium ? styles.planBadgePremium : styles.planBadgeGratis}>
-                {perfil?.is_premium ? 'Premium' : 'Básico'}
+                {perfil?.is_premium ? t('planPremiumNombre') : t('planTrialNombre')}
               </span>
             </button>
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
             </button>
             <button className={styles.opcion} onClick={() => setPaso('legal')}>
-              <span>📄 Información y documentos legales</span>
-              <span className={styles.leido}>✅ Leído</span>
+              <span>{t('infoDocLegales')}</span>
+              <span className={styles.leido}>✅ {t('docsCardLeido')}</span>
             </button>
             <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
               {t('cambiarContrasena')}
@@ -102,14 +102,14 @@ export default function Perfil({ onCerrar }) {
               {t('btnHuellitas')}
             </button>
             <div className={styles.opcionToggle}>
-              <span>Modo de pantalla</span>
+              <span>{t('modoPantalla')}</span>
               <button
                 className={tema === 'oscuro' ? styles.toggleOn : styles.toggleOff}
                 onClick={toggleTema}
                 aria-pressed={tema === 'oscuro'}
                 style={tema === 'oscuro' ? { background: '#1a1a2e' } : {}}
               >
-                {tema === 'oscuro' ? '🌙 Oscuro' : '☀️ Claro'}
+                {tema === 'oscuro' ? t('modoOscuro') : t('modoClaro')}
               </button>
             </div>
 
@@ -132,7 +132,7 @@ export default function Perfil({ onCerrar }) {
                   onClick={() => setPaso('plan')}
                   style={{ opacity: 0.6, cursor: 'pointer' }}
                 >
-                  🔒 Activar
+                  {t('activarPremiumBtn')}
                 </button>
               )}
             </div>
