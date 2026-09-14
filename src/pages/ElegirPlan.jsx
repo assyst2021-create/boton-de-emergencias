@@ -19,7 +19,7 @@ export default function ElegirPlan({ onElegido }) {
         .then(({ data }) => {
           if (!data) return
           if (esPremium(data)) setPlanActual('premium')
-          else if (data.plan) setPlanActual('basico')
+          else setPlanActual('basico') // todo usuario con cuenta tiene Plan Básico
         })
     })
   }, [])

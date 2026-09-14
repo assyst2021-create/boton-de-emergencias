@@ -134,11 +134,9 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
           </div>
         </div>
 
-        {/* Botón continuar */}
-        <div className={aStyles.footerWrap}>
-          {soloVer ? (
-            <button className={aStyles.btnContinuar} onClick={onAceptar}>← {t('volver')}</button>
-          ) : (
+        {/* Botón continuar — solo en flujo de registro, no en soloVer */}
+        {!soloVer && (
+          <div className={aStyles.footerWrap}>
             <button
               className={todosAceptados ? aStyles.btnContinuar : aStyles.btnDeshabilitado}
               onClick={todosAceptados ? onAceptar : undefined}
@@ -146,8 +144,8 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
             >
               {todosAceptados ? t('docsContinuar') : t('docsLeeTodos')}
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
 
