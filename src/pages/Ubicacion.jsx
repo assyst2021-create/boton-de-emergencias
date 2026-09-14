@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { esPremium, puedeUbicacionEnVivo, UBICACIONES_TRIAL } from '../plan'
+import { esPremium, puedeUbicacionEnVivo } from '../plan'
 import { useNavContext } from '../components/NavContext'
 
 /** Cada cuanto se envia la posicion mientras se comparte. */
@@ -151,15 +151,6 @@ export default function Ubicacion() {
     setCompartiendo(true)
     enviarPosicion(user.id)
 
-    if (manual && !esPremium(perfil)) {
-      try {
-        const nuevas = (perfil?.ubicaciones_usadas ?? 0) + 1
-        await supabase.from('users').update({ ubicaciones_usadas: nuevas }).eq('id', user.id)
-        setPerfil(p => p ? { ...p, ubicaciones_usadas: nuevas } : p)
-      } catch (e) {
-        console.warn('[ubicacion] no se pudo contar:', e?.message || e)
-      }
-    }
   }
 
   async function enviarPosicion(uid) {
@@ -194,8 +185,44 @@ export default function Ubicacion() {
   }
 
   const premium = esPremium(perfil)
-  const ubicUsadas = perfil?.ubicaciones_usadas ?? 0
   const enVivo = familiares.filter(f => f.ubicacion)
+
+  // Pantalla de bloqueo para Plan Básico
+  if (perfil !== null && !premium) {
+    return (
+      <div className={styles.wrap}>
+        <header className={styles.header}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1>📍 {t('ubiTitulo')}</h1>
+            <button className={styles.gear} onClick={abrirOpciones} title="Opciones">⚙️</button>
+          </div>
+        </header>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', gap: 20, textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem' }}>🔒</div>
+          <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>Función Premium</h2>
+          <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0, maxWidth: 300 }}>
+            La ubicación en vivo en el mapa es exclusiva del <strong>Plan Premium</strong>. Actualiza tu plan para ver y compartir tu ubicación con tu familia en tiempo real.
+          </p>
+          <div style={{ background: 'var(--card)', border: '1.5px solid #e6a817', borderRadius: 12, padding: '16px 20px', maxWidth: 300, width: '100%' }}>
+            <p style={{ color: 'var(--text2)', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
+              👑 <strong>Plan Premium incluye:</strong><br />
+              • Ver familia en el mapa en vivo<br />
+              • Compartir tu ubicación<br />
+              • Hasta 10 familiares vinculados<br />
+              • Segunda alerta automática
+            </p>
+          </div>
+          <button
+            onClick={abrirOpciones}
+            style={{ background: '#e6a817', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px 28px', borderRadius: 10, border: 'none', cursor: 'pointer' }}
+          >
+            👑 Ver Plan Premium
+          </button>
+        </div>
+        <div className={styles.pb} />
+      </div>
+    )
+  }
 
   return (
     <div className={styles.wrap}>
@@ -206,35 +233,6 @@ export default function Ubicacion() {
         </div>
         <p className={styles.sub}>{t('ubiSubtitulo')}</p>
       </header>
-
-      {!premium && (
-        <div className={styles.premiumBox}>
-          <strong>🛰 Sesiones de prueba: {ubicUsadas} / {UBICACIONES_TRIAL}</strong>
-          {ubicUsadas >= UBICACIONES_TRIAL && (
-            <p style={{ marginTop: 4 }}>Has agotado tus sesiones de prueba.</p>
-          )}
-        </div>
-      )}
-
-      {mostrarUpgrade && (
-        <div className={styles.upgradeOverlay} onClick={() => setMostrarUpgrade(false)}>
-          <div className={styles.upgradeCard} onClick={e => e.stopPropagation()}>
-            <div className={styles.upgradeIcono}>⭐</div>
-            <h3>Periodo de prueba agotado</h3>
-            <p>Activa el Plan Premium con renovación anual y protege a tu familia.</p>
-            <a
-              className={styles.upgradeBtn}
-              href={import.meta.env.VITE_WOMPI_LINK || '#'}
-              target="_blank" rel="noreferrer"
-            >
-              Activar Premium
-            </a>
-            <button className={styles.upgradeCerrar} onClick={() => setMostrarUpgrade(false)}>
-              {t('cerrar')}
-            </button>
-          </div>
-        </div>
-      )}
 
       {error && <div className={styles.error}>{error}</div>}
 

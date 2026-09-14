@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { puedeEnviarAlerta, alertasRestantes, esPremium, ALERTAS_TRIAL } from '../plan'
+import { puedeEnviarAlerta, esPremium } from '../plan'
 import { useNavContext } from '../components/NavContext'
 
 const BOTONES = [
@@ -207,8 +207,8 @@ export default function PanicButtons() {
         setSinNube(true)
       }
 
-      // Programar alerta automática en 2 horas (solo rojo y naranja, si el usuario la activó)
-      if ((boton.tipo === 'red' || boton.tipo === 'orange') && user?.auto_alert_enabled) {
+      // Segunda alerta automática de 2 horas: exclusiva de Plan Premium
+      if ((boton.tipo === 'red' || boton.tipo === 'orange') && user?.auto_alert_enabled && esPremium(user)) {
         const scheduledAt = new Date(ahora.getTime() + 2 * 60 * 60 * 1000)
         await supabase.from('scheduled_alerts').insert({
           user_id: authUser.id,
@@ -224,15 +224,6 @@ export default function PanicButtons() {
       setSinNube(true)
     }
 
-    if (authUser && !esPremium(user)) {
-      try {
-        const nuevas = (user?.alertas_enviadas ?? 0) + 1
-        await supabase.from('users').update({ alertas_enviadas: nuevas }).eq('id', authUser.id)
-        setUser(u => (u ? { ...u, alertas_enviadas: nuevas } : u))
-      } catch (e) {
-        console.warn('[alerta] no se pudo contar:', e?.message || e)
-      }
-    }
   }
 
   /** Dispara alertas programadas que ya vencieron. */
@@ -285,7 +276,6 @@ export default function PanicButtons() {
               <li>{t('planTrialF3')}</li>
               <li>{t('planTrialF4')}</li>
               <li>{t('planTrialF5')}</li>
-              <li>{t('planTrialF6')}</li>
             </ul>
           </div>
           <button
@@ -392,12 +382,6 @@ export default function PanicButtons() {
         {gps === 'denegado' && `⚠️ ${t('gpsDenegado')}`}
         {(gps === 'error' || gps === 'sin-soporte') && `⚠️ ${t('gpsError')}`}
       </div>
-
-      {user && !esPremium(user) && familiares.length > 0 && (
-        <div className={styles.contador}>
-          {t('alertasRestantes')}: <strong>{alertasRestantes(user)}</strong> / {ALERTAS_TRIAL}
-        </div>
-      )}
 
       {mostrarLimite && (
         <div className={styles.limiteOverlay} onClick={() => setMostrarLimite(null)}>

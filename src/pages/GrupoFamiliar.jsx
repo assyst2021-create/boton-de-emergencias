@@ -110,9 +110,16 @@ export default function GrupoFamiliar() {
       await init()
       return
     }
-    await supabase.from('family_links').update({ status: accion }).eq('id', linkId)
+    // Al aceptar: verificar que no se supere el límite del plan actual
     if (accion === 'accepted') {
+      const { data: perfil } = await supabase
+        .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
+      if (vinculados.length >= limiteFamiliares(perfil)) {
+        setMostrarUpgrade(true)
+        return
+      }
       const sol = solicitudes.find(s => s.id === linkId)
+      await supabase.from('family_links').update({ status: 'accepted' }).eq('id', linkId)
       if (sol) {
         await supabase.from('family_links').upsert({
           user_id: userId,
@@ -120,7 +127,10 @@ export default function GrupoFamiliar() {
           status: 'accepted'
         }, { onConflict: 'user_id,linked_user_id' })
       }
+      await init()
+      return
     }
+    await supabase.from('family_links').update({ status: accion }).eq('id', linkId)
     await init()
   }
 

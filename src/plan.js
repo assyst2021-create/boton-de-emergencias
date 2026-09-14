@@ -1,7 +1,7 @@
 export const FAMILIARES_TRIAL = 1
 export const FAMILIARES_PREMIUM = 10
-export const ALERTAS_TRIAL = 2
-export const UBICACIONES_TRIAL = 2
+export const ALERTAS_TRIAL = 2     // se mantiene por compatibilidad con imports
+export const UBICACIONES_TRIAL = 2 // se mantiene por compatibilidad con imports
 
 // Alias para compatibilidad con imports existentes
 export const FAMILIARES_GRATIS = FAMILIARES_TRIAL
@@ -19,17 +19,16 @@ export function limiteFamiliares(perfil) {
   return esPremium(perfil) ? FAMILIARES_PREMIUM : FAMILIARES_TRIAL
 }
 
-export function puedeEnviarAlerta(perfil) {
-  if (esPremium(perfil)) return true
-  return (perfil?.alertas_enviadas ?? 0) < ALERTAS_TRIAL
+// Plan Básico: alertas ilimitadas — sin restricción de cantidad
+export function puedeEnviarAlerta(_perfil) {
+  return true
 }
 
-export function alertasRestantes(perfil) {
-  if (esPremium(perfil)) return Infinity
-  return Math.max(0, ALERTAS_TRIAL - (perfil?.alertas_enviadas ?? 0))
+export function alertasRestantes(_perfil) {
+  return Infinity
 }
 
+// Ubicación en vivo: exclusivo de Plan Premium
 export function puedeUbicacionEnVivo(perfil) {
-  if (esPremium(perfil)) return true
-  return (perfil?.ubicaciones_usadas ?? 0) < UBICACIONES_TRIAL
+  return esPremium(perfil)
 }

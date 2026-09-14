@@ -116,14 +116,27 @@ export default function Perfil({ onCerrar }) {
             </div>
 
             <div className={styles.opcionToggle}>
-              <span>{t('autoAlertaLabel')}</span>
-              <button
-                className={autoAlerta ? styles.toggleOn : styles.toggleOff}
-                onClick={toggleAutoAlerta}
-                aria-pressed={autoAlerta}
-              >
-                {autoAlerta ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
-              </button>
+              <span>
+                {t('autoAlertaLabel')}
+                {!perfil?.is_premium && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+              </span>
+              {perfil?.is_premium ? (
+                <button
+                  className={autoAlerta ? styles.toggleOn : styles.toggleOff}
+                  onClick={toggleAutoAlerta}
+                  aria-pressed={autoAlerta}
+                >
+                  {autoAlerta ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
+                </button>
+              ) : (
+                <button
+                  className={styles.toggleOff}
+                  onClick={() => setPaso('plan')}
+                  style={{ opacity: 0.6, cursor: 'pointer' }}
+                >
+                  🔒 Activar
+                </button>
+              )}
             </div>
             <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
               {t('cerrarSesion')}
