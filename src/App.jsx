@@ -110,12 +110,14 @@ function AppInner() {
 
   function marcarPlanElegido() {
     localStorage.setItem(`planElegido_${session.user.id}`, '1')
+    sessionStorage.removeItem('nuevoRegistro')
     setPlanElegido(true)
   }
 
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
-  if (!planElegido) return <ElegirPlan onElegido={marcarPlanElegido} />
+  // ElegirPlan solo aparece para cuentas recién creadas (no en inicio de sesión normal)
+  if (!planElegido && sessionStorage.getItem('nuevoRegistro')) return <ElegirPlan onElegido={marcarPlanElegido} />
   if (!bienvenidaVista || !avisoLegalAceptado) return <AvisoLegal onAceptar={marcarAvisoLegal} />
   if (soloVerLegal) return <AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} />
   if (notifPrompt) return <NotifRequestScreen onContinuar={() => setNotifPrompt(false)} />

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
+import { esPremium } from '../plan'
 
 const WOMPI_LINK = import.meta.env.VITE_WOMPI_LINK || '#'
 
@@ -9,11 +10,24 @@ export default function ElegirPlan({ onElegido }) {
   const { t } = useLanguage()
   const [cargando, setCargando] = useState(false)
   const [mostrarContrato, setMostrarContrato] = useState(false)
+  const [planActual, setPlanActual] = useState(null) // 'basico' | 'premium' | null
 
-  async function elegirTrial() {
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
+        .then(({ data }) => {
+          if (!data) return
+          if (esPremium(data)) setPlanActual('premium')
+          else if (data.plan) setPlanActual('basico')
+        })
+    })
+  }, [])
+
+  async function elegirBasico() {
     setCargando(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) await supabase.from('users').update({ plan: 'trial' }).eq('id', user.id)
+    if (user) await supabase.from('users').update({ plan: 'basico' }).eq('id', user.id)
     setCargando(false)
     onElegido()
   }
@@ -46,11 +60,14 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planTrialF3')}</li>
             <li>{t('planTrialF4')}</li>
             <li>{t('planTrialF5')}</li>
-            <li>{t('planTrialF6')}</li>
           </ul>
-          <button className={styles.btnTrial} onClick={elegirTrial} disabled={cargando}>
-            {cargando ? t('planGuardando') : t('planEmpezarGratis')}
-          </button>
+          {planActual === 'basico' ? (
+            <div className={styles.planActualLabel}>✓ {t('planActivo')}</div>
+          ) : (
+            <button className={styles.btnTrial} onClick={elegirBasico} disabled={cargando}>
+              {cargando ? t('planGuardando') : t('planActivar')}
+            </button>
+          )}
         </div>
 
         <div className={styles.cardPremium}>
@@ -64,10 +81,15 @@ export default function ElegirPlan({ onElegido }) {
             <li>{t('planPremiumF4')}</li>
             <li>{t('planPremiumF5')}</li>
             <li>{t('planPremiumF6')}</li>
+            <li>{t('planPremiumF7')}</li>
           </ul>
-          <button className={styles.btnPremium} onClick={elegirPremium}>
-            {t('planActivarPremium')}
-          </button>
+          {planActual === 'premium' ? (
+            <div className={styles.planActualLabel}>✓ {t('planActivo')}</div>
+          ) : (
+            <button className={styles.btnPremium} onClick={elegirPremium}>
+              {t('planActivar')}
+            </button>
+          )}
         </div>
       </div>
 

@@ -81,6 +81,12 @@ export default function Perfil({ onCerrar }) {
                 </span>
               </button>
             )}
+            <button className={styles.opcion} onClick={() => setPaso('plan')}>
+              <span>{t('verPlanes')}</span>
+              <span className={perfil?.is_premium ? styles.planBadgePremium : styles.planBadgeGratis}>
+                {perfil?.is_premium ? '👑 Premium' : '🎁 Básico'}
+              </span>
+            </button>
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
             </button>

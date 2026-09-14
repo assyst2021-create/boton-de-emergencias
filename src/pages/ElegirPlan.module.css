@@ -137,6 +137,18 @@
   color: #fff;
 }
 
+.planActualLabel {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(30, 132, 73, 0.12);
+  border: 1.5px solid rgba(30, 132, 73, 0.4);
+  color: #1E8449;
+}
+
 .btnPremium:hover {
   opacity: 0.9;
 }

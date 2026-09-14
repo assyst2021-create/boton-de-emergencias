@@ -139,6 +139,7 @@ export default function Login() {
         full_name: form.nombre,
         phone_number: `${pais.codigo}${form.telefono}`,
       })
+      sessionStorage.setItem('nuevoRegistro', '1')
     }
     setCargando(false)
   }
