@@ -89,23 +89,33 @@ Deno.serve(async (req) => {
     const vence: string | null = item?.expiryTime || null
     const vigente = ESTADOS_VIGENTES.includes(sub.subscriptionState) && vence && new Date(vence) > new Date()
 
+    // Premium que no salió de esta compra (p. ej. regalado): dura más que la suscripción
+    const { data: actual } = await supabase.from('users')
+      .select('plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
+    const hastaActual = actual?.premium_hasta ? new Date(actual.premium_hasta).getTime() : null
+    const premiumActual = !!actual && (actual.plan === 'premium' || !!actual.is_premium)
+      && (hastaActual === null || hastaActual > Date.now())
+    const venceMs = vence ? new Date(vence).getTime() : 0
+    const tieneAlgoMejor = premiumActual && (hastaActual === null || hastaActual > venceMs + 24 * 60 * 60 * 1000)
+
     if (!vigente) {
-      // Venció o se canceló y ya pasó la fecha: vuelve al plan básico
+      if (tieneAlgoMejor) return json({ ok: false, estado: sub.subscriptionState, conserva: 'premium' })
       await supabase.from('users').update({ plan: 'basico', is_premium: false })
         .eq('id', user.id).eq('play_purchase_token', token)
       return json({ ok: false, estado: sub.subscriptionState })
     }
 
-    const plan = productId.includes('familiar') ? 'familiar' : 'premium'
+    const plan = tieneAlgoMejor ? 'premium' : (productId.includes('familiar') ? 'familiar' : 'premium')
+    const hasta = tieneAlgoMejor ? actual!.premium_hasta : vence
     const { error } = await supabase.from('users').update({
       plan,
       is_premium: plan === 'premium',
-      premium_hasta: vence,
+      premium_hasta: hasta,
       play_purchase_token: token,
     }).eq('id', user.id)
     if (error) throw error
 
-    return json({ ok: true, plan, vence })
+    return json({ ok: true, plan, vence: hasta })
   } catch (e) {
     console.error('[activar-premium]', e)
     return json({ error: String(e) }, 500)

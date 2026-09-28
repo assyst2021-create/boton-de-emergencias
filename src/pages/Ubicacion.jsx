@@ -57,6 +57,30 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
 
 let _notifId = 1000
 
+/**
+ * Punto inmediato (wifi/antenas o uno de hace menos de 2 min) para que la familia vea
+ * algo de una vez mientras el GPS fino responde. Si es muy impreciso no se usa.
+ */
+function posicionRapida() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      p => resolve(p.coords.accuracy <= 300
+        ? { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
+        : null),
+      () => resolve(null),
+      { enableHighAccuracy: false, maximumAge: 120000, timeout: 5000 },
+    )
+  })
+}
+
+/** Un punto de antenas (>150 m) no reemplaza uno bueno de GPS de hace menos de 1 minuto. */
+function sirvePunto(p) {
+  const prev = ultimaPosGlobal
+  if (!prev || p.precision == null || prev.precision == null) return true
+  return !(p.precision > 150 && prev.precision <= 50 && Date.now() - (prev.ts || 0) < 60000)
+}
+
 /** Reverse geocoding con Nominatim (OSM, gratis, sin key) */
 async function geocodearDireccion(lat, lng, cerca = 'Cerca de') {
   try {
@@ -342,10 +366,19 @@ export default function Ubicacion() {
       setMinRestantes(Math.ceil(restMs / 60000))
     }, 10000)
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // getSession es inmediato; getUser iba a internet y con poca señal demoraba el arranque
+    const { data: { session: sesion } } = await supabase.auth.getSession()
+    const user = sesion?.user
     if (!user) return
 
     uidEnvioGlobal = user.id
+
+    // Primer punto de una vez: sin esto la familia esperaba a que el GPS fino respondiera
+    posicionRapida().then(p => {
+      if (!p || uidEnvioGlobal !== user.id || sessionStorage.getItem('ubi_stopped') === '1') return
+      if (!ultimaPosGlobal) { ultimaRef.current = p; ultimaPosGlobal = p; setMiPos(p) }
+      enviarPosicion(user.id)
+    })
 
     if (EN_CAPACITOR) {
       // Arrancar el Service nativo: sube GPS a Supabase directamente por HTTP,
@@ -374,8 +407,9 @@ export default function Ubicacion() {
           vigilanteGlobal = await BackgroundGeolocation.addWatcher(
             { backgroundMessage: t('ubiBgMsg'), backgroundTitle: 'Botón de Emergencias', requestPermissions: true, stale: false, distanceFilter: 0 },
             (pos, err) => {
-              if (err) return
-              const p = { lat: pos.latitude, lng: pos.longitude, precision: pos.accuracy }
+              if (err || !pos) return
+              const p = { lat: pos.latitude, lng: pos.longitude, precision: pos.accuracy, ts: Date.now() }
+              if (!sirvePunto(p)) return
               ultimaRef.current = p
               ultimaPosGlobal = p
               setMiPos(p)
@@ -385,7 +419,11 @@ export default function Ubicacion() {
         } catch {
           if (navigator.geolocation) {
             vigilanteGlobal = navigator.geolocation.watchPosition(
-              p => { const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }; ultimaRef.current = pos; ultimaPosGlobal = pos; setMiPos(pos) },
+              p => {
+                const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
+                if (!sirvePunto(pos)) return
+                ultimaRef.current = pos; ultimaPosGlobal = pos; setMiPos(pos)
+              },
               () => {},
               { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 },
             )
@@ -399,7 +437,8 @@ export default function Ubicacion() {
         if (!navigator.geolocation) { setError(t('ubiSinSoporte')); return }
         vigilanteGlobal = navigator.geolocation.watchPosition(
           p => {
-            const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }
+            const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
+            if (!sirvePunto(pos)) return
             ultimaRef.current = pos
             ultimaPosGlobal = pos
             setMiPos(pos)
@@ -470,7 +509,9 @@ export default function Ubicacion() {
     tiempoFinRef.current = null
     setMinRestantes(null)
     setCompartiendo(false)
-    const { data: { user } } = await supabase.auth.getUser()
+    // getSession lee la sesión del celular al instante (getUser iba a internet y demoraba la parada)
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (user) {
       // Parar el servicio nativo si está corriendo
       if (EN_CAPACITOR) {
@@ -480,6 +521,13 @@ export default function Ubicacion() {
         } catch {}
       }
       await supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
+      // Un envío del GPS que ya iba en camino puede llegar después y "revivir" la ubicación:
+      // se confirma otra vez en unos segundos, si no se volvió a compartir
+      setTimeout(() => {
+        if (sessionStorage.getItem('ubi_sharing') !== '1') {
+          supabase.from('live_locations').update({ activo: false }).eq('user_id', user.id)
+        }
+      }, 7000)
     }
   }
 
