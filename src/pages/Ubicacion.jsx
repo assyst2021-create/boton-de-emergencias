@@ -710,23 +710,33 @@ export default function Ubicacion() {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Selector de duración estilo WhatsApp */}
+      {/* Selector de duración: ventana flotante en el centro (tocar afuera la cierra) */}
       {mostrarTiempo && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}>
-          <div style={{ width: '100%', background: 'var(--bg)', borderRadius: '20px 20px 0 0', padding: '24px 20px 40px', display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontWeight: 800, color: 'var(--text)' }}>📡 {t('ubiSelectorTitulo')}</h3>
-              <button onClick={() => setMostrarTiempo(false)} style={{ background: 'none', border: 'none', fontSize: '1.3rem', color: 'var(--text2)', cursor: 'pointer' }}>✕</button>
+        <div className={styles.selectorFondo} onClick={() => setMostrarTiempo(false)}>
+          <div
+            className={styles.selectorVentana}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="selector-tiempo-titulo"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={styles.selectorIcono} aria-hidden="true">📍</div>
+            <h3 id="selector-tiempo-titulo" className={styles.selectorTitulo}>{t('ubiSelectorTitulo')}</h3>
+            <p className={styles.selectorDesc}>{t('ubiSelectorDesc')}</p>
+            <div className={styles.selectorOpciones}>
+              {OPCIONES_TIEMPO.map(op => (
+                <button
+                  key={op.minutos}
+                  className={styles.selectorOpcion}
+                  onClick={() => { setMostrarTiempo(false); empezar(true, op.minutos) }}
+                >
+                  <span aria-hidden="true">⏱</span> {t(op.clave)}
+                </button>
+              ))}
             </div>
-            {OPCIONES_TIEMPO.map(op => (
-              <button
-                key={op.minutos}
-                onClick={() => { setMostrarTiempo(false); empezar(true, op.minutos) }}
-                style={{ padding: '16px', borderBottom: '1px solid var(--border)', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text)', fontSize: '1.05rem', fontWeight: 600, textAlign: 'center', cursor: 'pointer' }}
-              >
-                {t(op.clave)}
-              </button>
-            ))}
+            <button className={styles.selectorCancelar} onClick={() => setMostrarTiempo(false)}>
+              {t('cancelar')}
+            </button>
           </div>
         </div>
       )}
@@ -901,17 +911,6 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
   // Color actual del punto propio: el ícono solo se cambia cuando cambia el modo (si se
   // cambiara con cada punto, el pulso se reiniciaba cada segundo)
   const modoIconoRef = useRef(null)
-  // En el celular un dedo mueve la pantalla y dos dedos el mapa: antes, al bajar para ver la
-  // ficha, el dedo quedaba atrapado moviendo el mapa
-  const [pistaDedos, setPistaDedos] = useState(false)
-  const pistaTimer = useRef(null)
-  useEffect(() => () => clearTimeout(pistaTimer.current), [])
-  function avisarDosDedos(e) {
-    if (!L.Browser.mobile || e.touches.length !== 1) { setPistaDedos(false); return }
-    setPistaDedos(true)
-    clearTimeout(pistaTimer.current)
-    pistaTimer.current = setTimeout(() => setPistaDedos(false), 1500)
-  }
 
   const hayPuntos = yo || familiares.some(f => f.ubicacion)
 
@@ -937,7 +936,7 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     containerRef.current = node
     if (!node || initMap.current) return
     initMap.current = true
-    const map = L.map(node, { zoomControl: false, attributionControl: false, dragging: !L.Browser.mobile })
+    const map = L.map(node, { zoomControl: false, attributionControl: false })
       .setView([4.711, -74.072], 13)
     capaBaseRef.current = L.tileLayer(CAPA_OSM.url, CAPA_OSM.opts).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
@@ -1054,9 +1053,8 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
   }, [reencuadrar])
 
   return (
-    <div className={styles.mapa} style={{ position: 'relative' }} onTouchMove={avisarDosDedos}>
+    <div className={styles.mapa} style={{ position: 'relative' }}>
       {enfocado && <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>}
-      {pistaDedos && <div className={styles.pistaDedos} aria-hidden="true">✌️ {t('ubiDosDedos')}</div>}
 
       <div ref={setContainer} style={{ height: '100%', width: '100%' }} />
       {/* Estado vacío como overlay, no early-return */}
@@ -1078,4 +1076,5 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     </div>
   )
 }
+
 
