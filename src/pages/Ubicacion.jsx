@@ -8,8 +8,8 @@ import { puedeUbicacionEnVivo } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { LocalNotifications } from '@capacitor/local-notifications'
 
-/** Cada cuanto se envia la posicion mientras se comparte. */
-const INTERVALO_MS = 3000
+/** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
+const INTERVALO_MS = 1000
 
 const OPCIONES_TIEMPO = [
   { clave: 'ubiT15', minutos: 15 },
@@ -36,11 +36,23 @@ const DURACION_MIN = 720
  */
 let vigilanteGlobal = null
 let ultimoEnvioMs = 0
+/** Con señal lenta no se amontonan envíos: si uno va saliendo, se espera al siguiente turno. */
+let enviandoPosicion = false
 let uidEnvioGlobal = null
 /** Hasta cuando eligio compartir el usuario (15 min, 1 h u 8 h). */
 let tiempoFinGlobal = null
 /** Ultima posicion conocida, para que el envio en segundo plano no dependa del componente. */
 let ultimaPosGlobal = null
+/**
+ * Pantalla de Ubicación montada en este momento. El vigilante de GPS sobrevive a los
+ * cambios de pestaña: si le avisara a la pantalla con la que se creó, al volver a
+ * Ubicación el punto propio no se dibujaba más. Por eso avisa siempre a la actual.
+ */
+let alNuevaPosicion = null
+function publicarPosicion(p) {
+  ultimaPosGlobal = p
+  alNuevaPosicion?.(p)
+}
 
 /** Rastreo de movimiento por familiar: ultima pos notificada y timestamp del último aviso */
 const _ultimaPosNotif = {}   // uid → {lat, lng}
@@ -128,6 +140,12 @@ export default function Ubicacion() {
   const [compartiendo, setCompartiendoRaw] = useState(() => sessionStorage.getItem('ubi_sharing') === '1')
   const setCompartiendo = (v) => { sessionStorage.setItem('ubi_sharing', v ? '1' : '0'); setCompartiendoRaw(v) }
   const [miPos, setMiPos] = useState(null)
+  // "Ver mi punto": el punto propio se muestra solo en este celular, se comparta o no
+  const [verMiPunto, setVerMiPunto] = useState(false)
+  const [buscandoYo, setBuscandoYo] = useState(false)
+  const [centrarYo, setCentrarYo] = useState(0)
+  const [reencuadrar, setReencuadrar] = useState(0)
+  const [avisoOk, setAvisoOk] = useState('')
   const [familiares, setFamiliares] = useState([])
   const [error, setError] = useState('')
   const [enfocado, setEnfocado] = useState(null)
@@ -150,6 +168,10 @@ export default function Ubicacion() {
   const uidGlobalRef = useRef(null)
 
   useEffect(() => {
+    // Esta pantalla recibe los puntos del vigilante de GPS, aunque se haya creado en otra
+    const recibir = (pos) => { ultimaRef.current = pos; setMiPos(pos) }
+    alNuevaPosicion = recibir
+    if (ultimaPosGlobal) recibir(ultimaPosGlobal)
     init()
 
     if (EN_CAPACITOR) {
@@ -187,6 +209,7 @@ export default function Ubicacion() {
     }
 
     return () => {
+      if (alNuevaPosicion === recibir) alNuevaPosicion = null
       // OJO: no se suelta el vigilante de GPS. Debe seguir corriendo en
       // segundo plano aunque se cambie de pestaña o se salga de la app,
       // igual que WhatsApp. Solo detener() lo apaga.
@@ -266,8 +289,42 @@ export default function Ubicacion() {
       cargarFamiliaresCompleto(uidGlobalRef.current),
       supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', uidGlobalRef.current).maybeSingle().then(({ data }) => data && setPerfil(data)),
     ])
+    // Que se note: el mapa se acomoda para ver a todos y sale un aviso corto
+    setEnfocado(null)
+    setReencuadrar(n => n + 1)
+    setAvisoOk(t('ubiActualizadoOk'))
+    setTimeout(() => setAvisoOk(''), 2500)
     setTimeout(() => setRecargando(false), 400)
-  }, [recargando])
+  }, [recargando, t])
+
+  /** Muestra el punto propio en el mapa (solo en este celular) y lo centra, se comparta o no. */
+  function verMiUbicacion() {
+    setError('')
+    setEnfocado(null)
+    setVerMiPunto(true)
+    if (ultimaPosGlobal) { setMiPos(ultimaPosGlobal); setCentrarYo(n => n + 1) }
+    if (!navigator.geolocation) { setError(t('gpsNoDisponible')); return }
+    setBuscandoYo(true)
+    let centrado = false
+    const mostrar = (p, preciso) => {
+      const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
+      // Uno aproximado no reemplaza uno preciso que ya se tenga
+      setMiPos(prev => (!preciso && prev?.precision != null && prev.precision < pos.precision) ? prev : pos)
+      if (!centrado || preciso) { centrado = true; setCentrarYo(n => n + 1) }
+      if (preciso) setBuscandoYo(false)
+    }
+    // Primero el rápido (wifi/antenas) y luego el GPS fino
+    navigator.geolocation.getCurrentPosition(p => mostrar(p, false), () => {},
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 5000 })
+    navigator.geolocation.getCurrentPosition(
+      p => mostrar(p, true),
+      err => {
+        setBuscandoYo(false)
+        if (!centrado) setError(err.code === 1 ? t('ubiPermisoDenegado') : t('gpsNoDisponible'))
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    )
+  }
 
   /** Carga links Y ubicaciones — solo al inicio o cuando cambia el grupo familiar */
   async function cargarFamiliaresCompleto(uid) {
@@ -376,7 +433,7 @@ export default function Ubicacion() {
     // Primer punto de una vez: sin esto la familia esperaba a que el GPS fino respondiera
     posicionRapida().then(p => {
       if (!p || uidEnvioGlobal !== user.id || sessionStorage.getItem('ubi_stopped') === '1') return
-      if (!ultimaPosGlobal) { ultimaRef.current = p; ultimaPosGlobal = p; setMiPos(p) }
+      if (!ultimaPosGlobal) publicarPosicion(p)
       enviarPosicion(user.id)
     })
 
@@ -410,9 +467,7 @@ export default function Ubicacion() {
               if (err || !pos) return
               const p = { lat: pos.latitude, lng: pos.longitude, precision: pos.accuracy, ts: Date.now() }
               if (!sirvePunto(p)) return
-              ultimaRef.current = p
-              ultimaPosGlobal = p
-              setMiPos(p)
+              publicarPosicion(p)
             }
           )
           vigilanteRef.current = vigilanteGlobal
@@ -422,7 +477,7 @@ export default function Ubicacion() {
               p => {
                 const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
                 if (!sirvePunto(pos)) return
-                ultimaRef.current = pos; ultimaPosGlobal = pos; setMiPos(pos)
+                publicarPosicion(pos)
               },
               () => {},
               { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 },
@@ -439,9 +494,7 @@ export default function Ubicacion() {
           p => {
             const pos = { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
             if (!sirvePunto(pos)) return
-            ultimaRef.current = pos
-            ultimaPosGlobal = pos
-            setMiPos(pos)
+            publicarPosicion(pos)
           },
           () => setError(t('ubiPermisoDenegado')),
           { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 },
@@ -459,7 +512,7 @@ export default function Ubicacion() {
     // Se leen los globales: en segundo plano el componente puede estar
     // desmontado y sus refs ya no sirven.
     const p = ultimaPosGlobal || ultimaRef.current
-    if (!p) return
+    if (!p || enviandoPosicion) return
     // Si ya paso el tiempo elegido, se apaga solo y no se envia mas.
     if (tiempoFinGlobal && Date.now() >= tiempoFinGlobal) {
       soltarTemporizadores()
@@ -470,15 +523,20 @@ export default function Ubicacion() {
     const vence = tiempoFinGlobal
       ? new Date(tiempoFinGlobal)
       : new Date(Date.now() + DURACION_MIN * 60 * 1000)
-    await supabase.from('live_locations').upsert({
-      user_id: uid,
-      latitude: p.lat,
-      longitude: p.lng,
-      precision_m: p.precision,
-      activo: true,
-      updated_at: new Date().toISOString(),
-      expires_at: vence.toISOString(),
-    })
+    enviandoPosicion = true
+    try {
+      await supabase.from('live_locations').upsert({
+        user_id: uid,
+        latitude: p.lat,
+        longitude: p.lng,
+        precision_m: p.precision,
+        activo: true,
+        updated_at: new Date().toISOString(),
+        expires_at: vence.toISOString(),
+      })
+    } finally {
+      enviandoPosicion = false
+    }
   }
 
   /** Apaga el GPS de verdad, incluido el servicio nativo de segundo plano. */
@@ -693,11 +751,18 @@ export default function Ubicacion() {
       </div>
 
 
+      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
+
       <Mapa
-        yo={compartiendo ? miPos : null}
+        yo={compartiendo || verMiPunto ? miPos : null}
+        yoCompartiendo={compartiendo}
         familiares={enVivo}
         enfocado={enVivo.find(f => f.id === enfocado) || null}
         t={t}
+        centrarYo={centrarYo}
+        reencuadrar={reencuadrar}
+        onVerMiPunto={verMiUbicacion}
+        buscandoYo={buscandoYo}
       />
 
       <section className={styles.lista}>
@@ -819,13 +884,34 @@ const CAPA_OSM = {
   opts: { subdomains: 'abc', maxZoom: 19 },
 }
 
-function Mapa({ yo, familiares, enfocado, t }) {
+function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuadrar, onVerMiPunto, buscandoYo }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const yoMarkerRef = useRef(null)
   const famMarkersRef = useRef({})
   const fittedRef = useRef(false)
   const capaBaseRef = useRef(null)
+  // Cambia cada vez que se crea el mapa: los marcadores se dibujan aunque lleguen antes que él
+  const [mapaVersion, setMapaVersion] = useState(0)
+  // Quiénes estaban en el mapa la última vez que se acomodó: solo se re-acomoda cuando
+  // cambia la gente, no con cada punto nuevo (antes no dejaba mover el mapa con el dedo)
+  const idsRef = useRef('')
+  // "Ver mi punto": el mapa sigue a la persona hasta que elija a un familiar
+  const modoYoRef = useRef(false)
+  // Color actual del punto propio: el ícono solo se cambia cuando cambia el modo (si se
+  // cambiara con cada punto, el pulso se reiniciaba cada segundo)
+  const modoIconoRef = useRef(null)
+  // En el celular un dedo mueve la pantalla y dos dedos el mapa: antes, al bajar para ver la
+  // ficha, el dedo quedaba atrapado moviendo el mapa
+  const [pistaDedos, setPistaDedos] = useState(false)
+  const pistaTimer = useRef(null)
+  useEffect(() => () => clearTimeout(pistaTimer.current), [])
+  function avisarDosDedos(e) {
+    if (!L.Browser.mobile || e.touches.length !== 1) { setPistaDedos(false); return }
+    setPistaDedos(true)
+    clearTimeout(pistaTimer.current)
+    pistaTimer.current = setTimeout(() => setPistaDedos(false), 1500)
+  }
 
   const hayPuntos = yo || familiares.some(f => f.ubicacion)
 
@@ -837,6 +923,7 @@ function Mapa({ yo, familiares, enfocado, t }) {
     s.textContent = `
       @keyframes lfpulse{0%{box-shadow:0 0 0 0 rgba(30,132,73,.55)}70%{box-shadow:0 0 0 14px rgba(30,132,73,0)}100%{box-shadow:0 0 0 0 rgba(30,132,73,0)}}
       .lf-yo{width:18px;height:18px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);animation:lfpulse 2s ease-out infinite}
+      .lf-yo-local{width:18px;height:18px;border-radius:50%;background:#2471A3;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)}
       .lf-fam{width:44px;height:44px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;font-family:system-ui,sans-serif;animation:lfpulse 2.5s ease-out infinite}
       .lf-fam-label{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;padding:2px 7px;border-radius:6px;font-family:system-ui,sans-serif;pointer-events:none}
     `
@@ -850,11 +937,12 @@ function Mapa({ yo, familiares, enfocado, t }) {
     containerRef.current = node
     if (!node || initMap.current) return
     initMap.current = true
-    const map = L.map(node, { zoomControl: false, attributionControl: false })
+    const map = L.map(node, { zoomControl: false, attributionControl: false, dragging: !L.Browser.mobile })
       .setView([4.711, -74.072], 13)
     capaBaseRef.current = L.tileLayer(CAPA_OSM.url, CAPA_OSM.opts).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     mapRef.current = map
+    setMapaVersion(v => v + 1)
     setTimeout(() => map.invalidateSize(), 100)
   }
 
@@ -862,6 +950,10 @@ function Mapa({ yo, familiares, enfocado, t }) {
   useEffect(() => {
     return () => {
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; initMap.current = false; fittedRef.current = false }
+      // Los marcadores eran de ese mapa: uno nuevo los vuelve a crear
+      yoMarkerRef.current = null
+      famMarkersRef.current = {}
+      idsRef.current = ''
     }
   }, [])
 
@@ -872,23 +964,36 @@ function Mapa({ yo, familiares, enfocado, t }) {
     }
   }, [hayPuntos])
 
-  // Marcador "Yo"
+  /** Acomoda el mapa para que se vean todos los puntos. */
+  function verTodos() {
+    const map = mapRef.current
+    if (!map) return
+    const all = [...(yoMarkerRef.current ? [yoMarkerRef.current] : []), ...Object.values(famMarkersRef.current)]
+    if (all.length === 1) map.setView(all[0].getLatLng(), 16, { animate: true })
+    else if (all.length > 1) { try { map.fitBounds(L.featureGroup(all).getBounds().pad(0.25), { maxZoom: 17 }) } catch (_) {} }
+  }
+
+  // Marcador "Yo": verde si se está compartiendo (la familia lo ve), azul si solo lo ve esta persona
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     if (yo) {
-      const icon = L.divIcon({ className: '', html: '<div class="lf-yo"></div>', iconSize: [18, 18], iconAnchor: [9, 9] })
+      const icon = L.divIcon({ className: '', html: `<div class="${yoCompartiendo ? 'lf-yo' : 'lf-yo-local'}"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] })
       if (yoMarkerRef.current) {
         yoMarkerRef.current.setLatLng([yo.lat, yo.lng])
+        if (modoIconoRef.current !== yoCompartiendo) yoMarkerRef.current.setIcon(icon)
       } else {
         yoMarkerRef.current = L.marker([yo.lat, yo.lng], { icon, zIndexOffset: 1000 })
-          .bindPopup('📍 Yo').addTo(map)
+          .bindPopup(`📍 ${t('ubiYo')}`).addTo(map)
         if (!fittedRef.current) { map.setView([yo.lat, yo.lng], 16); fittedRef.current = true }
       }
+      modoIconoRef.current = yoCompartiendo
+      if (modoYoRef.current) map.panTo([yo.lat, yo.lng], { animate: true })
     } else {
       if (yoMarkerRef.current) { map.removeLayer(yoMarkerRef.current); yoMarkerRef.current = null }
+      modoIconoRef.current = null
     }
-  }, [yo])
+  }, [yo, yoCompartiendo, mapaVersion])
 
   // Marcadores familia
   useEffect(() => {
@@ -918,23 +1023,40 @@ function Mapa({ yo, familiares, enfocado, t }) {
         if (!fittedRef.current) { map.setView(pos, 15); fittedRef.current = true }
       }
     })
-    if (!enfocado) {
-      const all = [...(yoMarkerRef.current ? [yoMarkerRef.current] : []), ...Object.values(famMarkersRef.current)]
-      if (all.length > 1) { try { map.fitBounds(L.featureGroup(all).getBounds().pad(0.25), { maxZoom: 17 }) } catch (_) {} }
-    }
-  }, [familiares])
+    const ids = [...activeIds].sort().join(',')
+    if (!enfocado && !modoYoRef.current && ids !== idsRef.current) verTodos()
+    idsRef.current = ids
+  }, [familiares, mapaVersion])
 
-  // Pan a familiar enfocado
+  // Pan a familiar enfocado (lo sigue mientras se mueve)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !enfocado) return
+    modoYoRef.current = false
     const m = famMarkersRef.current[enfocado.id]
     if (m) { map.setView(m.getLatLng(), 17, { animate: true }); m.openPopup() }
   }, [enfocado])
 
+  // Botón "Ver mi punto"
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !centrarYo || !yo) return
+    modoYoRef.current = true
+    fittedRef.current = true
+    map.setView([yo.lat, yo.lng], 17, { animate: true })
+  }, [centrarYo])
+
+  // Botón de actualizar: ver a todos
+  useEffect(() => {
+    if (!reencuadrar) return
+    modoYoRef.current = false
+    verTodos()
+  }, [reencuadrar])
+
   return (
-    <div className={styles.mapa} style={{ position: 'relative' }}>
+    <div className={styles.mapa} style={{ position: 'relative' }} onTouchMove={avisarDosDedos}>
       {enfocado && <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>}
+      {pistaDedos && <div className={styles.pistaDedos} aria-hidden="true">✌️ {t('ubiDosDedos')}</div>}
 
       <div ref={setContainer} style={{ height: '100%', width: '100%' }} />
       {/* Estado vacío como overlay, no early-return */}
@@ -943,13 +1065,17 @@ function Mapa({ yo, familiares, enfocado, t }) {
           position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 10,
           fontSize: '2.5rem', color: 'var(--text2)',
-          background: 'var(--bg2)', zIndex: 10, borderRadius: 'inherit',
+          background: 'var(--bg2)', zIndex: 900, borderRadius: 'inherit',
           pointerEvents: 'none',
         }}>
           🗺️
           <span style={{ fontSize: '0.82rem', textAlign: 'center', padding: '0 24px' }}>{t('ubiMapaVacio')}</span>
         </div>
       )}
+      <button type="button" className={styles.btnMiPunto} onClick={onVerMiPunto} disabled={buscandoYo}>
+        📍 {buscandoYo ? t('ubiBuscandoMiPunto') : t('ubiVerMiPunto')}
+      </button>
     </div>
   )
 }
+
