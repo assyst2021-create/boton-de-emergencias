@@ -172,6 +172,9 @@
 
 .mapa {
   position: relative;
+  /* Capa propia: los controles del mapa (z-index 400 a 1000 de Leaflet) no se suben
+     sobre la barra de abajo ni sobre las ventanas de la app */
+  isolation: isolate;
   border: 1.5px solid var(--border);
   border-radius: 14px;
   overflow: hidden;

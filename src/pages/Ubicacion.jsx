@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../supabase'
@@ -710,8 +711,9 @@ export default function Ubicacion() {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Selector de duración: ventana flotante en el centro (tocar afuera la cierra) */}
-      {mostrarTiempo && (
+      {/* Selector de duración: ventana flotante en el centro (tocar afuera la cierra).
+          Se dibuja directo en el body para quedar encima de todo, incluido el mapa. */}
+      {mostrarTiempo && createPortal(
         <div className={styles.selectorFondo} onClick={() => setMostrarTiempo(false)}>
           <div
             className={styles.selectorVentana}
@@ -738,7 +740,8 @@ export default function Ubicacion() {
               {t('cancelar')}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <div className={styles.acciones}>
@@ -1076,5 +1079,6 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     </div>
   )
 }
+
 
 
