@@ -3,39 +3,18 @@ import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
+import {
+  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible,
+  guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
+} from '../registro'
 
-// Capture the install prompt at module level — the browser fires it before React mounts
-let _installEvent = null
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installEvent = e })
-
-const PAISES = [
-  { bandera: '🇨🇴', nombre: 'Colombia', codigo: '+57' },
-  { bandera: '🇺🇸', nombre: 'EE.UU. / Canadá', codigo: '+1' },
-  { bandera: '🇲🇽', nombre: 'México', codigo: '+52' },
-  { bandera: '🇦🇷', nombre: 'Argentina', codigo: '+54' },
-  { bandera: '🇧🇷', nombre: 'Brasil', codigo: '+55' },
-  { bandera: '🇨🇱', nombre: 'Chile', codigo: '+56' },
-  { bandera: '🇻🇪', nombre: 'Venezuela', codigo: '+58' },
-  { bandera: '🇵🇪', nombre: 'Perú', codigo: '+51' },
-  { bandera: '🇪🇨', nombre: 'Ecuador', codigo: '+593' },
-  { bandera: '🇧🇴', nombre: 'Bolivia', codigo: '+591' },
-  { bandera: '🇵🇾', nombre: 'Paraguay', codigo: '+595' },
-  { bandera: '🇺🇾', nombre: 'Uruguay', codigo: '+598' },
-  { bandera: '🇵🇦', nombre: 'Panamá', codigo: '+507' },
-  { bandera: '🇨🇷', nombre: 'Costa Rica', codigo: '+506' },
-  { bandera: '🇬🇹', nombre: 'Guatemala', codigo: '+502' },
-  { bandera: '🇭🇳', nombre: 'Honduras', codigo: '+504' },
-  { bandera: '🇸🇻', nombre: 'El Salvador', codigo: '+503' },
-  { bandera: '🇳🇮', nombre: 'Nicaragua', codigo: '+505' },
-  { bandera: '🇩🇴', nombre: 'Rep. Dominicana', codigo: '+1809' },
-  { bandera: '🇨🇺', nombre: 'Cuba', codigo: '+53' },
-  { bandera: '🇪🇸', nombre: 'España', codigo: '+34' },
-  { bandera: '🇵🇹', nombre: 'Portugal', codigo: '+351' },
-  { bandera: '🇩🇪', nombre: 'Alemania', codigo: '+49' },
-  { bandera: '🇫🇷', nombre: 'Francia', codigo: '+33' },
-  { bandera: '🇮🇹', nombre: 'Italia', codigo: '+39' },
-  { bandera: '🇬🇧', nombre: 'Reino Unido', codigo: '+44' },
-]
+function mensajeErrorRegistro(err, t) {
+  const texto = `${err?.code || ''} ${err?.message || ''}`
+  if (/already|exists|registered/i.test(texto)) return t('errorCorreoYaRegistrado')
+  if (/email/i.test(texto) && /invalid|valid/i.test(texto)) return t('errorCorreoInvalido')
+  if (/fetch|network|failed to/i.test(texto)) return t('errorConexion')
+  return t('errorRegistro')
+}
 
 export default function Login() {
   const { t, lang, cambiarIdioma } = useLanguage()
@@ -44,45 +23,32 @@ export default function Login() {
   const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
-  const [installPrompt, setInstallPrompt] = useState(() => _installEvent)
-  const [instalada, setInstalada] = useState(() =>
-    window.matchMedia('(display-mode: standalone)').matches || !!window.navigator.standalone
-  )
   const [verPassword, setVerPassword] = useState(false)
   const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
   const [usernameStatus, setUsernameStatus] = useState(null) // 'ok' | 'taken' | 'checking'
   const debounceRef = useRef(null)
+  const [avisoUsuario, revisarUsuario] = useAvisoUsuario()
   const [resetEnviado, setResetEnviado] = useState(false)
   const [resetCargando, setResetCargando] = useState(false)
-  const [verPasos, setVerPasos] = useState(false)
-
   useEffect(() => {
-    if (modo !== 'registro' || form.username.length < 3) { setUsernameStatus(null); return }
+    const u = normalizarUsuario(form.username)
+    if (modo !== 'registro' || !u) { setUsernameStatus(null); return }
+    if (!USUARIO_VALIDO.test(u)) { setUsernameStatus('invalid'); return }
     setUsernameStatus('checking')
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
-      const { data } = await supabase.from('users').select('id').eq('username', form.username.toLowerCase().trim()).maybeSingle()
-      setUsernameStatus(data ? 'taken' : 'ok')
+      const libre = await usuarioDisponible(u)
+      // Sin respuesta no se puede afirmar que está libre
+      setUsernameStatus(libre === null ? 'error' : libre ? 'ok' : 'taken')
     }, 500)
     return () => clearTimeout(debounceRef.current)
   }, [form.username, modo])
 
-  useEffect(() => {
-    const handler = (e) => { e.preventDefault(); _installEvent = e; setInstallPrompt(e) }
-    window.addEventListener('beforeinstallprompt', handler)
-    window.addEventListener('appinstalled', () => { setInstalada(true); setInstallPrompt(null) })
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
-  async function instalarApp() {
-    if (!installPrompt) return
-    installPrompt.prompt()
-    const { outcome } = await installPrompt.userChoice
-    if (outcome === 'accepted') setInstalada(true)
-    setInstallPrompt(null)
+  const set = (k) => (e) => {
+    const valor = e.target.value
+    if (k === 'username') revisarUsuario(valor)
+    setForm(f => ({ ...f, [k]: k === 'username' ? limpiarUsuario(valor) : valor }))
   }
-
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   async function handleReset() {
     setError('')
@@ -113,35 +79,43 @@ export default function Login() {
       setError(t('errorCampos'))
       return
     }
-    if (form.username.includes(' ')) { setError(t('errorEspacios')); return }
+    const username = normalizarUsuario(form.username)
+    if (!USUARIO_VALIDO.test(username)) { setError(t('errorUsuarioInvalido')); return }
     if (form.password.length < 6) { setError(t('errorContrasenaCorta')); return }
     setCargando(true)
 
-    const { data: existe } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', form.username.toLowerCase().trim())
-      .maybeSingle()
+    const libre = await usuarioDisponible(username)
+    if (libre === null) { setError(t('errorConexion')); setCargando(false); return }
+    if (!libre) { setError(t('errorUsuarioExiste')); setUsernameStatus('taken'); setCargando(false); return }
 
-    if (existe) { setError(t('errorUsuarioExiste')); setCargando(false); return }
-
-    const { data: authData, error: authErr } = await supabase.auth.signUp({
-      email: form.email.toLowerCase().trim(),
-      password: form.password,
-    })
-
-    if (authErr) { setError(authErr.message); setCargando(false); return }
-
-    if (authData.user) {
-      await supabase.from('users').insert({
-        id: authData.user.id,
-        username: form.username.toLowerCase().trim(),
-        full_name: form.nombre,
-        phone_number: `${pais.codigo}${form.telefono}`,
+    // Si el perfil no alcanza a guardarse (señal, app cerrada), "Completa tu registro"
+    // aparece con estos datos ya llenos
+    guardarDatosRegistro({ nombre: form.nombre, username, telefono: form.telefono, pais: pais.codigo + pais.nombre })
+    marcarRegistroEnCurso(true)
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
       })
-      sessionStorage.setItem('nuevoRegistro', '1')
+
+      if (authErr) { setError(mensajeErrorRegistro(authErr, t)); return }
+
+      if (authData.user) {
+        // Si esto falla, la sesión ya existe y la app muestra "Completa tu registro":
+        // cerrar sesión aquí dejaba la cuenta a medias y el correo ya no se podía usar
+        const { error: errPerfil } = await supabase.from('users').insert({
+          id: authData.user.id,
+          username,
+          full_name: form.nombre,
+          phone_number: `${pais.codigo}${form.telefono}`,
+        })
+        if (!errPerfil) borrarDatosRegistro()
+        sessionStorage.setItem('nuevoRegistro', '1')
+      }
+    } finally {
+      marcarRegistroEnCurso(false)
+      setCargando(false)
     }
-    setCargando(false)
   }
 
   return (
@@ -152,36 +126,6 @@ export default function Login() {
           <h1>{t('appNombre')}</h1>
         </div>
 
-        {instalada ? (
-          <div className={styles.installBox}>
-            <span>{t('appInstalada')}</span>
-          </div>
-        ) : installPrompt ? (
-          <div className={styles.installSection}>
-            <button className={styles.installBtn} onClick={instalarApp}>
-              ⬇️ {t('instalarApp')}
-            </button>
-          </div>
-        ) : (
-          <div className={styles.installSection}>
-            <button className={styles.installBtn} onClick={() => setVerPasos(v => !v)}>
-              ⬇️ {t('instalarApp')}
-            </button>
-            {verPasos && (
-              <div className={styles.installCard}>
-                {esIOS ? (
-                  <ol className={styles.installSteps}>
-                    <li>{t('instalarIosPaso1')}</li>
-                    <li>{t('instalarIosPaso2')}</li>
-                    <li>{t('instalarIosPaso3')}</li>
-                  </ol>
-                ) : (
-                  <p className={styles.installCardInstr}>{t('instalarChromeInstr')}</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className={styles.bottomSection}>
@@ -200,10 +144,13 @@ export default function Login() {
               </div>
               <div className={styles.field}>
                 <label>{t('nombreUsuario')}</label>
-                <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" />
-                {usernameStatus === 'checking' && <span className={styles.usernameChecking}>{t('verificando')}</span>}
+                <input type="text" placeholder={t('userPh')} value={form.username} onChange={set('username')} autoComplete="username" maxLength={20} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+                {avisoUsuario && <span className={styles.usernameAviso}>{t('usuarioCorregido')}</span>}
+                {usernameStatus === 'checking' && <span className={styles.usernameChecking}>{t('verificandoDisponibilidad')}</span>}
                 {usernameStatus === 'ok' && <span className={styles.usernameOk}>{t('usuarioDisponible')}</span>}
                 {usernameStatus === 'taken' && <span className={styles.usernameTaken}>{t('usuarioNoDisponible')}</span>}
+                {usernameStatus === 'invalid' && <span className={styles.usernameTaken}>{t('errorUsuarioInvalido')}</span>}
+                {usernameStatus === 'error' && <span className={styles.usernameTaken}>{t('errorConexion')}</span>}
               </div>
             </>
           )}

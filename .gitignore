@@ -2,3 +2,9 @@ node_modules
 dist
 .env.local
 .env
+
+# Copias de imágenes originales (pesadas) y archivos locales de Supabase
+imagenes-originales/
+supabase/.temp/
+# Contienen correos de testers: el repositorio es público
+supabase/migrations/*regalo*

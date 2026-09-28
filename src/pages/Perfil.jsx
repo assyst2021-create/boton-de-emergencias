@@ -1,21 +1,36 @@
-import { useState, useContext, createContext, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from '../supabase'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
 import ElegirPlan from './ElegirPlan'
 import { useTema } from '../ThemeContext'
+import { useAppActions } from '../AppActionsContext'
+import { esPremium, esFamiliar, esPlanPago } from '../plan'
+import { olvidarFCM } from '../fcmRegistro'
+
+export { AppActionsContext } from '../AppActionsContext'
 
 const AvisoLegal = lazy(() => import('./AvisoLegal'))
 
-export const AppActionsContext = createContext({})
-export const useAppActions = () => useContext(AppActionsContext)
-
-export default function Perfil({ onCerrar }) {
+export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const { t, lang, cambiarIdioma } = useLanguage()
   const { tema, toggleTema } = useTema()
   const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
-  const [paso, setPaso] = useState('menu')
+  const [paso, setPaso] = useState(pasoInicial)
+
+  // Al salir: este celular deja de recibir alertas de la cuenta y deja de compartir su ubicación
+  async function cerrarSesion() {
+    const { data: { session } } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    if (uid) {
+      try { await window.Capacitor?.Plugins?.GpsShare?.detener({ userId: uid }) } catch (_) {}
+      await supabase.from('live_locations').update({ activo: false }).eq('user_id', uid).then(() => {}, () => {})
+      sessionStorage.removeItem('ubi_sharing')
+      await olvidarFCM(supabase, uid)
+    }
+    await supabase.auth.signOut()
+  }
   const [form, setForm] = useState({ nueva: '', confirmar: '' })
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
@@ -31,7 +46,7 @@ export default function Perfil({ onCerrar }) {
       const user = session?.user
       if (!user) return
       setUid(user.id)
-      supabase.from('users').select('full_name, username, auto_alert_enabled, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
+      supabase.from('users').select('full_name, username, auto_alert_enabled, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
           if (data) {
             setPerfil(data)
@@ -83,8 +98,8 @@ export default function Perfil({ onCerrar }) {
             )}
             <button className={styles.opcion} onClick={() => setPaso('plan')}>
               <span>{t('verPlanes')}</span>
-              <span className={perfil?.is_premium ? styles.planBadgePremium : styles.planBadgeGratis}>
-                {perfil?.is_premium ? t('planPremiumNombre') : t('planTrialNombre')}
+              <span className={esPlanPago(perfil) ? styles.planBadgePremium : styles.planBadgeGratis}>
+                {esPremium(perfil) ? t('planPremiumNombre') : esFamiliar(perfil) ? t('planFamiliarNombre') : t('planTrialNombre')}
               </span>
             </button>
             <button className={styles.opcion} onClick={() => setPaso('idioma')}>
@@ -118,9 +133,9 @@ export default function Perfil({ onCerrar }) {
             <div className={styles.opcionToggle}>
               <span>
                 {t('autoAlertaLabel')}
-                {!perfil?.is_premium && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+                {!esPlanPago(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
               </span>
-              {perfil?.is_premium ? (
+              {esPlanPago(perfil) ? (
                 <button
                   className={autoAlerta ? styles.toggleOn : styles.toggleOff}
                   onClick={toggleAutoAlerta}
@@ -138,7 +153,7 @@ export default function Perfil({ onCerrar }) {
                 </button>
               )}
             </div>
-            <button className={styles.opcionRojo} onClick={() => supabase.auth.signOut()}>
+            <button className={styles.opcionRojo} onClick={cerrarSesion}>
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>Botón de Emergencias · v1.1.1</div>
@@ -147,7 +162,7 @@ export default function Perfil({ onCerrar }) {
 
         {paso === 'plan' && (
           <div className={styles.form} style={{ padding: 0 }}>
-            <ElegirPlan onElegido={() => setPaso('menu')} />
+            <ElegirPlan onElegido={() => { setPaso('menu'); window.dispatchEvent(new Event('recargarPlan')) }} />
             <button type="button" className={styles.volver} style={{ margin: '0 16px 16px' }} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
@@ -197,7 +212,7 @@ export default function Perfil({ onCerrar }) {
           <div className={styles.form}>
             {/* Hero */}
             <div className={styles.huellitasHero}>
-              <img src="/huellitas-mascota.png" alt="Huellitas en Acción" className={styles.huellitasMascota} />
+              <img src="/huellitas-mascota.webp" alt="Huellitas en Acción" className={styles.huellitasMascota} />
               <div className={styles.huellitasTituloAzul}>HUELLITAS</div>
               <div className={styles.huellitasTituloAmarillo}>EN ACCIÓN</div>
               <p className={styles.huellitasSlogan}>{t('huellitasSlogan')}</p>

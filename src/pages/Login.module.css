@@ -13,7 +13,7 @@
   content: '';
   position: fixed;
   inset: 0;
-  background-image: url('/bg-familia.jpg.png');
+  background-image: url('/bg-familia.webp');
   background-size: 130%;
   background-position: center 20%;
   background-repeat: no-repeat;
@@ -351,7 +351,11 @@
 
 .usernameOk { font-size: 0.78rem; color: #27ae60; font-weight: 600; margin-top: 3px; display: block; }
 .usernameTaken { font-size: 0.78rem; color: var(--rojo); font-weight: 600; margin-top: 3px; display: block; }
-.usernameChecking { font-size: 0.78rem; color: #1a1a2e; margin-top: 3px; display: block; }
+.usernameAviso {
+  font-size: 0.78rem; font-weight: 700; line-height: 1.4; margin-top: 3px; display: block;
+  color: #fff; background: rgba(230,126,34,0.9); border-radius: 7px; padding: 6px 10px;
+}
+.usernameChecking { font-size: 0.78rem; color: #1E8449; font-weight: 600; margin-top: 3px; display: block; }
 
 /* Inputs dentro del login: fondo blanco traslúcido para legibilidad */
 .form input,

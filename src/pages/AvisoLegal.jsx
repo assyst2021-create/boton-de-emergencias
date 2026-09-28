@@ -27,6 +27,17 @@ function DocModal({ doc, cerrarLabel, onCerrar }) {
             <div key={i} className={aStyles.modalSeccion}>
               <p className={aStyles.modalSeccionTitulo}>{s.titulo}</p>
               <p className={aStyles.modalSeccionTexto} style={{ whiteSpace: 'pre-line' }}>{s.texto}</p>
+              {s.url && (
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={aStyles.seccionLink}
+                  style={{ background: DOC_COLOR }}
+                >
+                  🔗 {s.urlLabel || s.url}
+                </a>
+              )}
             </div>
           ))}
         </div>
@@ -64,7 +75,7 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
 
         {/* Hero con logo */}
         <div className={aStyles.hero}>
-          <img src="/logo-empresa.png" alt={t('appNombre')} className={aStyles.heroLogo} />
+          <img src="/logo-empresa.webp" alt={t('appNombre')} className={aStyles.heroLogo} />
           <h1 className={aStyles.bienvenidaTitulo}>{t('bienvenidoA')}<br />{t('appNombre')}</h1>
           <p className={aStyles.bienvenidaSub}>{t('bienvenidoTagline')}</p>
         </div>
@@ -132,6 +143,16 @@ export default function AvisoLegal({ onAceptar, soloVer = false }) {
               )
             })}
           </div>
+
+          <a
+            href="https://boton-de-emergencia-privacidad.mefacil.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={aStyles.seccionLink}
+            style={{ background: DOC_COLOR }}
+          >
+            🔗 {t('docsVerEnLinea')}
+          </a>
         </div>
 
         {/* Botón continuar — solo en flujo de registro, no en soloVer */}

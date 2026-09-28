@@ -7,7 +7,7 @@ import { useNavContext } from '../components/NavContext'
 
 export default function GrupoFamiliar() {
   const { t } = useLanguage()
-  const { abrirOpciones } = useNavContext()
+  const { abrirOpciones, abrirPlanes } = useNavContext()
   const [busqueda, setBusqueda] = useState('')
   const [resultado, setResultado] = useState(null)
   const [buscando, setBuscando] = useState(false)
@@ -53,25 +53,12 @@ export default function GrupoFamiliar() {
     if (!busqueda.trim()) return
     setBuscando(true)
     setResultado(null)
-    // Primero busca exacto, luego parcial si no encuentra
+    // Solo coincidencia EXACTA: una búsqueda parcial podía mostrar a otra persona
     const termino = busqueda.toLowerCase().trim().replace(/^@/, '')
-    let { data } = await supabase
-      .from('users')
-      .select('id, full_name, username')
-      .eq('username', termino)
-      .neq('id', userId)
-      .maybeSingle()
-    if (!data) {
-      const { data: parcial } = await supabase
-        .from('users')
-        .select('id, full_name, username')
-        .ilike('username', `%${termino}%`)
-        .neq('id', userId)
-        .limit(1)
-        .maybeSingle()
-      data = parcial
-    }
-    setResultado(data || false)
+    // Consulta segura del servidor: devuelve solo id, nombre y usuario (nunca el teléfono)
+    const { data, error } = await supabase.rpc('buscar_usuario', { nombre: termino })
+    setResultado(error ? null : (data?.[0] || false))
+    if (error) setMensaje(t('errorConexion'))
     setBuscando(false)
   }
 
@@ -88,15 +75,22 @@ export default function GrupoFamiliar() {
       return
     }
 
-    // El limite se relee de la base: el perfil en memoria puede estar viejo.
+    // El limite y el conteo se leen de la BD: el estado en memoria puede estar viejo.
     const { data: perfil } = await supabase
       .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
-    if (vinculados.length >= limiteFamiliares(perfil)) {
+    const { count: totalActual } = await supabase
+      .from('family_links').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('status', 'accepted')
+    if ((totalActual || 0) >= limiteFamiliares(perfil)) {
       setMostrarUpgrade(true)
       return
     }
 
-    await supabase.from('family_links').insert({ user_id: userId, linked_user_id: destId, status: 'pending' })
+    const { error } = await supabase.from('family_links').insert({ user_id: userId, linked_user_id: destId, status: 'pending' })
+    if (error) {
+      if (error.message?.includes('LIMITE_FAMILIARES')) setMostrarUpgrade(true)
+      return
+    }
     setMensaje(t('solicitudEnviada'))
     setResultado(null)
     setBusqueda('')
@@ -107,7 +101,10 @@ export default function GrupoFamiliar() {
     // Rechazar borra la fila: dejarla en 'rejected' bloqueaba para siempre que
     // esa persona te volviera a enviar una solicitud.
     if (accion === 'rejected') {
-      await supabase.from('family_links').delete().eq('id', linkId)
+      // Se quita de la pantalla al instante; si la base no lo permite, vuelve a aparecer
+      setSolicitudes(prev => prev.filter(s => s.id !== linkId))
+      const { error } = await supabase.from('family_links').delete().eq('id', linkId)
+      if (error) setMensaje(t('errorConexion'))
       await init()
       return
     }
@@ -115,12 +112,22 @@ export default function GrupoFamiliar() {
     if (accion === 'accepted') {
       const { data: perfil } = await supabase
         .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
-      if (vinculados.length >= limiteFamiliares(perfil)) {
+      // Conteo fresco de la BD, no el estado en memoria (puede estar viejo)
+      const { count: totalActual } = await supabase
+        .from('family_links').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('status', 'accepted')
+      if ((totalActual || 0) >= limiteFamiliares(perfil)) {
         setMostrarUpgrade(true)
         return
       }
       const sol = solicitudes.find(s => s.id === linkId)
-      await supabase.from('family_links').update({ status: 'accepted' }).eq('id', linkId)
+      const { error } = await supabase.from('family_links').update({ status: 'accepted' }).eq('id', linkId)
+      if (error) {
+        // Aquí el cupo propio ya se revisó: si la base rechaza, es la otra persona la que está llena
+        setMensaje(error.message?.includes('LIMITE_FAMILIARES') ? t('limiteOtraPersona') : t('errorConexion'))
+        setTimeout(() => setMensaje(''), 5000)
+        return
+      }
       if (sol) {
         await supabase.from('family_links').upsert({
           user_id: userId,
@@ -150,7 +157,7 @@ export default function GrupoFamiliar() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>👨‍👩‍👧‍👦 {t('grupoTitulo')}</h1>
-        <button className={styles.gear} onClick={abrirOpciones} title="Opciones">⚙️</button>
+        <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
       </header>
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}
@@ -162,9 +169,9 @@ export default function GrupoFamiliar() {
           <p>{t('upgradeDesc')}</p>
           <button
             className={styles.upgradBtn}
-            onClick={() => window.open(import.meta.env.VITE_WOMPI_LINK || '#', '_blank')}
+            onClick={() => { setMostrarUpgrade(false); abrirPlanes() }}
           >
-            Activar Premium
+            {t('verPlanes')}
           </button>
           <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>{t('cancelar')}</button>
         </div>
@@ -232,7 +239,7 @@ export default function GrupoFamiliar() {
               <strong>{v.users?.full_name}</strong>
               <span className={styles.username}>@{v.users?.username}</span>
             </div>
-            <button className={styles.btnDesvincular} onClick={() => desvincular(v.id, v.linked_user_id)} title="Desvincular">✕</button>
+            <button className={styles.btnDesvincular} onClick={() => desvincular(v.id, v.linked_user_id)} title={t('desvincular')} aria-label={t('desvincular')}>✕</button>
           </div>
         ))}
       </section>

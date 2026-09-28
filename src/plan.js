@@ -1,34 +1,54 @@
-export const FAMILIARES_TRIAL = 1
-export const FAMILIARES_PREMIUM = 10
-export const ALERTAS_TRIAL = 2     // se mantiene por compatibilidad con imports
-export const UBICACIONES_TRIAL = 2 // se mantiene por compatibilidad con imports
+export const FAMILIARES_GRATIS   = 1
+export const FAMILIARES_FAMILIAR = 5
+export const FAMILIARES_PREMIUM  = 10
+export const ALERTAS_GRATIS_MES  = 6
 
-// Alias para compatibilidad con imports existentes
-export const FAMILIARES_GRATIS = FAMILIARES_TRIAL
-export const ALERTAS_GRATIS = ALERTAS_TRIAL
+// Alias de compatibilidad
+export const FAMILIARES_TRIAL = FAMILIARES_GRATIS
+export const ALERTAS_TRIAL    = ALERTAS_GRATIS_MES
+export const ALERTAS_GRATIS   = ALERTAS_GRATIS_MES
+
+// Sin fecha = sin vencimiento (cuentas activadas a mano)
+function vigente(perfil) {
+  return !perfil?.premium_hasta || new Date(perfil.premium_hasta) > new Date()
+}
 
 export function esPremium(perfil) {
-  if (perfil?.plan === 'premium') return true
-  // Compatibilidad con usuarios anteriores que usaban is_premium
-  if (!perfil?.is_premium) return false
-  if (perfil.premium_hasta && new Date(perfil.premium_hasta) < new Date()) return false
-  return true
+  if (!perfil || perfil.plan === 'familiar') return false
+  return (perfil.plan === 'premium' || !!perfil.is_premium) && vigente(perfil)
+}
+
+export function esFamiliar(perfil) {
+  return perfil?.plan === 'familiar' && vigente(perfil)
+}
+
+export function esPlanPago(perfil) {
+  return esPremium(perfil) || esFamiliar(perfil)
 }
 
 export function limiteFamiliares(perfil) {
-  return esPremium(perfil) ? FAMILIARES_PREMIUM : FAMILIARES_TRIAL
+  if (esPremium(perfil))  return FAMILIARES_PREMIUM
+  if (esFamiliar(perfil)) return FAMILIARES_FAMILIAR
+  return FAMILIARES_GRATIS
 }
 
-// Plan Básico: alertas ilimitadas — sin restricción de cantidad
-export function puedeEnviarAlerta(_perfil) {
-  return true
+// Gratis: 6 alertas por mes. Familiar y Premium: ilimitadas.
+export function puedeEnviarAlerta(perfil, alertasMes = 0) {
+  if (esPlanPago(perfil)) return true
+  return alertasMes < ALERTAS_GRATIS_MES
 }
 
-export function alertasRestantes(_perfil) {
-  return Infinity
+export function alertasRestantes(perfil, alertasMes = 0) {
+  if (esPlanPago(perfil)) return Infinity
+  return Math.max(0, ALERTAS_GRATIS_MES - alertasMes)
 }
 
-// Ubicación en vivo: exclusivo de Plan Premium
+// Mapa en vivo: Familiar y Premium
 export function puedeUbicacionEnVivo(perfil) {
-  return esPremium(perfil)
+  return esPlanPago(perfil)
+}
+
+// Segunda alerta automática: Familiar y Premium
+export function puedeSegundaAlerta(perfil) {
+  return esPlanPago(perfil)
 }
