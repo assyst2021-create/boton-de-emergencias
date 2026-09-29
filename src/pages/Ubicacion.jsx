@@ -746,7 +746,7 @@ export default function Ubicacion() {
 
       <div className={styles.acciones}>
         {compartiendo ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className={styles.btnDetener} onClick={() => detener()}>
               ⏹ {t('ubiDetener')}
             </button>
@@ -914,6 +914,16 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
   // Color actual del punto propio: el ícono solo se cambia cuando cambia el modo (si se
   // cambiara con cada punto, el pulso se reiniciaba cada segundo)
   const modoIconoRef = useRef(null)
+  // El mapa arranca quieto: con un dedo se baja la pantalla sin moverlo por error.
+  // Con 'Mover mapa' se activa (arrastrar y acercar) hasta tocar 'Fijar mapa'.
+  const [mapaActivo, setMapaActivo] = useState(false)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    for (const h of [map.dragging, map.touchZoom, map.doubleClickZoom, map.scrollWheelZoom, map.boxZoom, map.keyboard]) {
+      if (h) mapaActivo ? h.enable() : h.disable()
+    }
+  }, [mapaActivo, mapaVersion])
 
   const hayPuntos = yo || familiares.some(f => f.ubicacion)
 
@@ -1056,7 +1066,15 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
   }, [reencuadrar])
 
   return (
-    <div className={styles.mapa} style={{ position: 'relative' }}>
+    <div className={`${styles.mapa} ${mapaActivo ? styles.mapaActivo : ''}`} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className={mapaActivo ? styles.btnFijarMapa : styles.btnMoverMapa}
+        onClick={() => setMapaActivo(a => !a)}
+        aria-pressed={mapaActivo}
+      >
+        {mapaActivo ? `🔒 ${t('ubiFijarMapa')}` : `✋ ${t('ubiMoverMapa')}`}
+      </button>
       {enfocado && <div className={styles.mapaEtiqueta}>📍 {enfocado.nombre}</div>}
 
       <div ref={setContainer} style={{ height: '100%', width: '100%' }} />
@@ -1079,6 +1097,7 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     </div>
   )
 }
+
 
 
 

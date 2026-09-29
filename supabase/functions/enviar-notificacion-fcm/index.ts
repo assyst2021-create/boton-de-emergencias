@@ -15,9 +15,22 @@ function toBase64Url(b64: string): string {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
+// La cuenta de servicio se lee una sola vez por instancia
+const SA = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!)
+
+// El token de Google dura 1 hora: se reutiliza mientras la instancia siga viva. Pedirlo en
+// cada alerta sumaba casi medio segundo antes de que saliera la notificación.
+let tokenCache: { valor: string, vence: number } | null = null
+async function tokenFcm(): Promise<string> {
+  if (tokenCache && Date.now() < tokenCache.vence) return tokenCache.valor
+  const valor = await getFcmAccessToken()
+  tokenCache = { valor, vence: Date.now() + 50 * 60 * 1000 }
+  return valor
+}
+
 // Genera un token OAuth2 para la API FCM v1 usando la service account
 async function getFcmAccessToken(): Promise<string> {
-  const sa = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!)
+  const sa = SA
 
   const now = Math.floor(Date.now() / 1000)
   const header = toBase64Url(btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))
@@ -81,23 +94,24 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: false, msg: 'sin sender_id' }), { status: 200 })
     }
 
-    // Obtener familiares que deben recibir la notificación (los que tienen al sender vinculado)
-    const { data: links } = await supabase
-      .from('family_links')
-      .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token)')
-      .eq('linked_user_id', alerta.sender_id)
-      .eq('status', 'accepted')
+    // Familiares que reciben la notificación, datos del emisor y token de Google, todo a la vez
+    const [{ data: links }, { data: emisor }, accessToken] = await Promise.all([
+      supabase
+        .from('family_links')
+        .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token)')
+        .eq('linked_user_id', alerta.sender_id)
+        .eq('status', 'accepted'),
+      supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', alerta.sender_id)
+        .maybeSingle(),
+      tokenFcm(),
+    ])
 
     if (!links || links.length === 0) {
       return new Response(JSON.stringify({ ok: true, enviadas: 0 }), { status: 200 })
     }
-
-    // Datos del emisor
-    const { data: emisor } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', alerta.sender_id)
-      .maybeSingle()
 
     const nombre = emisor?.full_name || 'Un familiar'
     let titulo: string, cuerpo: string
@@ -111,9 +125,7 @@ Deno.serve(async (req) => {
       cuerpo = `${emoji} ${nombre} ${tipo === 'red' ? 'está en peligro' : tipo === 'orange' ? 'está herido y necesita ayuda médica' : 'está bien y a salvo'}`
     }
 
-    const accessToken = await getFcmAccessToken()
-    const sa = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!)
-    const projectId = sa.project_id
+    const projectId = SA.project_id
 
     const tokens = links.map(l => (l.users as any)?.fcm_token).filter(Boolean)
     const resultados = await Promise.all(tokens.map(async (fcmToken: string) => {
@@ -143,6 +155,8 @@ Deno.serve(async (req) => {
           }),
         }
       )
+      // Si Google rechaza el token guardado, la próxima alerta pide uno nuevo
+      if (fcmRes.status === 401) tokenCache = null
       if (!fcmRes.ok) console.warn('[fcm] error:', JSON.stringify(await fcmRes.json()))
       return fcmRes.ok
     }))

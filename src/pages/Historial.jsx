@@ -20,6 +20,7 @@ export default function Historial() {
   const [alertas, setAlertas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [recargando, setRecargando] = useState(false)
+  const [avisoOk, setAvisoOk] = useState('')
   const [dismissedIds, setDismissedIds] = useState(new Set())
   // Cache para no volver a consultar en cada evento RT
   const familyIdsRef = useRef(new Set())
@@ -32,8 +33,11 @@ export default function Historial() {
     setRecargando(true)
     conectarVivo()
     await cargar()
+    // Que se note que sí se actualizó
+    setAvisoOk(t('histActualizadoOk'))
+    setTimeout(() => setAvisoOk(''), 2500)
     setTimeout(() => setRecargando(false), 400)
-  }, [])
+  }, [t])
 
   const canalRef = useRef(null)
 
@@ -199,6 +203,7 @@ export default function Historial() {
         </div>
       </header>
 
+      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
       {cargando && <div className={styles.vacio}>{t('cargando')}</div>}
 
       {!cargando && alertas.length === 0 && (

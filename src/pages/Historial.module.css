@@ -150,3 +150,15 @@
 .btnDismiss:hover { background: var(--bg2); }
 
 .pb { height: 116px; }
+
+/* Aviso corto al tocar 🔄 */
+.avisoOk {
+  background: rgba(30, 132, 73, 0.12);
+  border: 1px solid rgba(30, 132, 73, 0.4);
+  color: #1E8449;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}

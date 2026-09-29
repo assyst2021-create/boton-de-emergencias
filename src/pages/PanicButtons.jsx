@@ -5,6 +5,7 @@ import styles from './PanicButtons.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { puedeEnviarAlerta, esPremium, esFamiliar, puedeSegundaAlerta } from '../plan'
 import { useNavContext } from '../components/NavContext'
+import { PAISES } from '../registro'
 
 const SilentSms = registerPlugin('SilentSms')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
@@ -35,6 +36,48 @@ function textoSms(texto) {
     return [...c.normalize('NFD').replace(/\p{M}/gu, '')].filter(x => GSM7.has(x)).join('')
   }).join('').replace(/ {2,}/g, ' ').trim()
 }
+/** Solo los dígitos de un teléfono, para comparar "+57 300-123 4567" con "573001234567". */
+const soloDigitos = (n) => (n || '').replace(/\D/g, '')
+/** Mismo número si coinciden completos o en los últimos 10 dígitos (con o sin indicativo). */
+function mismoNumero(a, b) {
+  const x = soloDigitos(a), y = soloDigitos(b)
+  if (!x || !y) return false
+  return x === y || (x.length >= 10 && y.length >= 10 && x.slice(-10) === y.slice(-10))
+}
+/** Indicativo del país de un número completo (+57, +1809...), buscado en la lista del registro. */
+function indicativoDe(numero) {
+  const n = (numero || '').replace(/[^\d+]/g, '')
+  if (!n.startsWith('+')) return null
+  return PAISES.map(p => p.codigo).filter(c => n.startsWith(c)).sort((a, b) => b.length - a.length)[0] || null
+}
+/**
+ * Número en formato internacional (+57300...). Las cuentas más viejas guardaron el número
+ * sin indicativo: algunos celulares (p. ej. Honor) no entregaban ese SMS y WhatsApp no
+ * abría el chat. Si falta, se usa el indicativo de quien envía.
+ */
+function numeroCompleto(numero, propio) {
+  const limpio = (numero || '').trim().replace(/[\s\-().]/g, '')
+  if (!limpio || limpio.startsWith('+')) return limpio
+  const ind = indicativoDe(propio)
+  if (!ind) return limpio
+  // +1809 (Rep. Dominicana) y +1 comparten el país +1: el 809 ya viene en el número local
+  const pais = ind.startsWith('+1') ? '+1' : ind
+  return `${pais}${limpio.replace(/^0+/, '')}`
+}
+/**
+ * Números a los que sale el SMS: completos, sin repetidos y nunca el propio. Si un familiar
+ * quedó registrado con el número de quien pide ayuda, el SMS le llegaba a esa misma persona.
+ */
+function numerosDestino(familiares, propio) {
+  const lista = []
+  for (const f of familiares) {
+    const n = numeroCompleto(f.users?.phone_number, propio)
+    if (!n || mismoNumero(n, propio) || lista.some(x => mismoNumero(x, n))) continue
+    lista.push(n)
+  }
+  return lista
+}
+
 // 5 decimales = 1 metro de precisión, y el link queda más corto
 const linkMapa = (p) => `https://maps.google.com/?q=${p.lat.toFixed(5)},${p.lng.toFixed(5)}`
 const horaSms = (idioma) => new Date().toLocaleTimeString(idioma, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
@@ -215,7 +258,7 @@ export default function PanicButtons() {
 
     // perfil y familiares en paralelo
     const [{ data: perfil }, { data: links }] = await Promise.all([
-      supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', authUser.id).single(),
+      supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled, phone_number').eq('id', authUser.id).single(),
       supabase.from('family_links')
         .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, phone_number)')
         .eq('user_id', authUser.id)
@@ -323,7 +366,7 @@ export default function PanicButtons() {
     setAlertasMes(usadas + 1)
     if (user) guardarContadorLocal(user.id, usadas + 1)
 
-    const numeros = familiares.map(f => f.users?.phone_number).filter(Boolean)
+    const numeros = numerosDestino(familiares, user?.phone_number)
     const cuerpo = construirCuerpo(boton)
 
     setConfirmacion(boton)
@@ -372,11 +415,12 @@ export default function PanicButtons() {
         )
         resolve(cached)
       } else {
-        // Sin posición — aceptar caché del sistema hasta 5 min o esperar 8s
+        // Sin posición: la del sistema de hasta 10 min, o esperar máximo 1.5 s. La alerta no
+        // se demora esperando el GPS (antes eran 3 s); la ubicación sigue llegando por SMS.
         navigator.geolocation.getCurrentPosition(
           p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
           () => resolve(null),
-          { timeout: 3000, maximumAge: 600000, enableHighAccuracy: false }
+          { timeout: 1500, maximumAge: 600000, enableHighAccuracy: false }
         )
       }
     })
@@ -597,7 +641,7 @@ export default function PanicButtons() {
               <a
                 key={c.linked_user_id || i}
                 className={styles.respaldoChat}
-                href={`https://wa.me/${(c.users?.phone_number || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(respaldo.cuerpo)}`}
+                href={`https://wa.me/${numeroCompleto(c.users?.phone_number, user?.phone_number).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(respaldo.cuerpo)}`}
                 target="_blank"
                 rel="noreferrer"
               >

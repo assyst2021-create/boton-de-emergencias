@@ -17,6 +17,8 @@ export default function GrupoFamiliar() {
   const [userId, setUserId] = useState(null)
   const [mostrarUpgrade, setMostrarUpgrade] = useState(false)
   const [cargando, setCargando] = useState(true)
+  const [recargando, setRecargando] = useState(false)
+  const [avisoOk, setAvisoOk] = useState('')
 
   useEffect(() => {
     init()
@@ -29,6 +31,17 @@ export default function GrupoFamiliar() {
     setUserId(user.id)
     await Promise.all([cargarVinculados(user.id), cargarSolicitudes(user.id)])
     setCargando(false)
+  }
+
+  // Botón 🔄: vuelve a traer familiares y solicitudes, y avisa que se actualizó
+  async function recargar() {
+    if (recargando) return
+    setRecargando(true)
+    setMensaje('')
+    await init()
+    setAvisoOk(t('famActualizadoOk'))
+    setTimeout(() => setAvisoOk(''), 2500)
+    setTimeout(() => setRecargando(false), 400)
   }
 
   async function cargarVinculados(uid) {
@@ -157,8 +170,20 @@ export default function GrupoFamiliar() {
     <div className={styles.wrap}>
       <header className={styles.header}>
         <h1>👨‍👩‍👧‍👦 {t('grupoTitulo')}</h1>
-        <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          <button
+            className={styles.gear}
+            onClick={recargar}
+            disabled={recargando}
+            title={t('ubiActualizar')}
+            aria-label={t('ubiActualizar')}
+            style={{ fontSize: '1.1rem', opacity: recargando ? 0.5 : 1, transition: 'transform 0.4s', transform: recargando ? 'rotate(360deg)' : 'none' }}
+          >🔄</button>
+          <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+        </div>
       </header>
+
+      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}
 

@@ -147,6 +147,18 @@ function AppInner() {
     if (!session) { setInitDone(false); setPerfilFalta(false); setContratoAceptado(false); setAvisoLegalAceptado(false) }
   }, [session, initDone])
 
+  // Las pestañas se cargan por partes: se dejan listas apenas la app queda libre, para que
+  // Historial, Familia y En vivo abran al instante la primera vez que se tocan
+  useEffect(() => {
+    if (!initDone) return
+    const precargar = () => {
+      import('./pages/Historial'); import('./pages/GrupoFamiliar')
+      import('./pages/Ubicacion'); import('./pages/Perfil')
+    }
+    const id = window.requestIdleCallback ? window.requestIdleCallback(precargar, { timeout: 3000 }) : setTimeout(precargar, 1500)
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : clearTimeout(id))
+  }, [initDone])
+
   useEffect(() => {
     if (initDone && !perfilFalta && bienvenidaVista && avisoLegalAceptado) {
       // Pedir todos los permisos nativos de una sola vez (SMS, GPS, contactos, notificaciones)
