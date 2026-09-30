@@ -445,3 +445,25 @@
 .btnFijarMapa { background: #1E8449; color: #fff; border: 1px solid #1E8449; }
 .btnMoverMapa:focus-visible, .btnFijarMapa:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }
 .mapaActivo { border-color: #1E8449; box-shadow: 0 0 0 2px #1E8449; }
+
+/* Paso 2 del selector: con quién compartir */
+.conQuienTodos {
+  width: 100%; padding: 9px; border-radius: 12px; margin-bottom: 2px;
+  background: none; border: 1.5px dashed var(--border); color: var(--text); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+}
+.conQuienTodos:disabled { opacity: 0.5; cursor: default; }
+.conQuienFila, .conQuienFilaOn {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 12px 14px; border-radius: 14px; cursor: pointer;
+  font-size: 0.95rem; font-weight: 700; color: var(--text);
+}
+.conQuienFila { border: 1.5px solid var(--border); opacity: 0.75; }
+.conQuienFilaOn { border: 1.5px solid rgba(30, 132, 73, 0.45); background: rgba(30, 132, 73, 0.08); }
+.conQuienFila input, .conQuienFilaOn input { width: 20px; height: 20px; accent-color: #1E8449; flex-shrink: 0; }
+.conQuienAviso { margin: 4px 0 0; font-size: 0.8rem; font-weight: 700; color: #C0392B; }
+.conQuienEmpezar {
+  width: 100%; margin-top: 8px; padding: 14px; border-radius: 14px; border: none;
+  background: #1E8449; color: #fff; font-size: 1rem; font-weight: 800; cursor: pointer;
+}
+.conQuienEmpezar:focus-visible, .conQuienTodos:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }
+.selectorVentana { max-height: calc(100dvh - 32px); overflow-y: auto; }

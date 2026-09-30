@@ -47,6 +47,8 @@ Deno.serve(async (_req) => {
         sent_at: sentAt.toISOString(),
         expires_at: expiresAt.toISOString(),
         is_auto: true,
+        // La segunda alerta va a las mismas personas que la primera (null = todos)
+        ...(item.destinatarios?.length ? { destinatarios: item.destinatarios } : {}),
       })
       if (insErr) {
         // No se pudo enviar: se devuelve a pendiente para el próximo ciclo

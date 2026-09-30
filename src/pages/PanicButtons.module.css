@@ -285,3 +285,62 @@
 .limiteCard p  { font-size: 0.85rem; color: var(--text2); line-height: 1.5; }
 .limiteBtn { background: var(--naranja); color: #fff; border-radius: 10px; padding: 13px; font-weight: 700; font-size: 0.9rem; }
 .limiteCerrar { background: none; border: none; color: var(--text2); font-size: 0.82rem; cursor: pointer; }
+
+/* ── Elegir a quién le llega la alerta ── */
+.headerBotones { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.headerBotones .salir { margin-left: 0; }
+
+.destChip, .destChipParcial {
+  display: block;
+  width: 100%;
+  margin: -2px 0 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.destChip { background: var(--card); border: 1px solid var(--border); color: var(--text2); }
+.destChipParcial { background: rgba(230, 126, 34, 0.14); border: 1.5px solid #E67E22; color: #B9590F; }
+.destChip:focus-visible, .destChipParcial:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }
+
+.destFondo {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.destVentana {
+  width: 100%; max-width: 340px; max-height: calc(100dvh - 32px); overflow-y: auto;
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 22px;
+  padding: 22px 18px 14px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+}
+.destIcono {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(36, 113, 163, 0.14);
+  display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+}
+.destTitulo { margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--text); text-wrap: balance; }
+.destDesc { margin: 0 0 4px; font-size: 0.82rem; line-height: 1.45; color: var(--text2); text-wrap: balance; }
+.destTodos {
+  align-self: stretch; padding: 9px; border-radius: 12px;
+  background: none; border: 1.5px dashed var(--border); color: var(--text); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+}
+.destTodos:disabled { opacity: 0.5; cursor: default; }
+.destLista { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
+.destFila, .destFilaOn {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 12px 14px; border-radius: 12px; cursor: pointer;
+  font-size: 0.95rem; font-weight: 700; color: var(--text);
+}
+.destFila { border: 1.5px solid var(--border); background: none; opacity: 0.75; }
+.destFilaOn { border: 1.5px solid rgba(30, 132, 73, 0.5); background: rgba(30, 132, 73, 0.08); }
+.destFila input, .destFilaOn input { width: 20px; height: 20px; accent-color: #1E8449; flex-shrink: 0; }
+.destAviso { margin: 0; font-size: 0.8rem; font-weight: 700; color: #C0392B; }
+.destListo {
+  align-self: stretch; margin-top: 4px; padding: 13px; border-radius: 12px; border: none;
+  background: #1E8449; color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+.destListo:focus-visible, .destTodos:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }

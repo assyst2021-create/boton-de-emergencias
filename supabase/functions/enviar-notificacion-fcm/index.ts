@@ -109,7 +109,14 @@ Deno.serve(async (req) => {
       tokenFcm(),
     ])
 
-    if (!links || links.length === 0) {
+    // Solo a los familiares elegidos: destinatarios (alerta) o compartir_con (ubicación).
+    // Vacío o null = todo el grupo familiar, como siempre.
+    const elegidos: string[] | null = body.tipo === 'ubicacion' ? alerta.compartir_con : alerta.destinatarios
+    const destino = Array.isArray(elegidos) && elegidos.length
+      ? (links || []).filter(l => elegidos.includes(l.user_id))
+      : (links || [])
+
+    if (destino.length === 0) {
       return new Response(JSON.stringify({ ok: true, enviadas: 0 }), { status: 200 })
     }
 
@@ -127,7 +134,7 @@ Deno.serve(async (req) => {
 
     const projectId = SA.project_id
 
-    const tokens = links.map(l => (l.users as any)?.fcm_token).filter(Boolean)
+    const tokens = destino.map(l => (l.users as any)?.fcm_token).filter(Boolean)
     const resultados = await Promise.all(tokens.map(async (fcmToken: string) => {
       const fcmRes = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,

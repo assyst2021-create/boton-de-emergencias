@@ -148,7 +148,8 @@
   border: 1.5px solid var(--border);
 }
 
-.pb { height: 116px; }
+/* Espacio para que el último familiar no quede detrás de la barra de abajo y la cinta */
+.pb { height: calc(var(--barra-alto, 116px) + 40px); flex-shrink: 0; }
 
 .upgradeBox {
   background: var(--card);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { registerPlugin } from '@capacitor/core'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
@@ -124,7 +125,7 @@ async function procesarCola() {
     for (const item of cola) {
       try {
         const { error } = await conTiempoLimite(
-          supabase.from('alerts').insert({ ...item, sender_id: session.user.id }), 10000)
+          insertarConRespaldo('alerts', { ...item, sender_id: session.user.id }, 'destinatarios'), 10000)
         // 23505 = ya llegó antes; LIMITE_ALERTAS = rechazo definitivo. Ninguno se reintenta.
         if (error && error.code !== '23505' && !/LIMITE_ALERTAS/.test(error.message || '')) pendientes.push(item)
       } catch (_) { pendientes.push(item) }
@@ -137,6 +138,20 @@ async function procesarCola() {
   } finally {
     _procesandoCola = false
   }
+}
+
+/**
+ * Inserta una fila; si la base todavía no tiene la columna nueva (el SQL de la versión 84
+ * aún no se corrió), la vuelve a mandar sin ella: la alerta nunca se pierde por eso.
+ */
+async function insertarConRespaldo(tabla, fila, campo) {
+  let res = await supabase.from(tabla).insert(fila)
+  if (res.error && fila[campo] != null && (res.error.message || '').includes(campo)) {
+    const sinCampo = { ...fila }
+    delete sinCampo[campo]
+    res = await supabase.from(tabla).insert(sinCampo)
+  }
+  return res
 }
 
 /** Corta una promesa de red para que la emergencia nunca se quede esperando. */
@@ -160,6 +175,30 @@ export default function PanicButtons() {
   const [avisoFamiliar, setAvisoFamiliar] = useState(false)
   const [avisoPremium, setAvisoPremium] = useState(false)
   const [alertasMes, setAlertasMes] = useState(0)
+  // A quién NO le llega la alerta (se guarda la exclusión: un familiar nuevo entra marcado)
+  const [excluidos, setExcluidos] = useState([])
+  const [mostrarDestinos, setMostrarDestinos] = useState(false)
+  const [avisoMinimo, setAvisoMinimo] = useState(false)
+  // Familiares que reciben la alerta. Si quedaran todos desmarcados (p. ej. se desvinculó al
+  // único marcado), va a todos: nunca se presiona el botón sin que le llegue a nadie.
+  const elegidosDestino = familiares.filter(f => !excluidos.includes(f.linked_user_id))
+  const destinosEfectivos = elegidosDestino.length ? elegidosDestino : familiares
+  const todosElegidos = destinosEfectivos.length === familiares.length
+
+  function guardarExcluidos(lista) {
+    setExcluidos(lista)
+    if (user?.id) {
+      try { localStorage.setItem(`destinosExcluidos_${user.id}`, JSON.stringify(lista)) } catch (_) {}
+    }
+  }
+  function alternarDestino(id) {
+    setAvisoMinimo(false)
+    const base = elegidosDestino.length ? excluidos : []
+    if (base.includes(id)) { guardarExcluidos(base.filter(x => x !== id)); return }
+    // Mínimo una persona marcada
+    if (familiares.filter(f => !base.includes(f.linked_user_id)).length <= 1) { setAvisoMinimo(true); return }
+    guardarExcluidos([...base, id])
+  }
   const [gps, setGps] = useState('buscando')
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
@@ -246,6 +285,8 @@ export default function PanicButtons() {
     const { data: { session } } = await supabase.auth.getSession()
     const authUser = session?.user
     if (!authUser) return null
+
+    try { setExcluidos(JSON.parse(localStorage.getItem(`destinosExcluidos_${authUser.id}`) || '[]')) } catch (_) {}
 
     // Familiares y nombre guardados en el celular: disponibles al instante y sin internet
     try {
@@ -366,7 +407,10 @@ export default function PanicButtons() {
     setAlertasMes(usadas + 1)
     if (user) guardarContadorLocal(user.id, usadas + 1)
 
-    const numeros = numerosDestino(familiares, user?.phone_number)
+    // Solo a los familiares elegidos con el botón 👥 (por defecto, todos)
+    const elegidos = destinosEfectivos
+    const destinatarios = todosElegidos ? null : elegidos.map(f => f.linked_user_id)
+    const numeros = numerosDestino(elegidos, user?.phone_number)
     const cuerpo = construirCuerpo(boton)
 
     setConfirmacion(boton)
@@ -375,14 +419,14 @@ export default function PanicButtons() {
     if (numeros.length > 0) {
       if (EN_CAPACITOR) {
         // Android: SMS silencioso — sin abrir la app de mensajes
-        setRespaldo({ numeros, cuerpo, contactos: familiares, smsSilencioso: true })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos, smsSilencioso: true })
         SilentSms.enviar({ numeros, cuerpo }).catch(() => {
           // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
           window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
         })
         if (!posRef.current) enviarUbicacionCuandoLlegue(numeros)
       } else if (ES_IOS && numeros.length > 1) {
-        setRespaldo({ numeros, cuerpo, contactos: familiares })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos })
         // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
         numeros.forEach((n, i) => {
           setTimeout(() => {
@@ -390,7 +434,7 @@ export default function PanicButtons() {
           }, i * 1200)
         })
       } else {
-        setRespaldo({ numeros, cuerpo, contactos: familiares })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos })
         window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
       }
     } else {
@@ -398,7 +442,7 @@ export default function PanicButtons() {
       setTimeout(() => setConfirmacion(null), 5000)
     }
 
-    guardarEnHistorial(boton)
+    guardarEnHistorial(boton, destinatarios)
   }
 
   /** Intenta obtener posición actualizada; devuelve posRef.current si falla. */
@@ -427,7 +471,7 @@ export default function PanicButtons() {
   }
 
   /** Guarda la alerta sin bloquear el aviso a la familia. */
-  async function guardarEnHistorial(boton) {
+  async function guardarEnHistorial(boton, destinatarios = null) {
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
     const p = await obtenerPosicion()
@@ -441,6 +485,8 @@ export default function PanicButtons() {
       sent_at: ahora.toISOString(),
       expires_at: expiresAt.toISOString(),
       is_auto: false,
+      // null = todo el grupo familiar; si no, solo esos familiares reciben notificación e historial
+      ...(destinatarios ? { destinatarios } : {}),
     }
 
     // Sin internet: encolar y avisar. Se enviará automáticamente al volver la señal.
@@ -453,7 +499,7 @@ export default function PanicButtons() {
 
     try {
       const res = await conTiempoLimite(
-        supabase.from('alerts').insert({ ...payload, sender_id: authUser.id }),
+        insertarConRespaldo('alerts', { ...payload, sender_id: authUser.id }, 'destinatarios'),
         10000,
       )
       if (res?.error) throw res.error
@@ -467,14 +513,16 @@ export default function PanicButtons() {
     // Segunda alerta automática de 2 horas: exclusiva de Plan Premium
     if ((boton.tipo === 'red' || boton.tipo === 'orange') && user?.auto_alert_enabled && puedeSegundaAlerta(user)) {
       const scheduledAt = new Date(ahora.getTime() + 2 * 60 * 60 * 1000)
-      supabase.from('scheduled_alerts').insert({
+      insertarConRespaldo('scheduled_alerts', {
         user_id: authUser.id,
         status_type: boton.tipo,
         latitude: p?.lat ?? null,
         longitude: p?.lng ?? null,
         scheduled_at: scheduledAt.toISOString(),
         fired: false,
-      }).then(() => {}, () => {})
+        // La segunda alerta va a las mismas personas que la primera
+        ...(destinatarios ? { destinatarios } : {}),
+      }, 'destinatarios').then(() => {}, () => {})
     }
   }
 
@@ -500,7 +548,7 @@ export default function PanicButtons() {
       if (!tomada?.length) continue
       const sentAt = new Date()
       const expiresAt = new Date(sentAt.getTime() + 24 * 60 * 60 * 1000)
-      const { error } = await supabase.from('alerts').insert({
+      const { error } = await insertarConRespaldo('alerts', {
         sender_id: authUser.id,
         status_type: item.status_type,
         latitude: item.latitude,
@@ -508,7 +556,8 @@ export default function PanicButtons() {
         sent_at: sentAt.toISOString(),
         expires_at: expiresAt.toISOString(),
         is_auto: true,
-      })
+        ...(item.destinatarios?.length ? { destinatarios: item.destinatarios } : {}),
+      }, 'destinatarios')
       // No salió: vuelve a pendiente para el próximo intento (de la app o del servidor)
       if (error) await supabase.from('scheduled_alerts').update({ fired: false }).eq('id', item.id)
     }
@@ -520,7 +569,12 @@ export default function PanicButtons() {
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
-          <button className={styles.salir} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+          <div className={styles.headerBotones}>
+            {familiares.length > 1 && (
+              <button className={styles.salir} onClick={() => setMostrarDestinos(true)} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
+            )}
+            <button className={styles.salir} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+          </div>
         </div>
         {user && <div className={styles.usuario}>{t('hola')} <strong>{user.full_name}</strong></div>}
       </header>
@@ -658,6 +712,44 @@ export default function PanicButtons() {
       <div className={styles.instruccion}>
         {t('instruccion')}
       </div>
+
+      {/* A quién le llega la alerta: siempre a la vista, para no olvidar que se desmarcó a alguien */}
+      {familiares.length > 1 && (
+        <button type="button" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={() => setMostrarDestinos(true)}>
+          👥 {todosElegidos
+            ? t('destLlegaATodos')
+            : `${t('destLlegaA')} ${destinosEfectivos.length} ${t('destDe')} ${familiares.length} ${t('destFamiliares')}`}
+          {' · '}<u>{t('destCambiar')}</u>
+        </button>
+      )}
+
+      {/* Ventana para elegir a quién avisar (se dibuja en el body: siempre encima de todo) */}
+      {mostrarDestinos && createPortal(
+        <div className={styles.destFondo} onClick={() => setMostrarDestinos(false)}>
+          <div className={styles.destVentana} role="dialog" aria-modal="true" aria-labelledby="dest-titulo" onClick={e => e.stopPropagation()}>
+            <div className={styles.destIcono} aria-hidden="true">👥</div>
+            <h3 id="dest-titulo" className={styles.destTitulo}>{t('destTitulo')}</h3>
+            <p className={styles.destDesc}>{t('destDesc')}</p>
+            <button type="button" className={styles.destTodos} onClick={() => { setAvisoMinimo(false); guardarExcluidos([]) }} disabled={todosElegidos}>
+              ✓ {t('destTodos')}
+            </button>
+            <div className={styles.destLista}>
+              {familiares.map(f => {
+                const marcado = !elegidosDestino.length || !excluidos.includes(f.linked_user_id)
+                return (
+                  <label key={f.linked_user_id} className={marcado ? styles.destFilaOn : styles.destFila}>
+                    <input type="checkbox" checked={marcado} onChange={() => alternarDestino(f.linked_user_id)} />
+                    <span>{f.users?.full_name || '—'}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {avisoMinimo && <p className={styles.destAviso} role="alert">{t('destMinimo')}</p>}
+            <button type="button" className={styles.destListo} onClick={() => setMostrarDestinos(false)}>{t('destListo')}</button>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <div className={gps === 'listo' ? styles.gpsOk : styles.gpsMal}>
         {gps === 'listo' && `📍 ${t('gpsListo')}`}

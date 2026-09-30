@@ -16,6 +16,7 @@ const OPCIONES_TIEMPO = [
   { clave: 'ubiT15', minutos: 15 },
   { clave: 'ubiT60', minutos: 60 },
   { clave: 'ubiT480', minutos: 480 },
+  { clave: 'ubiT1440', minutos: 1440 },
 ]
 
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
@@ -42,6 +43,10 @@ let enviandoPosicion = false
 let uidEnvioGlobal = null
 /** Hasta cuando eligio compartir el usuario (15 min, 1 h u 8 h). */
 let tiempoFinGlobal = null
+/** Familiares que pueden ver la ubicación (ids). null = todo el grupo familiar. */
+let compartirConGlobal = null
+/** Para el servicio nativo: lista en JSON, o vacío si es para todos. */
+const compartirConNativo = () => (compartirConGlobal?.length ? JSON.stringify(compartirConGlobal) : '')
 /** Ultima posicion conocida, para que el envio en segundo plano no dependa del componente. */
 let ultimaPosGlobal = null
 /**
@@ -151,6 +156,12 @@ export default function Ubicacion() {
   const [error, setError] = useState('')
   const [enfocado, setEnfocado] = useState(null)
   const [mostrarTiempo, setMostrarTiempo] = useState(false)
+  // Después del tiempo: con quién compartir (se guarda a quién NO; un familiar nuevo entra marcado)
+  const [mostrarConQuien, setMostrarConQuien] = useState(false)
+  const [minutosElegidos, setMinutosElegidos] = useState(60)
+  const [excluidosUbi, setExcluidosUbi] = useState([])
+  const [avisoMinimoUbi, setAvisoMinimoUbi] = useState(false)
+  const [compartiendoCon, setCompartiendoCon] = useState(null)
   const [minRestantes, setMinRestantes] = useState(null)
   const [recargando, setRecargando] = useState(false)
   const [fichaDir, setFichaDir] = useState(null)
@@ -232,7 +243,7 @@ export default function Ubicacion() {
     const [{ data: p }, , { data: mia }] = await Promise.all([
       supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', user.id).maybeSingle(),
       cargarFamiliaresCompleto(user.id),
-      supabase.from('live_locations').select('activo, expires_at').eq('user_id', user.id).maybeSingle(),
+      supabase.from('live_locations').select('*').eq('user_id', user.id).maybeSingle(),
     ])
     setPerfil(p)
     escuchar()
@@ -241,7 +252,7 @@ export default function Ubicacion() {
 
     if (mia?.activo && new Date(mia.expires_at) > new Date()) {
       const msRestantes = new Date(mia.expires_at).getTime() - Date.now()
-      empezar(false, Math.ceil(msRestantes / 60000))
+      empezar(false, Math.ceil(msRestantes / 60000), mia.compartir_con || null)
     } else {
       setCompartiendo(false)
       // Si la BD dice activo pero el tiempo ya venció (app estaba cerrada), limpiar
@@ -270,6 +281,7 @@ export default function Ubicacion() {
         finMs: tiempoFinGlobal,
         accessToken: session.access_token,
         refreshToken: session.refresh_token || '',
+        compartirCon: compartirConNativo(),
       })
     } catch {}
   }
@@ -402,7 +414,42 @@ export default function Ubicacion() {
       .subscribe()
   }
 
-  async function empezar(manual = true, minutos = 60) {
+  /** Paso 1 → paso 2: después del tiempo se elige con quién (si hay más de un familiar). */
+  function elegirTiempo(minutos) {
+    setMostrarTiempo(false)
+    if (!puedeUbicacionEnVivo(perfil)) { abrirPlanes(); return }
+    // Con uno o ningún familiar no hay nada que elegir
+    if (familiares.length < 2) { empezar(true, minutos, null); return }
+    setMinutosElegidos(minutos)
+    let excluidos = []
+    try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
+    // Si por cambios del grupo no queda nadie marcado, se marcan todos
+    if (familiares.every(f => excluidos.includes(f.id))) excluidos = []
+    setExcluidosUbi(excluidos)
+    setAvisoMinimoUbi(false)
+    setMostrarConQuien(true)
+  }
+
+  function alternarConQuien(id) {
+    setAvisoMinimoUbi(false)
+    setExcluidosUbi(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      // Mínimo una persona
+      if (familiares.filter(f => !prev.includes(f.id)).length <= 1) { setAvisoMinimoUbi(true); return prev }
+      return [...prev, id]
+    })
+  }
+
+  function confirmarConQuien() {
+    const marcados = familiares.filter(f => !excluidosUbi.includes(f.id))
+    // Todos (o ninguno por algún cambio del grupo) = compartir con todo el grupo familiar
+    const lista = marcados.length && marcados.length < familiares.length ? marcados.map(f => f.id) : null
+    try { localStorage.setItem(`compartirExcluidos_${uidGlobalRef.current}`, JSON.stringify(excluidosUbi)) } catch {}
+    setMostrarConQuien(false)
+    empezar(true, minutosElegidos, lista)
+  }
+
+  async function empezar(manual = true, minutos = 60, compartirCon = null) {
     setError('')
     if (vigilanteRef.current != null || envioRef.current) return
 
@@ -430,6 +477,19 @@ export default function Ubicacion() {
     if (!user) return
 
     uidEnvioGlobal = user.id
+    compartirConGlobal = compartirCon?.length ? compartirCon : null
+    setCompartiendoCon(compartirConGlobal)
+
+    // Quién puede verla se deja escrito ANTES de activar: así ni la notificación ni el mapa
+    // le llegan a quien no se eligió. (Si la base aún no tiene la columna, se ignora.)
+    if (manual) {
+      // Máximo 3 s: sin señal no se demora el arranque (el servicio igual manda la lista)
+      await Promise.race([
+        supabase.from('live_locations').update({ compartir_con: compartirConGlobal })
+          .eq('user_id', user.id).then(() => {}, () => {}),
+        new Promise(r => setTimeout(r, 3000)),
+      ])
+    }
 
     // Primer punto de una vez: sin esto la familia esperaba a que el GPS fino respondiera
     posicionRapida().then(p => {
@@ -452,6 +512,7 @@ export default function Ubicacion() {
             finMs: fin,
             accessToken: session.access_token,
             refreshToken: session.refresh_token || '',
+            compartirCon: compartirConNativo(),
           })
         }
       } catch (e) {
@@ -526,7 +587,7 @@ export default function Ubicacion() {
       : new Date(Date.now() + DURACION_MIN * 60 * 1000)
     enviandoPosicion = true
     try {
-      await supabase.from('live_locations').upsert({
+      const fila = {
         user_id: uid,
         latitude: p.lat,
         longitude: p.lng,
@@ -534,7 +595,13 @@ export default function Ubicacion() {
         activo: true,
         updated_at: new Date().toISOString(),
         expires_at: vence.toISOString(),
-      })
+      }
+      if (compartirConGlobal?.length) fila.compartir_con = compartirConGlobal
+      const { error } = await supabase.from('live_locations').upsert(fila)
+      if (error && fila.compartir_con && (error.message || '').includes('compartir_con')) {
+        delete fila.compartir_con
+        await supabase.from('live_locations').upsert(fila)
+      }
     } finally {
       enviandoPosicion = false
     }
@@ -555,6 +622,7 @@ export default function Ubicacion() {
     uidEnvioGlobal = null
     ultimoEnvioMs = 0
     tiempoFinGlobal = null
+    compartirConGlobal = null
     ultimaPosGlobal = null
     if (envioRef.current) { clearInterval(envioRef.current); envioRef.current = null }
   }
@@ -567,6 +635,7 @@ export default function Ubicacion() {
     if (cuentaRef.current) { clearInterval(cuentaRef.current); cuentaRef.current = null }
     tiempoFinRef.current = null
     setMinRestantes(null)
+    setCompartiendoCon(null)
     setCompartiendo(false)
     // getSession lee la sesión del celular al instante (getUser iba a internet y demoraba la parada)
     const { data: { session } } = await supabase.auth.getSession()
@@ -730,7 +799,7 @@ export default function Ubicacion() {
                 <button
                   key={op.minutos}
                   className={styles.selectorOpcion}
-                  onClick={() => { setMostrarTiempo(false); empezar(true, op.minutos) }}
+                  onClick={() => elegirTiempo(op.minutos)}
                 >
                   <span aria-hidden="true">⏱</span> {t(op.clave)}
                 </button>
@@ -744,12 +813,63 @@ export default function Ubicacion() {
         document.body,
       )}
 
+      {/* Paso 2: con quién compartir la ubicación */}
+      {mostrarConQuien && createPortal(
+        <div className={styles.selectorFondo} onClick={() => setMostrarConQuien(false)}>
+          <div
+            className={styles.selectorVentana}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="selector-conquien-titulo"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={styles.selectorIcono} aria-hidden="true">👥</div>
+            <h3 id="selector-conquien-titulo" className={styles.selectorTitulo}>{t('ubiConQuienTitulo')}</h3>
+            <p className={styles.selectorDesc}>{t('ubiConQuienDesc')}</p>
+            <button
+              type="button"
+              className={styles.conQuienTodos}
+              onClick={() => { setAvisoMinimoUbi(false); setExcluidosUbi([]) }}
+              disabled={familiares.every(f => !excluidosUbi.includes(f.id))}
+            >
+              ✓ {t('destTodos')}
+            </button>
+            <div className={styles.selectorOpciones}>
+              {familiares.map(f => {
+                const marcado = !excluidosUbi.includes(f.id)
+                return (
+                  <label key={f.id} className={marcado ? styles.conQuienFilaOn : styles.conQuienFila}>
+                    <input type="checkbox" checked={marcado} onChange={() => alternarConQuien(f.id)} />
+                    <span>{f.nombre}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {avisoMinimoUbi && <p className={styles.conQuienAviso} role="alert">{t('destMinimo')}</p>}
+            <button type="button" className={styles.conQuienEmpezar} onClick={confirmarConQuien}>
+              🛰 {t('ubiEmpezarCompartir')}
+            </button>
+            <button className={styles.selectorCancelar} onClick={() => setMostrarConQuien(false)}>
+              {t('cancelar')}
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       <div className={styles.acciones}>
         {compartiendo ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className={styles.btnDetener} onClick={() => detener()}>
               ⏹ {t('ubiDetener')}
             </button>
+            <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.82rem', margin: 0 }}>
+              👥 {t('ubiCompartiendoCon')}: <strong style={{ color: 'var(--text)' }}>
+                {compartiendoCon?.length
+                  ? (familiares.filter(f => compartiendoCon.includes(f.id)).map(f => f.nombre).join(', ') || compartiendoCon.length)
+                  : t('ubiTodoTuGrupo')}
+              </strong>
+            </p>
             {minRestantes !== null && (
               <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.82rem', margin: 0 }}>
                 ⏱ {t('ubiCompartiendoPor')} {minRestantes < 60 ? `${minRestantes} ${t('ubiMinMas')}` : `${Math.ceil(minRestantes / 60)} ${t('ubiHorasMas')}`}
