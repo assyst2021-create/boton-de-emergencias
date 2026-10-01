@@ -43,7 +43,6 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .nav {
@@ -80,6 +79,9 @@
   -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--border);
   padding: 12px 0;
+  /* La cinta llega hasta el borde del celular: la franja de los gestos queda pintada (antes era
+     transparente y se veía la página por debajo) y el menú baja un poco */
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 .bandaTexto {

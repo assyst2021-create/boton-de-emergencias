@@ -149,7 +149,8 @@
 }
 
 /* Espacio para que el último familiar no quede detrás de la barra de abajo y la cinta */
-.pb { height: calc(var(--barra-alto, 116px) + 40px); flex-shrink: 0; }
+/* Al final de la lista, justo el alto de la barra del menú, como en las demás pestañas */
+.pb { height: calc(var(--barra-alto, 116px) + 12px); flex-shrink: 0; }
 
 .upgradeBox {
   background: var(--card);

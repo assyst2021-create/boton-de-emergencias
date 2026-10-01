@@ -86,32 +86,49 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json()
     // El webhook de Supabase envía { type, table, record, ... }
-    const alerta = body.record || body
-    // Para ubicación en vivo el registro trae user_id en vez de sender_id
-    if (body.tipo === 'ubicacion' && alerta?.user_id) alerta.sender_id = alerta.user_id
+    const pedida = body.record || body
+    // Ubicación en vivo (empezó a compartir / se está moviendo): el registro trae user_id
+    const esUbicacion = body.tipo === 'ubicacion' || body.tipo === 'movimiento'
+    const emisorId: string | undefined = esUbicacion ? pedida?.user_id : pedida?.sender_id
 
-    if (!alerta?.sender_id) {
-      return new Response(JSON.stringify({ ok: false, msg: 'sin sender_id' }), { status: 200 })
+    if (!emisorId || (!esUbicacion && !pedida?.id)) {
+      return new Response(JSON.stringify({ ok: false, msg: 'sin datos' }), { status: 200 })
     }
 
+    // Lo que dice la petición se confirma en la base y se usan los datos de la base: así nadie
+    // puede inventar una alerta o un aviso de ubicación llamando esta función directamente.
+    // Va en paralelo con lo demás, no demora la notificación.
+    const confirmar = esUbicacion
+      ? supabase.from('live_locations').select('*').eq('user_id', emisorId).maybeSingle()
+      : supabase.from('alerts').select('*').eq('id', pedida.id).maybeSingle()
+
     // Familiares que reciben la notificación, datos del emisor y token de Google, todo a la vez
-    const [{ data: links }, { data: emisor }, accessToken] = await Promise.all([
+    const [{ data: alerta }, { data: links }, { data: emisor }, accessToken] = await Promise.all([
+      confirmar,
       supabase
         .from('family_links')
         .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token)')
-        .eq('linked_user_id', alerta.sender_id)
+        .eq('linked_user_id', emisorId)
         .eq('status', 'accepted'),
       supabase
         .from('users')
         .select('full_name')
-        .eq('id', alerta.sender_id)
+        .eq('id', emisorId)
         .maybeSingle(),
       tokenFcm(),
     ])
 
+    // Alerta que no existe, de otra persona o ya vencida; ubicación que no se está compartiendo
+    const confirmada = esUbicacion
+      ? !!alerta?.activo
+      : !!alerta && alerta.sender_id === emisorId && (!alerta.expires_at || new Date(alerta.expires_at) > new Date())
+    if (!confirmada) {
+      return new Response(JSON.stringify({ ok: false, msg: 'no confirmada en la base' }), { status: 200 })
+    }
+
     // Solo a los familiares elegidos: destinatarios (alerta) o compartir_con (ubicación).
     // Vacío o null = todo el grupo familiar, como siempre.
-    const elegidos: string[] | null = body.tipo === 'ubicacion' ? alerta.compartir_con : alerta.destinatarios
+    const elegidos: string[] | null = esUbicacion ? alerta.compartir_con : alerta.destinatarios
     const destino = Array.isArray(elegidos) && elegidos.length
       ? (links || []).filter(l => elegidos.includes(l.user_id))
       : (links || [])
@@ -125,11 +142,16 @@ Deno.serve(async (req) => {
     if (body.tipo === 'ubicacion') {
       titulo = '📍 Ubicación en vivo'
       cuerpo = `${nombre} está compartiendo su ubicación contigo`
+    } else if (body.tipo === 'movimiento') {
+      titulo = `🚶 ${nombre}`
+      cuerpo = 'Se está moviendo · Míralo en En vivo'
     } else {
+      // Igual que en el Historial: el nombre arriba y el estado debajo, con las mismas palabras
       const tipo = alerta.status_type
       const emoji = tipo === 'red' ? '🔴' : tipo === 'orange' ? '🟠' : '🟢'
-      titulo = tipo === 'red' ? '¡EMERGENCIA!' : tipo === 'orange' ? '¡Necesita ayuda!' : 'Está a salvo'
-      cuerpo = `${emoji} ${nombre} ${tipo === 'red' ? 'está en peligro' : tipo === 'orange' ? 'está herido y necesita ayuda médica' : 'está bien y a salvo'}`
+      titulo = `${emoji} ${nombre}`
+      cuerpo = (tipo === 'red' ? 'EN PELIGRO' : tipo === 'orange' ? 'HERIDO / NECESITO AYUDA' : 'ESTOY BIEN / A SALVO')
+        + (alerta.is_auto ? ' · Alerta automática' : '')
     }
 
     const projectId = SA.project_id

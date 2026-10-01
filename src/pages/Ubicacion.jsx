@@ -47,6 +47,11 @@ let tiempoFinGlobal = null
 let compartirConGlobal = null
 /** Para el servicio nativo: lista en JSON, o vacío si es para todos. */
 const compartirConNativo = () => (compartirConGlobal?.length ? JSON.stringify(compartirConGlobal) : '')
+/**
+ * Llave para que el servicio del celular suba la ubicación sin la sesión (hasta 26 h). Vacía si
+ * la base aún no tiene la función: el servicio sube como antes.
+ */
+let llaveGlobal = ''
 /** Ultima posicion conocida, para que el envio en segundo plano no dependa del componente. */
 let ultimaPosGlobal = null
 /**
@@ -60,10 +65,6 @@ function publicarPosicion(p) {
   alNuevaPosicion?.(p)
 }
 
-/** Rastreo de movimiento por familiar: ultima pos notificada y timestamp del último aviso */
-const _ultimaPosNotif = {}   // uid → {lat, lng}
-const _ultimaNotifMovMs = {} // uid → timestamp ms
-
 /** Haversine: distancia en metros entre dos coordenadas */
 function distanciaMetros(lat1, lng1, lat2, lng2) {
   const R = 6371000
@@ -72,8 +73,6 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
-
-let _notifId = 1000
 
 /**
  * Punto inmediato (wifi/antenas o uno de hace menos de 2 min) para que la familia vea
@@ -118,23 +117,6 @@ async function geocodearDireccion(lat, lng, cerca = 'Cerca de') {
   }
 }
 
-async function mostrarNotifLocal(titulo, cuerpo) {
-  if (!EN_CAPACITOR) return
-  try {
-    await LocalNotifications.schedule({
-      notifications: [{
-        id: _notifId++,
-        title: titulo,
-        body: cuerpo,
-        schedule: { at: new Date(Date.now() + 100) },
-        channelId: 'alertas_v3',
-        sound: 'default',
-        smallIcon: 'ic_stat_notification',
-        iconColor: '#e8302a',
-      }],
-    })
-  } catch {}
-}
 
 export default function Ubicacion() {
   const { t } = useLanguage()
@@ -282,6 +264,7 @@ export default function Ubicacion() {
         accessToken: session.access_token,
         refreshToken: session.refresh_token || '',
         compartirCon: compartirConNativo(),
+        llave: llaveGlobal,
       })
     } catch {}
   }
@@ -378,24 +361,8 @@ export default function Ubicacion() {
           const u = payload.new
           const uid = u.user_id
 
-          // "Empezó a compartir" lo avisa el servidor por FCM (llega aunque la app esté cerrada)
-
-          // Notif: familiar en movimiento (>150 m, mínimo cada 10 min)
-          if (u.activo && u.latitude != null && u.longitude != null) {
-            const ultima = _ultimaPosNotif[uid]
-            if (ultima) {
-              const dist = distanciaMetros(ultima.lat, ultima.lng, u.latitude, u.longitude)
-              const ahora = Date.now()
-              const sinceUltima = ahora - (_ultimaNotifMovMs[uid] || 0)
-              if (dist > 150 && sinceUltima > 10 * 60 * 1000) {
-                const fam = linksRef.current.find(l => l.user_id === uid)
-                const nombre = fam?.users?.full_name || fam?.users?.username || t('unFamiliar')
-                mostrarNotifLocal(`🚶 ${t('notifMovTitulo')}`, `${nombre} ${t('notifEnMovimiento')}`)
-                _ultimaNotifMovMs[uid] = ahora
-              }
-            }
-            _ultimaPosNotif[uid] = { lat: u.latitude, lng: u.longitude }
-          }
+          // "Empezó a compartir" y "se está moviendo" los avisa el servidor por notificación
+          // (llegan aunque la app esté cerrada)
 
           setFamiliares(prev => prev.map(f =>
             f.id === uid
@@ -482,11 +449,22 @@ export default function Ubicacion() {
 
     // Quién puede verla se deja escrito ANTES de activar: así ni la notificación ni el mapa
     // le llegan a quien no se eligió. (Si la base aún no tiene la columna, se ignora.)
+    // A la vez, la llave del servicio del celular (si la base no la conoce, queda vacía).
     if (manual) {
+      const llave = EN_CAPACITOR && crypto.randomUUID
+        ? (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+        : ''
+      llaveGlobal = ''
       // Máximo 3 s: sin señal no se demora el arranque (el servicio igual manda la lista)
       await Promise.race([
-        supabase.from('live_locations').update({ compartir_con: compartirConGlobal })
-          .eq('user_id', user.id).then(() => {}, () => {}),
+        Promise.all([
+          supabase.from('live_locations').update({ compartir_con: compartirConGlobal })
+            .eq('user_id', user.id).then(() => {}, () => {}),
+          llave
+            ? supabase.rpc('crear_llave_gps', { llave, horas: Math.min(26, Math.ceil(minutos / 60) + 2) })
+              .then(({ error }) => { if (!error) llaveGlobal = llave }, () => {})
+            : null,
+        ]),
         new Promise(r => setTimeout(r, 3000)),
       ])
     }
@@ -513,6 +491,7 @@ export default function Ubicacion() {
             accessToken: session.access_token,
             refreshToken: session.refresh_token || '',
             compartirCon: compartirConNativo(),
+            llave: llaveGlobal,
           })
         }
       } catch (e) {
@@ -623,6 +602,7 @@ export default function Ubicacion() {
     ultimoEnvioMs = 0
     tiempoFinGlobal = null
     compartirConGlobal = null
+    llaveGlobal = ''
     ultimaPosGlobal = null
     if (envioRef.current) { clearInterval(envioRef.current); envioRef.current = null }
   }
@@ -903,10 +883,9 @@ export default function Ubicacion() {
         {enVivo.length === 0 ? (
           <p className={styles.gris}>{t('ubiNadieEnVivo')}</p>
         ) : enVivo.map(f => {
-          // Se envia cada 3 s, asi que 3 min sin recibir nada si indica un
-          // problema real. Un minuto era muy poco: cualquier bache de red
-          // marcaba como desconectado a alguien que si estaba transmitiendo.
-          const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > 600000
+          // El celular manda al menos cada 10 s aunque la persona esté quieta: 2 min sin
+          // recibir nada ya es un problema real (sin señal, GPS apagado o celular apagado)
+          const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > 120000
           return (
           <div key={f.id} className={styles.fila} style={enfocado === f.id ? { flexDirection: 'column', alignItems: 'stretch' } : {}}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

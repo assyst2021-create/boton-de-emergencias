@@ -1,11 +1,19 @@
+/* La pantalla mide justo el alto del celular, sin scroll: arriba la cinta, abajo la barra del
+   menú (--barra-alto ya trae el borde inferior del celular) y en medio los 3 botones, que se
+   reparten el espacio que quede y acomodan su letra a ese tamaño. */
 .wrap {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  /* Solo si ni así caben los botones (celular muy pequeño con letra muy grande) */
+  overflow-y: auto;
   padding: 0 16px;
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--barra-alto, 116px) + 12px);
 }
+/* Con el panel de envío abierto (SMS / WhatsApp) la página sí se deja bajar */
+.wrapLibre { height: auto; min-height: 100vh; min-height: 100dvh; overflow-y: visible; }
 
 /* ─── Modal flotante bienvenida ─── */
 .avisoOverlay {
@@ -87,7 +95,7 @@
   letter-spacing: 0.02em;
 }
 
-.header { padding: 20px 4px 12px; }
+.header { padding: 12px 4px 8px; }
 
 .headerTop {
   display: flex;
@@ -98,7 +106,7 @@
 
 .logoImg { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 
-.headerTop h1 { font-size: 1.1rem; font-weight: 800; line-height: 1.1; color: var(--text); }
+.headerTop h1 { font-size: 1.15rem; font-weight: 800; line-height: 1.1; color: var(--text); }
 .headerTop p  { font-size: 0.8rem; color: var(--naranja); font-weight: 600; }
 
 .salir {
@@ -113,28 +121,34 @@
   font-size: 1rem;
 }
 
-.usuario { font-size: 0.875rem; color: var(--text2); }
-.instruccion { text-align: center; font-size: 0.85rem; color: var(--text2); margin: 2px 0 8px; }
+.usuario { font-size: 1rem; color: var(--text2); }
+.instruccion { text-align: center; font-size: 1rem; font-weight: 600; color: var(--text2); margin: 2px 0 8px; text-wrap: balance; }
 
-.botonesWrap { position: relative; flex: 1; display: flex; flex-direction: column; }
+.botonesWrap { position: relative; flex: 1 1 0; display: flex; flex-direction: column; }
 
-.botones { position: relative; display: flex; flex-direction: column; gap: 12px; flex: 1; }
-.botones > div { flex: 1; display: flex; flex-direction: column; }
+/* Tres filas iguales que se encogen o crecen (nunca menos de 60 px, para poder tocarlas bien);
+   cada una es "contenedor" para que la letra del botón se mida con su alto (cqh) y no se salga */
+.botones { position: relative; display: grid; grid-template-rows: repeat(3, minmax(60px, 1fr)); gap: 12px; flex: 1 1 auto; }
+.botones > div { display: flex; flex-direction: column; min-height: 0; container-type: size; }
+.wrapLibre .botonesWrap, .wrapLibre .botones { flex: 1 0 auto; }
+.wrapLibre .botones { grid-template-rows: none; grid-auto-rows: 1fr; }
+.wrapLibre .botones > div { container-type: normal; }
+.wrapLibre .panico { min-height: 120px; }
 
 .panico {
   width: 100%;
   flex: 1;
   border-radius: var(--radius);
-  padding: 16px 20px;
+  padding: 10px 18px;
   color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   transition: filter 0.15s, transform 0.1s;
   box-shadow: 0 6px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
-  min-height: 96px;
+  min-height: 0;
   border: 1px solid rgba(255,255,255,0.18);
   position: relative;
   overflow: hidden;
@@ -155,9 +169,22 @@
 .panico:active { transform: scale(0.97); }
 .panico:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.btnEmoji  { font-size: 2rem; position: relative; z-index: 1; }
-.btnTitulo { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.04em; text-align: center; position: relative; z-index: 1; }
-.btnMensaje { font-size: 0.8rem; opacity: 0.9; text-align: center; max-width: 280px; position: relative; z-index: 1; }
+.btnEmoji  { font-size: 2.1rem; font-size: clamp(1.3rem, 22cqh, 2.3rem); line-height: 1.1; position: relative; z-index: 1; }
+.btnTitulo { font-size: 1.2rem; font-size: clamp(0.9rem, 12cqh, 1.3rem); font-weight: 800; letter-spacing: 0.03em; line-height: 1.2; text-align: center; text-wrap: balance; position: relative; z-index: 1; }
+.btnMensaje { font-size: 0.9rem; font-size: clamp(0.8rem, 9cqh, 0.95rem); line-height: 1.3; opacity: 0.92; text-align: center; max-width: 300px; position: relative; z-index: 1; }
+
+/* Botón bajito: primero se quita el texto pequeño y, si aún no cabe, el círculo de color */
+@container (max-height: 118px) { .btnMensaje { display: none; } }
+@container (max-height: 74px) { .btnEmoji { display: none; } }
+/* Botón muy bajito (celular pequeño o letra del sistema grande): menos relleno para que el título quepa completo */
+@container (max-height: 90px) { .panico { padding: 4px 12px; gap: 2px; } .btnTitulo { line-height: 1.1; } }
+
+/* Celulares bajitos: encabezado más compacto para dejarles más espacio a los botones */
+@media (max-height: 760px) {
+  .header { padding: 8px 4px 6px; }
+  .headerTop { margin-bottom: 4px; }
+  .botones { gap: 10px; }
+}
 
 @keyframes pulso { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 .spinner { font-size: 0.85rem; opacity: 0.8; animation: pulso 1s ease-in-out infinite; }
@@ -206,8 +233,6 @@
   -webkit-backdrop-filter: var(--card-blur);
 }
 
-.pb { height: 116px; }
-
 .respaldo {
   margin: 12px 16px 0;
   padding: 14px;
@@ -248,8 +273,8 @@
 .gpsPermBtn { background: none; border: none; color: #e67e22; font-size: 0.74rem; font-weight: 700; cursor: pointer; padding: 0; }
 
 .gpsOk, .gpsMal {
-  text-align: center; font-size: 0.74rem; border-radius: 8px;
-  padding: 5px 12px; margin-bottom: 6px;
+  text-align: center; font-size: 0.9rem; font-weight: 600; border-radius: 8px;
+  padding: 6px 12px; margin-bottom: 8px;
   backdrop-filter: var(--card-blur);
   -webkit-backdrop-filter: var(--card-blur);
 }
@@ -294,9 +319,9 @@
   display: block;
   width: 100%;
   margin: -2px 0 8px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border-radius: 10px;
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   font-weight: 700;
   text-align: center;
   cursor: pointer;

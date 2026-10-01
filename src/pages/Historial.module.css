@@ -4,7 +4,8 @@
   min-height: 100dvh;
   padding: 0 16px;
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  /* Al final de la lista, justo el alto de la barra del menú (que ya trae el borde del celular) */
+  padding-bottom: calc(var(--barra-alto, 116px) + 12px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -149,7 +150,6 @@
 }
 .btnDismiss:hover { background: var(--bg2); }
 
-.pb { height: 116px; }
 
 /* Aviso corto al tocar 🔄 */
 .avisoOk {

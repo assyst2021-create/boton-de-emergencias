@@ -43,76 +43,16 @@ function AppInner() {
   const [perfilFalta, setPerfilFalta] = useState(false)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
   const [soloVerLegal, setSoloVerLegal] = useState(false)
-  const [notifUbi, setNotifUbi] = useState(null)
   const [actualizacionLista, setActualizacionLista] = useState(false)
   const [faltanPermisos, setFaltanPermisos] = useState([])
   const permisosPedidosRef = useRef(false)
   const { t } = useLanguage()
-  const canalUbiRef = useRef(null)
-  const movimientoRef = useRef({}) // { [userId]: { lat, lng, ts } }
-  const familiaresUbiRef = useRef(null) // cache de IDs de familiares
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => subscription.unsubscribe()
   }, [])
-
-  useEffect(() => {
-    const uid = session?.user?.id
-    if (!uid) {
-      if (canalUbiRef.current) { supabase.removeChannel(canalUbiRef.current); canalUbiRef.current = null }
-      familiaresUbiRef.current = null
-      movimientoRef.current = {}
-      return
-    }
-
-    async function obtenerFamiliares() {
-      const { data } = await supabase
-        .from('family_links')
-        .select('user_id, users!family_links_user_id_fkey(full_name, username)')
-        .eq('linked_user_id', uid)
-        .eq('status', 'accepted')
-      familiaresUbiRef.current = Object.fromEntries(
-        (data || []).map(l => [l.user_id, l.users?.full_name || l.users?.username || t('unFamiliar')])
-      )
-    }
-    obtenerFamiliares()
-
-    canalUbiRef.current = supabase.channel('notif-ubi-global')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_locations' }, async (payload) => {
-        if (!payload.new?.activo) return
-        const sharerUid = payload.new.user_id
-        if (sharerUid === uid) return
-
-        if (!familiaresUbiRef.current) await obtenerFamiliares()
-        const nombre = familiaresUbiRef.current?.[sharerUid]
-        if (!nombre) return
-
-        // "Empezó a compartir" lo avisa el servidor por notificación push; aquí solo se toma el punto de partida
-        if (!payload.old?.activo) {
-          movimientoRef.current[sharerUid] = { lat: payload.new.latitude, lng: payload.new.longitude, ts: Date.now() }
-          return
-        }
-
-        // Notificación: familiar en movimiento (cada 10 min si se mueve > 150m)
-        const prev = movimientoRef.current[sharerUid]
-        const newLat = payload.new.latitude, newLng = payload.new.longitude
-        if (prev && newLat && newLng) {
-          const dist = distanciaMetros(prev.lat, prev.lng, newLat, newLng)
-          const minsPasados = (Date.now() - prev.ts) / 60000
-          if (dist > 150 && minsPasados >= 10) {
-            movimientoRef.current[sharerUid] = { lat: newLat, lng: newLng, ts: Date.now() }
-            setNotifUbi({ nombre, clave: 'notifEnMovimiento', icono: '🚶' })
-            setTimeout(() => setNotifUbi(null), 6000)
-          }
-        } else if (newLat && newLng) {
-          movimientoRef.current[sharerUid] = { lat: newLat, lng: newLng, ts: Date.now() }
-        }
-      })
-      .subscribe()
-    return () => { if (canalUbiRef.current) { supabase.removeChannel(canalUbiRef.current); canalUbiRef.current = null } }
-  }, [session?.user?.id])
 
   // Cargar flags por usuario desde localStorage
   useEffect(() => {
@@ -287,21 +227,6 @@ function AppInner() {
         <button onClick={instalarActualizacion} style={{ background: '#fff', color: '#1E8449', border: 'none', borderRadius: 10, padding: '9px 14px', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer' }}>
           {t('actualizacionReiniciar')}
         </button>
-      </div>
-    )}
-    {notifUbi && (
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-        background: '#1E8449', color: '#fff',
-        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-      }}>
-        <span style={{ fontSize: '1.4rem' }}>{notifUbi.icono}</span>
-        <div>
-          <strong style={{ fontSize: '0.95rem' }}>{notifUbi.nombre} {t(notifUbi.clave)}</strong>
-          <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.85 }}>{t('notifTocaMapa')}</p>
-        </div>
-        <button onClick={() => setNotifUbi(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
       </div>
     )}
     <AppActionsContext.Provider value={{
@@ -497,13 +422,4 @@ function Cargando() {
       </div>
     </div>
   )
-}
-
-function distanciaMetros(lat1, lng1, lat2, lng2) {
-  const R = 6371e3
-  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
-  const Δφ = (lat2 - lat1) * Math.PI / 180
-  const Δλ = (lng2 - lng1) * Math.PI / 180
-  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }

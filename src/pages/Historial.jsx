@@ -118,17 +118,38 @@ export default function Historial() {
     localStorage.setItem(`dismissed_${user.id}`, JSON.stringify(vigentes))
     setDismissedIds(new Set(Object.keys(vigentes)))
 
-    // Links y alertas en paralelo cuando sea posible
-    const { data: links } = await supabase
-      .from('family_links')
-      .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, phone_number)')
-      .eq('user_id', user.id)
-      .eq('status', 'accepted')
+    // Familiares, alertas y borradas, todo a la vez: las alertas se piden con los familiares de
+    // la vez pasada (una sola vuelta a internet en vez de dos). Si llegó alguien nuevo, sus
+    // alertas se piden aparte.
+    const famKey = `historialFamilia_${user.id}`
+    let conocidos = []
+    try { conocidos = JSON.parse(localStorage.getItem(famKey) || '[]') } catch (_) {}
+    const pedirAlertas = (lista) => lista.length
+      ? supabase
+        .from('alerts')
+        .select('*, users!alerts_sender_id_fkey(full_name, phone_number)')
+        .in('sender_id', lista)
+        .gt('expires_at', new Date().toISOString())
+        .order('sent_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null })
+    const [{ data: links, error: errLinks }, primeras, { data: ocultas }] = await Promise.all([
+      supabase
+        .from('family_links')
+        .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, phone_number)')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted'),
+      pedirAlertas(conocidos),
+      // Las que este usuario borró con la X: guardadas en la base, valen en cualquier celular
+      supabase.from('alertas_ocultas').select('alert_id').eq('user_id', user.id),
+    ])
+    // Sin señal: se deja lo que ya se ve (antes el historial quedaba vacío y se borraba la copia)
+    if (errLinks || !links) { setCargando(false); return {} }
 
-    const ids = (links || []).map(l => l.linked_user_id)
+    const ids = links.map(l => l.linked_user_id)
+    try { localStorage.setItem(famKey, JSON.stringify(ids)) } catch (_) {}
     const nombres = {}
     const telefonos = {}
-    ;(links || []).forEach(l => {
+    links.forEach(l => {
       nombres[l.linked_user_id] = l.users?.full_name
       telefonos[l.linked_user_id] = l.users?.phone_number
     })
@@ -138,20 +159,29 @@ export default function Historial() {
 
     if (ids.length === 0) { setAlertas([]); setCargando(false); localStorage.removeItem(cacheKey); return { uid: user.id, ids, nombres } }
 
-    const [{ data }, { data: ocultas }] = await Promise.all([
-      supabase
-        .from('alerts')
-        .select('*, users!alerts_sender_id_fkey(full_name, phone_number)')
-        .in('sender_id', ids)
-        .gt('expires_at', new Date().toISOString())
-        .order('sent_at', { ascending: false }),
-      // Las que este usuario borró con la X: guardadas en la base, valen en cualquier celular
-      supabase.from('alertas_ocultas').select('alert_id').eq('user_id', user.id),
-    ])
-    const idsOcultos = new Set((ocultas || []).map(o => o.alert_id))
+    if (primeras.error) { setCargando(false); return { ids, nombres } }
+    // Solo de quien sigue en el grupo; las de alguien recién vinculado se piden ahora
+    let data = (primeras.data || []).filter(a => ids.includes(a.sender_id))
+    const nuevos = ids.filter(id => !conocidos.includes(id))
+    if (nuevos.length) {
+      const { data: extra, error: errExtra } = await pedirAlertas(nuevos)
+      if (errExtra) { setCargando(false); return { ids, nombres } }
+      data = [...data, ...(extra || [])].sort((a, b) => new Date(b.sent_at) - new Date(a.sent_at))
+    }
+    // Si la lista de borradas no llegó, se usa la última conocida: nunca reaparece una borrada.
+    // Las que se borraron sin señal se suman y se vuelven a guardar en la base.
+    const enBase = ocultas ? new Set(ocultas.map(o => o.alert_id)) : ocultasRef.current
+    const borradasAqui = Object.keys(vigentes)
+    const idsOcultos = new Set([...enBase, ...borradasAqui])
     ocultasRef.current = idsOcultos
+    const faltan = ocultas ? data.filter(a => borradasAqui.includes(a.id) && !enBase.has(a.id)) : []
+    if (faltan.length) {
+      supabase.from('alertas_ocultas')
+        .upsert(faltan.map(a => ({ user_id: user.id, alert_id: a.id })), { onConflict: 'user_id,alert_id' })
+        .then(() => {}, () => {})
+    }
 
-    const alertas = (data || []).filter(a => !idsOcultos.has(a.id))
+    const alertas = data.filter(a => !idsOcultos.has(a.id))
     setAlertas(alertas)
     setCargando(false)
     // Actualizar caché con datos frescos
@@ -268,7 +298,6 @@ export default function Historial() {
         })}
       </div>
 
-      <div className={styles.pb} />
     </div>
   )
 }

@@ -185,6 +185,30 @@ export default function PanicButtons() {
   const destinosEfectivos = elegidosDestino.length ? elegidosDestino : familiares
   const todosElegidos = destinosEfectivos.length === familiares.length
 
+  /**
+   * Los desmarcados solo valen para quien sigue en el grupo: si alguien se desvincula y vuelve,
+   * entra marcado. Si no quedara nadie marcado, vuelve a "todos". Se lee lo guardado en este
+   * momento (no al empezar a cargar) para no deshacer una casilla que se tocó mientras tanto.
+   */
+  function limpiarExcluidos(uid, links) {
+    const clave = `destinosExcluidos_${uid}`
+    let guardados = []
+    try { guardados = JSON.parse(localStorage.getItem(clave) || '[]') } catch (_) {}
+    const ids = links.map(l => l.linked_user_id)
+    const vigentes = guardados.filter(id => ids.includes(id))
+    const limpia = vigentes.length && vigentes.length >= ids.length ? [] : vigentes
+    if (limpia.length !== guardados.length) {
+      try { localStorage.setItem(clave, JSON.stringify(limpia)) } catch (_) {}
+    }
+    setExcluidos(limpia)
+  }
+
+  // Abrir la lista de a quién llega la alerta trae los familiares al día por detrás
+  function abrirDestinos() {
+    setMostrarDestinos(true)
+    cargarDatos()
+  }
+
   function guardarExcluidos(lista) {
     setExcluidos(lista)
     if (user?.id) {
@@ -232,16 +256,20 @@ export default function PanicButtons() {
   }
 
   useEffect(() => {
+    let vivo = true
     // Cola offline: se reintenta al volver la red, al volver a la app y cada 20 s
     window.addEventListener('online', procesarCola)
-    const onVisible = () => { if (document.visibilityState === 'visible') procesarCola() }
+    // Al volver a la app también se traen los familiares: si alguien te desvinculó mientras
+    // tanto, deja de estar en la lista (el tiempo real no avisa cuando se borra una fila)
+    const onVisible = () => { if (document.visibilityState === 'visible') { procesarCola(); cargarDatos() } }
     document.addEventListener('visibilitychange', onVisible)
     const reintentoCola = setInterval(procesarCola, 20000)
     procesarCola()
 
     let canal = null
     cargarDatos().then(uid => {
-      if (!uid) return
+      // Si ya se cambió de pestaña, no se abre un canal que nadie cerraría
+      if (!uid || !vivo) return
       // Suscripción en tiempo real: cuando cambian los familiares vinculados, recargar
       canal = supabase
         .channel('family_links_rt')
@@ -268,6 +296,7 @@ export default function PanicButtons() {
     init()
 
     return () => {
+      vivo = false
       window.removeEventListener('online', procesarCola)
       document.removeEventListener('visibilitychange', onVisible)
       clearInterval(reintentoCola)
@@ -307,7 +336,10 @@ export default function PanicButtons() {
     ])
     // Sin señal las consultas fallan: se conserva lo último conocido para que el SMS igual salga
     if (perfil) setUser(perfil)
-    if (links) setFamiliares(links)
+    if (links) {
+      setFamiliares(links)
+      limpiarExcluidos(authUser.id, links)
+    }
     if (perfil && links) {
       try { localStorage.setItem(`panicCache_${authUser.id}`, JSON.stringify({ perfil, links })) } catch (_) {}
     }
@@ -564,14 +596,14 @@ export default function PanicButtons() {
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={respaldo ? `${styles.wrap} ${styles.wrapLibre}` : styles.wrap}>
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
           <div className={styles.headerBotones}>
             {familiares.length > 1 && (
-              <button className={styles.salir} onClick={() => setMostrarDestinos(true)} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
+              <button className={styles.salir} onClick={abrirDestinos} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
             )}
             <button className={styles.salir} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
           </div>
@@ -715,7 +747,7 @@ export default function PanicButtons() {
 
       {/* A quién le llega la alerta: siempre a la vista, para no olvidar que se desmarcó a alguien */}
       {familiares.length > 1 && (
-        <button type="button" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={() => setMostrarDestinos(true)}>
+        <button type="button" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={abrirDestinos}>
           👥 {todosElegidos
             ? t('destLlegaATodos')
             : `${t('destLlegaA')} ${destinosEfectivos.length} ${t('destDe')} ${familiares.length} ${t('destFamiliares')}`}
@@ -798,7 +830,6 @@ export default function PanicButtons() {
       </div>
       </div>
 
-      <div className={styles.pb} />
     </div>
   )
 }

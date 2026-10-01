@@ -19,18 +19,37 @@ export default function GrupoFamiliar() {
   const [cargando, setCargando] = useState(true)
   const [recargando, setRecargando] = useState(false)
   const [avisoOk, setAvisoOk] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
-    init()
+    let vivo = true
+    let canal = null
+    init().then(uid => {
+      if (!uid || !vivo) return
+      // Solicitudes que llegan y solicitudes que te aceptan aparecen solas, sin tocar 🔄
+      canal = supabase.channel('grupo-familiar-rt')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'family_links', filter: `linked_user_id=eq.${uid}` }, () => init())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'family_links', filter: `user_id=eq.${uid}` }, () => init())
+        .subscribe()
+    })
+    // Al volver a la app también: el tiempo real no avisa cuando alguien te desvincula
+    const onVisible = () => { if (document.visibilityState === 'visible') init() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      vivo = false
+      document.removeEventListener('visibilitychange', onVisible)
+      if (canal) supabase.removeChannel(canal)
+    }
   }, [])
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) return null
     setUserId(user.id)
     await Promise.all([cargarVinculados(user.id), cargarSolicitudes(user.id)])
     setCargando(false)
+    return user.id
   }
 
   // Botón 🔄: vuelve a traer familiares y solicitudes, y avisa que se actualizó
@@ -44,22 +63,23 @@ export default function GrupoFamiliar() {
     setTimeout(() => setRecargando(false), 400)
   }
 
+  // Sin señal la consulta falla: se deja la lista que ya se ve (antes quedaba vacía)
   async function cargarVinculados(uid) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('family_links')
       .select('id, linked_user_id, users!family_links_linked_user_id_fkey(full_name, username)')
       .eq('user_id', uid)
       .eq('status', 'accepted')
-    setVinculados(data || [])
+    if (!error && data) setVinculados(data)
   }
 
   async function cargarSolicitudes(uid) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('family_links')
       .select('id, user_id, users!family_links_user_id_fkey(full_name, username)')
       .eq('linked_user_id', uid)
       .eq('status', 'pending')
-    setSolicitudes(data || [])
+    if (!error && data) setSolicitudes(data)
   }
 
   async function buscarUsuario() {
@@ -76,32 +96,42 @@ export default function GrupoFamiliar() {
   }
 
   async function enviarSolicitud(destId) {
-    const { data: existe } = await supabase
-      .from('family_links')
-      .select('id, status')
-      .eq('user_id', userId)
-      .eq('linked_user_id', destId)
-      .maybeSingle()
-
-    if (existe) {
-      setMensaje(existe.status === 'pending' ? t('errorYaVinculado') : t('errorYaVinculado'))
+    if (enviando) return
+    // Si esa persona ya te había enviado una solicitud, se acepta de una: los dos quieren vincularse
+    const suya = solicitudes.find(s => s.user_id === destId)
+    if (suya) {
+      setResultado(null)
+      setBusqueda('')
+      await responderSolicitud(suya.id, 'accepted')
       return
     }
+    setEnviando(true)
+    // Las tres consultas a la vez (antes una tras otra). El límite y el conteo se leen de la
+    // base: el estado en memoria puede estar viejo.
+    const [{ data: existe }, { data: perfil }, { count: totalActual }] = await Promise.all([
+      supabase.from('family_links').select('id, status')
+        .eq('user_id', userId).eq('linked_user_id', destId).maybeSingle(),
+      supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle(),
+      supabase.from('family_links').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('status', 'accepted'),
+    ])
 
-    // El limite y el conteo se leen de la BD: el estado en memoria puede estar viejo.
-    const { data: perfil } = await supabase
-      .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
-    const { count: totalActual } = await supabase
-      .from('family_links').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('status', 'accepted')
+    if (existe) {
+      setEnviando(false)
+      setMensaje(t('errorYaVinculado'))
+      return
+    }
     if ((totalActual || 0) >= limiteFamiliares(perfil)) {
+      setEnviando(false)
       setMostrarUpgrade(true)
       return
     }
 
     const { error } = await supabase.from('family_links').insert({ user_id: userId, linked_user_id: destId, status: 'pending' })
+    setEnviando(false)
     if (error) {
       if (error.message?.includes('LIMITE_FAMILIARES')) setMostrarUpgrade(true)
+      else setMensaje(t('errorConexion'))
       return
     }
     setMensaje(t('solicitudEnviada'))
@@ -123,12 +153,12 @@ export default function GrupoFamiliar() {
     }
     // Al aceptar: verificar que no se supere el límite del plan actual
     if (accion === 'accepted') {
-      const { data: perfil } = await supabase
-        .from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle()
-      // Conteo fresco de la BD, no el estado en memoria (puede estar viejo)
-      const { count: totalActual } = await supabase
-        .from('family_links').select('id', { count: 'exact', head: true })
-        .eq('user_id', userId).eq('status', 'accepted')
+      // Plan y conteo frescos de la BD, a la vez (el estado en memoria puede estar viejo)
+      const [{ data: perfil }, { count: totalActual }] = await Promise.all([
+        supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', userId).maybeSingle(),
+        supabase.from('family_links').select('id', { count: 'exact', head: true })
+          .eq('user_id', userId).eq('status', 'accepted'),
+      ])
       if ((totalActual || 0) >= limiteFamiliares(perfil)) {
         setMostrarUpgrade(true)
         return
@@ -141,6 +171,8 @@ export default function GrupoFamiliar() {
         setTimeout(() => setMensaje(''), 5000)
         return
       }
+      // Aceptada: sale de pendientes de una vez, sin esperar la recarga
+      setSolicitudes(prev => prev.filter(s => s.id !== linkId))
       if (sol) {
         await supabase.from('family_links').upsert({
           user_id: userId,
@@ -157,11 +189,29 @@ export default function GrupoFamiliar() {
 
   // El vinculo son dos filas, una por sentido. Si solo se borra la propia, el
   // otro sigue enviandote alertas y tu sigues viendo las suyas.
-  async function desvincular(linkId, otroId) {
-    await supabase.from('family_links').delete().eq('id', linkId)
-    if (userId && otroId) {
-      await supabase.from('family_links').delete()
-        .eq('user_id', otroId).eq('linked_user_id', userId)
+  async function desvincular(v) {
+    const linkId = v.id
+    const otroId = v.linked_user_id
+    // Un toque sin querer en la X no debe sacar a alguien de las alertas de emergencia
+    const nombre = v.users?.full_name || `@${v.users?.username || ''}`
+    if (!window.confirm(t('confirmarDesvincular').replace('{nombre}', nombre))) return
+    // Sale de la lista al instante; las dos filas se borran a la vez
+    setVinculados(prev => prev.filter(x => x.id !== linkId))
+    const [{ error }] = await Promise.all([
+      supabase.from('family_links').delete().eq('id', linkId),
+      userId && otroId
+        ? supabase.from('family_links').delete().eq('user_id', otroId).eq('linked_user_id', userId)
+        : Promise.resolve({}),
+    ])
+    if (error) setMensaje(t('errorConexion'))
+    // La pantalla de Alerta guarda los familiares en el celular para mandar el SMS sin señal:
+    // se quita ahí también, para que la alerta nunca le salga a quien ya no está en el grupo
+    if (!error && userId && otroId) {
+      try {
+        const clave = `panicCache_${userId}`
+        const cache = JSON.parse(localStorage.getItem(clave) || 'null')
+        if (cache?.links) localStorage.setItem(clave, JSON.stringify({ ...cache, links: cache.links.filter(l => l.linked_user_id !== otroId) }))
+      } catch (_) {}
     }
     await cargarVinculados(userId)
   }
@@ -244,7 +294,7 @@ export default function GrupoFamiliar() {
               <strong>{resultado.full_name}</strong>
               <span className={styles.username}>@{resultado.username}</span>
             </div>
-            <button className={styles.btnVincular} onClick={() => enviarSolicitud(resultado.id)}>
+            <button className={styles.btnVincular} onClick={() => enviarSolicitud(resultado.id)} disabled={enviando}>
               {t('enviarSolicitud')}
             </button>
           </div>
@@ -264,7 +314,7 @@ export default function GrupoFamiliar() {
               <strong>{v.users?.full_name}</strong>
               <span className={styles.username}>@{v.users?.username}</span>
             </div>
-            <button className={styles.btnDesvincular} onClick={() => desvincular(v.id, v.linked_user_id)} title={t('desvincular')} aria-label={t('desvincular')}>✕</button>
+            <button className={styles.btnDesvincular} onClick={() => desvincular(v)} title={t('desvincular')} aria-label={t('desvincular')}>✕</button>
           </div>
         ))}
       </section>
