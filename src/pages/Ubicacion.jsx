@@ -921,23 +921,27 @@ export default function Ubicacion() {
               const quedan = restMin == null ? null
                 : restMin < 60 ? `${restMin} ${t('ubiMinMas')}`
                 : `${Math.floor(restMin / 60)} h${restMin % 60 ? ` ${restMin % 60} min` : ''}`
+              // Sin ubicación nueva hace más de 2 min: no se dice "En vivo" ni "Calculando movimiento"
+              const ultimaHora = new Date(f.ubicacion.updated_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })
               return (
                 <div id={`ficha-${f.id}`} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', scrollMarginBottom: 'calc(var(--barra-alto, 110px) + 12px)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <div style={{
                       width: 34, height: 34, borderRadius: '50%',
-                      background: 'linear-gradient(135deg,#1E8449,#27ae60)',
+                      background: viejo ? 'linear-gradient(135deg,#9AA0A6,#B8BEC4)' : 'linear-gradient(135deg,#1E8449,#27ae60)',
                       color: '#fff', fontWeight: 800, fontSize: '0.82rem',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                     }}>{iniciales}</div>
                     <div>
                       <p style={{ margin: 0, fontWeight: 800, fontSize: '0.88rem', color: 'var(--text)' }}>{f.nombre}</p>
-                      <p style={{ margin: 0, fontSize: '0.68rem', color: '#1E8449', fontWeight: 600 }}>
-                        {quedan ? `${t('ubiFichaEnVivoCorto')} · ${t('ubiCompartiendoPor')} ${quedan}` : t('ubiFichaEnVivo')}
+                      <p style={{ margin: 0, fontSize: '0.68rem', color: viejo ? '#E67E22' : '#1E8449', fontWeight: viejo ? 700 : 600 }}>
+                        {viejo
+                          ? `⚠️ ${t('ubiSinSenalDesde')} ${ultimaHora}`
+                          : quedan ? `${t('ubiFichaEnVivoCorto')} · ${t('ubiCompartiendoPor')} ${quedan}` : t('ubiFichaEnVivo')}
                       </p>
                     </div>
                   </div>
-                  {(() => {
+                  {!viejo && (() => {
                     const mov = estadoMovimiento(f.id)
                     return (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '3px 10px', borderRadius: 999, border: `1px solid ${mov ? mov.color : 'var(--border)'}`, fontSize: '0.74rem', fontWeight: 700, color: mov ? mov.color : 'var(--text2)' }}>
