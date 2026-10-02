@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import styles from './GrupoFamiliar.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { limiteFamiliares } from '../plan'
+import { limiteFamiliares, esPremium, esFamiliar } from '../plan'
+import { limpiarUsuario } from '../registro'
 import { useNavContext } from '../components/NavContext'
 
 export default function GrupoFamiliar() {
@@ -13,6 +14,9 @@ export default function GrupoFamiliar() {
   const [buscando, setBuscando] = useState(false)
   const [vinculados, setVinculados] = useState([])
   const [solicitudes, setSolicitudes] = useState([])
+  // Solicitudes que YO envié y siguen esperando: se ven y se pueden cancelar
+  const [enviadas, setEnviadas] = useState([])
+  const [miPerfil, setMiPerfil] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [userId, setUserId] = useState(null)
   const [mostrarUpgrade, setMostrarUpgrade] = useState(false)
@@ -24,7 +28,8 @@ export default function GrupoFamiliar() {
   useEffect(() => {
     let vivo = true
     let canal = null
-    init().then(uid => {
+    init().then(res => {
+      const uid = res?.uid
       if (!uid || !vivo) return
       // Solicitudes que llegan y solicitudes que te aceptan aparecen solas, sin tocar 🔄
       canal = supabase.channel('grupo-familiar-rt')
@@ -47,9 +52,24 @@ export default function GrupoFamiliar() {
     const user = session?.user
     if (!user) return null
     setUserId(user.id)
-    await Promise.all([cargarVinculados(user.id), cargarSolicitudes(user.id)])
+    const resultados = await Promise.all([
+      cargarVinculados(user.id), cargarSolicitudes(user.id), cargarEnviadas(), cargarMiPerfil(user.id),
+    ])
     setCargando(false)
-    return user.id
+    // ok = familiares y solicitudes llegaron (lo que de verdad importa para decir "actualizado")
+    return { uid: user.id, ok: resultados[0] && resultados[1] }
+  }
+
+  async function cargarMiPerfil(uid) {
+    const { data } = await supabase.from('users').select('username, plan, is_premium, premium_hasta').eq('id', uid).maybeSingle()
+    if (data) setMiPerfil(data)
+    return !!data
+  }
+
+  async function cargarEnviadas() {
+    const { data, error } = await supabase.rpc('mis_solicitudes_enviadas')
+    if (!error && Array.isArray(data)) setEnviadas(data)
+    return !error
   }
 
   // Botón 🔄: vuelve a traer familiares y solicitudes, y avisa que se actualizó
@@ -57,9 +77,13 @@ export default function GrupoFamiliar() {
     if (recargando) return
     setRecargando(true)
     setMensaje('')
-    await init()
-    setAvisoOk(t('famActualizadoOk'))
-    setTimeout(() => setAvisoOk(''), 2500)
+    // Sin señal se dice, en vez de un "actualizado" falso; con señal débil, máximo 10 s
+    const res = await Promise.race([
+      init().catch(() => null),
+      new Promise(r => setTimeout(() => r(null), 10000)),
+    ])
+    setAvisoOk(res?.ok ? `✓ ${t('famActualizadoOk')}` : `⚠️ ${t('histSinConexion')}`)
+    setTimeout(() => setAvisoOk(''), res?.ok ? 2500 : 4000)
     setTimeout(() => setRecargando(false), 400)
   }
 
@@ -71,6 +95,7 @@ export default function GrupoFamiliar() {
       .eq('user_id', uid)
       .eq('status', 'accepted')
     if (!error && data) setVinculados(data)
+    return !error && !!data
   }
 
   async function cargarSolicitudes(uid) {
@@ -80,14 +105,23 @@ export default function GrupoFamiliar() {
       .eq('linked_user_id', uid)
       .eq('status', 'pending')
     if (!error && data) setSolicitudes(data)
+    return !error && !!data
   }
 
   async function buscarUsuario() {
-    if (!busqueda.trim()) return
+    // Igual que al registrarse: sin tildes, sin espacios, sin @ y en minúsculas.
+    // Así "@Michaél " encuentra a @michael.
+    const termino = limpiarUsuario(busqueda)
+    if (!termino) return
+    setMensaje('')
+    if (miPerfil?.username && termino === miPerfil.username.toLowerCase()) {
+      setResultado(null)
+      setMensaje(t('famEresTu'))
+      return
+    }
     setBuscando(true)
     setResultado(null)
     // Solo coincidencia EXACTA: una búsqueda parcial podía mostrar a otra persona
-    const termino = busqueda.toLowerCase().trim().replace(/^@/, '')
     // Consulta segura del servidor: devuelve solo id, nombre y usuario (nunca el teléfono)
     const { data, error } = await supabase.rpc('buscar_usuario', { nombre: termino })
     setResultado(error ? null : (data?.[0] || false))
@@ -118,7 +152,7 @@ export default function GrupoFamiliar() {
 
     if (existe) {
       setEnviando(false)
-      setMensaje(t('errorYaVinculado'))
+      setMensaje(t(existe.status === 'accepted' ? 'famYaEnGrupo' : 'famYaEnviada'))
       return
     }
     if ((totalActual || 0) >= limiteFamiliares(perfil)) {
@@ -138,6 +172,18 @@ export default function GrupoFamiliar() {
     setResultado(null)
     setBusqueda('')
     setTimeout(() => setMensaje(''), 3000)
+    cargarEnviadas()
+  }
+
+  // Quien envió la solicitud puede retirarla mientras la otra persona no la acepte
+  async function cancelarEnviada(e) {
+    const nombre = e.full_name || `@${e.username || ''}`
+    if (!window.confirm(t('famConfirmarCancelar').replace('{nombre}', nombre))) return
+    setEnviadas(prev => prev.filter(x => x.id !== e.id))
+    const { error } = await supabase.from('family_links').delete()
+      .eq('id', e.id).eq('user_id', userId).eq('status', 'pending')
+    if (error) setMensaje(t('errorConexion'))
+    await init()
   }
 
   async function responderSolicitud(linkId, accion) {
@@ -233,7 +279,7 @@ export default function GrupoFamiliar() {
         </div>
       </header>
 
-      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
+      {avisoOk && <p className={styles.avisoOk} role="status">{avisoOk}</p>}
 
       {mensaje && <div className={styles.msg}>{mensaje}</div>}
 
@@ -241,13 +287,16 @@ export default function GrupoFamiliar() {
         <div className={styles.upgradeBox}>
           <div className={styles.upgradeIcon}>🔒</div>
           <h3>{t('upgradeTitulo')}</h3>
-          <p>{t('upgradeDesc')}</p>
-          <button
-            className={styles.upgradBtn}
-            onClick={() => { setMostrarUpgrade(false); abrirPlanes() }}
-          >
-            {t('verPlanes')}
-          </button>
+          {/* Lo que dice depende del plan: a quien ya es Premium no se le ofrece "activar Premium" */}
+          <p>{t(esPremium(miPerfil) ? 'upgradeDescPremium' : esFamiliar(miPerfil) ? 'upgradeDescFamiliar' : 'upgradeDescGratis')}</p>
+          {!esPremium(miPerfil) && (
+            <button
+              className={styles.upgradBtn}
+              onClick={() => { setMostrarUpgrade(false); abrirPlanes() }}
+            >
+              {t('verPlanes')}
+            </button>
+          )}
           <button className={styles.cerrarUpgrade} onClick={() => setMostrarUpgrade(false)}>{t('cancelar')}</button>
         </div>
       )}
@@ -288,18 +337,47 @@ export default function GrupoFamiliar() {
         {resultado === false && (
           <p className={styles.noEncontrado}>{t('errorNoExiste')}</p>
         )}
-        {resultado && (
-          <div className={styles.resultadoCard}>
-            <div>
-              <strong>{resultado.full_name}</strong>
-              <span className={styles.username}>@{resultado.username}</span>
+        {resultado && (() => {
+          // Se dice de una vez cómo está esa persona contigo, sin tener que tocar el botón
+          const yaEsta = vinculados.some(v => v.linked_user_id === resultado.id)
+          const yaEnviada = enviadas.some(e => e.linked_user_id === resultado.id)
+          const teEnvio = solicitudes.some(s => s.user_id === resultado.id)
+          return (
+            <div className={styles.resultadoCard}>
+              <div>
+                <strong>{resultado.full_name}</strong>
+                <span className={styles.username}>@{resultado.username}</span>
+              </div>
+              {yaEsta ? (
+                <span className={styles.username}>{t('famYaEnGrupo')}</span>
+              ) : yaEnviada ? (
+                <span className={styles.username}>{t('famEsperando')}</span>
+              ) : (
+                <button className={styles.btnVincular} onClick={() => enviarSolicitud(resultado.id)} disabled={enviando}>
+                  {teEnvio ? t('famAceptarSuya') : t('enviarSolicitud')}
+                </button>
+              )}
             </div>
-            <button className={styles.btnVincular} onClick={() => enviarSolicitud(resultado.id)} disabled={enviando}>
-              {t('enviarSolicitud')}
-            </button>
-          </div>
-        )}
+          )
+        })()}
       </section>
+
+      {enviadas.length > 0 && (
+        <section className={styles.seccion}>
+          <h2>{t('famEnviadas')}</h2>
+          {enviadas.map(e => (
+            <div key={e.id} className={styles.solicitudCard}>
+              <div>
+                <strong>{e.full_name}</strong>
+                <span className={styles.username}>@{e.username} · {t('famEsperando')}</span>
+              </div>
+              <div className={styles.acciones}>
+                <button className={styles.rechazar} onClick={() => cancelarEnviada(e)}>{t('cancelar')}</button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section className={styles.seccion}>
         <h2>{t('misVinculados')} ({vinculados.length})</h2>

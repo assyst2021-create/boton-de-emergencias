@@ -135,3 +135,103 @@ DELETE FROM public.alerts
 SELECT 'tarea' AS tipo, jobname || ' · ' || schedule AS detalle FROM cron.job WHERE jobname = 'borrar-alertas-vencidas'
 UNION ALL
 SELECT 'alertas vencidas que quedan', count(*)::text FROM public.alerts WHERE expires_at < now();
+
+-- ---------- Punto 3a. El vínculo siempre queda en los dos sentidos ----------
+-- Un vínculo son dos filas (A→B y B→A). Al aceptar, la app creaba la segunda aparte: si la
+-- señal fallaba en ese instante, uno recibía las alertas del otro pero el otro NO, sin aviso.
+-- Ahora la base crea (o borra) la fila de vuelta sola, en el mismo momento.
+CREATE OR REPLACE FUNCTION public.vinculo_en_dos_sentidos()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status = 'accepted' THEN
+      -- SKIP LOCKED: si la otra fila ya se está borrando en paralelo, no se espera (sin bloqueos)
+      DELETE FROM public.family_links WHERE id IN (
+        SELECT id FROM public.family_links
+         WHERE user_id = OLD.linked_user_id AND linked_user_id = OLD.user_id AND status = 'accepted'
+         FOR UPDATE SKIP LOCKED);
+    END IF;
+    RETURN OLD;
+  END IF;
+  IF NEW.status = 'accepted' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'accepted') THEN
+    INSERT INTO public.family_links (user_id, linked_user_id, status)
+    VALUES (NEW.linked_user_id, NEW.user_id, 'accepted')
+    ON CONFLICT (user_id, linked_user_id) DO UPDATE SET status = 'accepted'
+      WHERE public.family_links.status IS DISTINCT FROM 'accepted';
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_vinculo_dos_sentidos ON public.family_links;
+CREATE TRIGGER trg_vinculo_dos_sentidos
+  AFTER INSERT OR UPDATE OF status OR DELETE ON public.family_links
+  FOR EACH ROW EXECUTE FUNCTION public.vinculo_en_dos_sentidos();
+
+-- Arreglo de los vínculos que ya quedaron a medias (uno por uno: si alguno no se puede, sigue)
+DO $$
+DECLARE f RECORD;
+BEGIN
+  FOR f IN SELECT a.user_id, a.linked_user_id FROM public.family_links a
+            WHERE a.status = 'accepted' AND NOT EXISTS (
+              SELECT 1 FROM public.family_links b
+               WHERE b.user_id = a.linked_user_id AND b.linked_user_id = a.user_id AND b.status = 'accepted')
+  LOOP
+    BEGIN
+      INSERT INTO public.family_links (user_id, linked_user_id, status)
+      VALUES (f.linked_user_id, f.user_id, 'accepted')
+      ON CONFLICT (user_id, linked_user_id) DO UPDATE SET status = 'accepted';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'No se pudo completar % -> %: %', f.linked_user_id, f.user_id, SQLERRM;
+    END;
+  END LOOP;
+END $$;
+
+-- ---------- Punto 3b. El límite de familiares igual que en la app ----------
+-- Antes, un plan Premium o Familiar VENCIDO seguía teniendo 10 o 5 cupos en el servidor.
+-- Gratis 1 · Familiar 5 · Premium 10, y solo mientras el plan esté vigente.
+CREATE OR REPLACE FUNCTION public.limite_familiares(uid UUID)
+RETURNS INT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN u.premium_hasta IS NOT NULL AND u.premium_hasta <= NOW() THEN 1
+    WHEN u.plan = 'familiar' THEN 5
+    WHEN u.plan = 'premium' OR u.is_premium THEN 10
+    ELSE 1
+  END
+  FROM public.users u WHERE u.id = uid
+$$;
+
+-- ---------- Punto 3c. Solicitudes que YO envié (para verlas y poder cancelarlas) ----------
+-- Solo nombre y @usuario de la otra persona: nunca su teléfono antes de que acepte.
+CREATE OR REPLACE FUNCTION public.mis_solicitudes_enviadas()
+RETURNS TABLE(id uuid, linked_user_id uuid, full_name text, username text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT f.id, f.linked_user_id, u.full_name, u.username
+    FROM public.family_links f JOIN public.users u ON u.id = f.linked_user_id
+   WHERE f.user_id = auth.uid() AND f.status = 'pending'
+   ORDER BY f.created_at DESC NULLS LAST
+$$;
+REVOKE ALL ON FUNCTION public.mis_solicitudes_enviadas() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.mis_solicitudes_enviadas() TO authenticated;
+
+-- ---------- Punto 3d. Nadie más puede tener tu @usuario (ni con mayúsculas) ----------
+-- La base ya impedía repetir el usuario exacto, pero "Michael" y "michael" contaban distinto.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.users GROUP BY lower(username) HAVING count(*) > 1) THEN
+    RAISE NOTICE 'Hay usuarios repetidos con mayúsculas/minúsculas: revisar antes de crear el índice';
+  ELSE
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_minusculas ON public.users (lower(username));
+  END IF;
+END $$;
+
+-- ---------- Revisión del punto 3: deben salir 0 vínculos a medias, 0 usuarios repetidos y "sí" ----------
+SELECT 'vinculos a medias' AS revision, count(*)::text AS resultado FROM public.family_links a
+ WHERE a.status = 'accepted' AND NOT EXISTS (SELECT 1 FROM public.family_links b
+   WHERE b.user_id = a.linked_user_id AND b.linked_user_id = a.user_id AND b.status = 'accepted')
+UNION ALL
+SELECT 'usuarios repetidos', count(*)::text FROM (
+  SELECT lower(username) FROM public.users GROUP BY lower(username) HAVING count(*) > 1) r
+UNION ALL
+SELECT 'usuario unico sin importar mayusculas',
+  CASE WHEN EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'users_username_minusculas') THEN 'sí' ELSE 'no' END;
