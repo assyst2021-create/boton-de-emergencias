@@ -746,43 +746,8 @@ export default function Ubicacion() {
     return () => clearTimeout(id)
   }, [enfocado, fichaDir === null])
 
-  // Pantalla de bloqueo para Plan Básico
-  if (perfil !== null && !premium) {
-    return (
-      <div className={styles.wrap}>
-        <header className={styles.header}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1>📍 {t('ubiTitulo')}</h1>
-            <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
-          </div>
-        </header>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', gap: 20, textAlign: 'center' }}>
-          <div style={{ fontSize: '4rem' }}>🔒</div>
-          <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('ubiPremTitulo')}</h2>
-          <p style={{ color: 'var(--text2)', lineHeight: 1.6, margin: 0, maxWidth: 300 }}>
-            {t('ubiPremDesc')}
-          </p>
-          <div style={{ background: 'var(--card)', border: '1.5px solid #e6a817', borderRadius: 12, padding: '16px 20px', maxWidth: 300, width: '100%' }}>
-            <p style={{ color: 'var(--text2)', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
-              👑 <strong>{t('ubiPremIncluye')}</strong><br />
-              • {t('ubiPremF1')}<br />
-              • {t('ubiPremF2')}<br />
-              • {t('ubiPremF3')}<br />
-              • {t('ubiPremF4')}
-            </p>
-          </div>
-          <button
-            onClick={abrirPlanes}
-            style={{ background: '#e6a817', color: '#fff', fontWeight: 700, fontSize: '1rem', padding: '14px 28px', borderRadius: 10, border: 'none', cursor: 'pointer' }}
-          >
-            👑 {t('verPlanes')}
-          </button>
-        </div>
-        <div className={styles.pb} />
-      </div>
-    )
-  }
-
+  // Plan Gratis: VE a los familiares que le comparten su ubicación; compartir la propia es de
+  // los planes Familiar y Premium (decisión del 03-10: quien paga logra que toda su familia lo vea)
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
@@ -900,6 +865,15 @@ export default function Ubicacion() {
                 ⏱ {t('ubiCompartiendoPor')} {minRestantes < 60 ? `${minRestantes} ${t('ubiMinMas')}` : `${Math.ceil(minRestantes / 60)} ${t('ubiHorasMas')}`}
               </p>
             )}
+          </div>
+        ) : perfil !== null && !premium ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button className={styles.btnCompartir} onClick={abrirPlanes} style={{ background: '#e6a817' }}>
+              👑 {t('ubiCompartir')}
+            </button>
+            <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.82rem', margin: 0, lineHeight: 1.45 }}>
+              {t('ubiGratisSoloVer')}
+            </p>
           </div>
         ) : (
           <button className={styles.btnCompartir} onClick={() => setMostrarTiempo(true)}>

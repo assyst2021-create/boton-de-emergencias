@@ -30,6 +30,7 @@ export default function ElegirPlan({ onElegido }) {
         { icono: '🚨', texto: t('elegirGratisF2') },
         { icono: '🔔', texto: t('elegirGratisF3') },
         { icono: '📋', texto: t('elegirGratisF4') },
+        { icono: '📍', texto: t('elegirGratisF6') },
         { icono: '📡', texto: t('elegirGratisF5') },
       ],
     },

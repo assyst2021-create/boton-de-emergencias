@@ -683,6 +683,7 @@ export default function PanicButtons() {
               <li>{t('elegirGratisF2')}</li>
               <li>{t('elegirGratisF3')}</li>
               <li>{t('elegirGratisF4')}</li>
+              <li>{t('elegirGratisF6')}</li>
               <li>{t('elegirGratisF5')}</li>
             </ul>
             <button
