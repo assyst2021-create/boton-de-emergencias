@@ -52,6 +52,11 @@ const compartirConNativo = () => (compartirConGlobal?.length ? JSON.stringify(co
  * la base aún no tiene la función: el servicio sube como antes.
  */
 let llaveGlobal = ''
+/**
+ * Respaldo si el servicio del celular no arranca: la app misma sube la ubicación mientras esté
+ * abierta. Vive fuera del componente para seguir aunque se cambie de pestaña.
+ */
+let envioRespaldoGlobal = null
 /** Ultima posicion conocida, para que el envio en segundo plano no dependa del componente. */
 let ultimaPosGlobal = null
 /**
@@ -99,11 +104,11 @@ function sirvePunto(p) {
 }
 
 /** Reverse geocoding con Nominatim (OSM, gratis, sin key) */
-async function geocodearDireccion(lat, lng, cerca = 'Cerca de') {
+async function geocodearDireccion(lat, lng, cerca = 'Cerca de', idioma = 'es') {
   try {
     const r = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=es`,
-      { headers: { 'Accept-Language': 'es' } }
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=${idioma}`,
+      { headers: { 'Accept-Language': idioma } }
     )
     const d = await r.json()
     const a = d.address || {}
@@ -119,7 +124,7 @@ async function geocodearDireccion(lat, lng, cerca = 'Cerca de') {
 
 
 export default function Ubicacion() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const { abrirOpciones, abrirPlanes } = useNavContext()
   const [perfil, setPerfil] = useState(null)
   // Persiste en sessionStorage para que al volver de otra pestaña el botón
@@ -282,15 +287,19 @@ export default function Ubicacion() {
     fichaUidRef.current = null
     reconectarVivo()
     resincronizarTokenNativo()
-    await Promise.all([
-      cargarFamiliaresCompleto(uidGlobalRef.current),
-      supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', uidGlobalRef.current).maybeSingle().then(({ data }) => data && setPerfil(data)),
+    // Con señal débil, máximo 10 s: el botón se suelta y se dice la verdad
+    const ok = await Promise.race([
+      Promise.all([
+        cargarFamiliaresCompleto(uidGlobalRef.current),
+        supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', uidGlobalRef.current).maybeSingle().then(({ data }) => data && setPerfil(data)),
+      ]).then(([listo]) => listo, () => false),
+      new Promise(r => setTimeout(() => r(false), 10000)),
     ])
     // Que se note: el mapa se acomoda para ver a todos y sale un aviso corto
     setEnfocado(null)
     setReencuadrar(n => n + 1)
-    setAvisoOk(t('ubiActualizadoOk'))
-    setTimeout(() => setAvisoOk(''), 2500)
+    setAvisoOk(ok ? `✓ ${t('ubiActualizadoOk')}` : `⚠️ ${t('histSinConexion')}`)
+    setTimeout(() => setAvisoOk(''), ok ? 2500 : 4000)
     setTimeout(() => setRecargando(false), 400)
   }, [recargando, t])
 
@@ -325,15 +334,18 @@ export default function Ubicacion() {
 
   /** Carga links Y ubicaciones — solo al inicio o cuando cambia el grupo familiar */
   async function cargarFamiliaresCompleto(uid) {
-    const { data: links } = await supabase
+    const { data: links, error } = await supabase
       .from('family_links')
       .select('user_id, users!family_links_user_id_fkey(id, full_name, username)')
       .eq('linked_user_id', uid)
       .eq('status', 'accepted')
+    // Sin señal se conserva el grupo que ya se conoce (antes quedaba vacío y el mapa se borraba)
+    if (error || !links) return false
 
-    linksRef.current = links || []
-    await cargarUbicaciones()
+    linksRef.current = links
+    const ok = await cargarUbicaciones()
     cargarRecuperaciones()
+    return ok
   }
 
   /** Marca a los familiares cuyo celular está compartiendo por "Recuperar celular" (no toca el mapa) */
@@ -354,8 +366,15 @@ export default function Ubicacion() {
     if (links.length === 0) { setFamiliares([]); return }
 
     const ids = links.map(l => l.user_id)
-    const { data: ubis } = await supabase
+    const { data: ubis, error } = await supabase
       .from('live_locations').select('*').in('user_id', ids).eq('activo', true)
+      // Cuando se acaba el tiempo que la persona eligió, deja de verse (aunque su celular se haya
+      // apagado antes de avisar que paró): se respeta lo que eligió
+      .gt('expires_at', new Date().toISOString())
+    // Una consulta que falla por señal NO borra a nadie del mapa: se queda el último punto
+    // conocido (y la ficha avisa "Sin señal desde las…" si pasa mucho tiempo). Antes, un solo
+    // corte en la consulta de cada 4 s hacía desaparecer a la familia del mapa.
+    if (error || !ubis) return false
 
     const porId = Object.fromEntries((ubis || []).map(u => [u.user_id, u]))
     setFamiliares(links.map(l => ({
@@ -363,6 +382,7 @@ export default function Ubicacion() {
       nombre: l.users?.full_name || l.users?.username || '—',
       ubicacion: porId[l.user_id] || null,
     })))
+    return true
   }
 
   /** Realtime: actualiza el marcador DIRECTAMENTE desde el payload (sin query extra) */
@@ -380,7 +400,7 @@ export default function Ubicacion() {
 
           setFamiliares(prev => prev.map(f =>
             f.id === uid
-              ? { ...f, ubicacion: u.activo ? u : null }
+              ? { ...f, ubicacion: u.activo && (!u.expires_at || new Date(u.expires_at) > new Date()) ? u : null }
               : f
           ))
         })
@@ -495,6 +515,7 @@ export default function Ubicacion() {
       // sin depender del WebView. Sobrevive cuando el usuario cierra la app.
       // Se le pasa el JWT porque live_locations tiene RLS (auth.uid() = user_id):
       // con la clave pública sola, Supabase responde 401 y la ubicación se congela.
+      let nativoOk = false
       try {
         const { GpsShare } = window.Capacitor.Plugins
         const { data: { session } } = await supabase.auth.getSession()
@@ -507,9 +528,16 @@ export default function Ubicacion() {
             compartirCon: compartirConNativo(),
             llave: llaveGlobal,
           })
+          nativoOk = true
         }
       } catch (e) {
         console.warn('[GpsShare] no se pudo arrancar el servicio nativo:', e)
+      }
+      // Antes, si el servicio no arrancaba, la pantalla decía "compartiendo" pero no se subía nada.
+      // Ahora la app sube la ubicación por su cuenta mientras esté abierta, y se avisa.
+      if (!nativoOk) {
+        if (!envioRespaldoGlobal) envioRespaldoGlobal = setInterval(() => { if (uidEnvioGlobal) enviarPosicion(uidEnvioGlobal) }, INTERVALO_MS)
+        setError(t('ubiServicioFallo'))
       }
 
       // Vigilante de GPS para actualizar el marcador en pantalla mientras la app está abierta
@@ -589,9 +617,11 @@ export default function Ubicacion() {
         updated_at: new Date().toISOString(),
         expires_at: vence.toISOString(),
       }
-      if (compartirConGlobal?.length) fila.compartir_con = compartirConGlobal
+      // Siempre se escribe con quién (null = todo el grupo): si antes se compartió solo con alguien y
+      // ahora es con todos, la lista vieja quedaba puesta y el resto de la familia no la veía
+      fila.compartir_con = compartirConGlobal?.length ? compartirConGlobal : null
       const { error } = await supabase.from('live_locations').upsert(fila)
-      if (error && fila.compartir_con && (error.message || '').includes('compartir_con')) {
+      if (error && 'compartir_con' in fila && (error.message || '').includes('compartir_con')) {
         delete fila.compartir_con
         await supabase.from('live_locations').upsert(fila)
       }
@@ -619,6 +649,7 @@ export default function Ubicacion() {
     llaveGlobal = ''
     ultimaPosGlobal = null
     if (envioRef.current) { clearInterval(envioRef.current); envioRef.current = null }
+    if (envioRespaldoGlobal) { clearInterval(envioRespaldoGlobal); envioRespaldoGlobal = null }
   }
 
   /** Corta el seguimiento de verdad. Solo lo llama el boton de detener. */
@@ -700,7 +731,7 @@ export default function Ubicacion() {
     if (!cambioPersona && distanciaMetros(prev.lat, prev.lng, latEnf, lngEnf) < 40) return
     fichaUidRef.current = { uid: enfocado, lat: latEnf, lng: lngEnf }
     if (cambioPersona) setFichaDir(t('ubiFichaBuscandoDir'))
-    geocodearDireccion(latEnf, lngEnf, t('ubiCerca')).then(dir => {
+    geocodearDireccion(latEnf, lngEnf, t('ubiCerca'), lang).then(dir => {
       if (fichaUidRef.current?.uid !== enfocado) return
       setFichaDir(dir || `${latEnf.toFixed(5)}, ${lngEnf.toFixed(5)}`)
     })
@@ -878,7 +909,7 @@ export default function Ubicacion() {
       </div>
 
 
-      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
+      {avisoOk && <p className={styles.avisoOk} role="status">{avisoOk}</p>}
 
       <Mapa
         yo={compartiendo || verMiPunto ? miPos : null}
@@ -1077,7 +1108,8 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     mapRef.current = map
     setMapaVersion(v => v + 1)
-    setTimeout(() => map.invalidateSize(), 100)
+    // Si se cambió de pestaña en ese instante, el mapa ya no existe: no se toca (daba error)
+    setTimeout(() => { if (mapRef.current === map) map.invalidateSize() }, 100)
   }
 
   // Limpieza al desmontar
@@ -1094,7 +1126,8 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
   // Cuando el div pasa de oculto a visible, invalidar tamaño
   useEffect(() => {
     if (hayPuntos && mapRef.current) {
-      setTimeout(() => mapRef.current?.invalidateSize(), 50)
+      const map = mapRef.current
+      setTimeout(() => { if (mapRef.current === map) map.invalidateSize() }, 50)
     }
   }, [hayPuntos])
 
