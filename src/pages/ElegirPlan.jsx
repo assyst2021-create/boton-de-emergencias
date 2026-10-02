@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
+import { RESPONSABLE } from '../i18n/legalDocs'
 import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual } from '../billing'
 
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play
@@ -284,7 +285,7 @@ export default function ElegirPlan({ onElegido }) {
           <div className={styles.contratoCard} onClick={e => e.stopPropagation()}>
             <h3 className={styles.contratoTitulo}>{t('elegirContratoTitulo')}</h3>
             <p className={styles.contratoMeta}>
-              <strong>{t('elegirProveedor')}</strong> {t('elegirContratoProveedor')}<br />
+              <strong>{t('elegirProveedor')}</strong> {RESPONSABLE.nombre}<br />
               <strong>{t('elegirContratoPlan')}</strong> {planActivo.nombre}{planActivo.precio[ciclo] ? ` — ${planActivo.precio[ciclo]}/${ciclo === 'mensual' ? t('elegirMes') : t('elegirAnio')}` : ''}
             </p>
             <p className={styles.contratoTexto}>{ciclo === 'mensual' ? t('elegirContratoRenuevaM') : t('elegirContratoRenuevaA')}</p>

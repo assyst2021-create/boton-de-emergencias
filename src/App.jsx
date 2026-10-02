@@ -6,6 +6,20 @@ import { registrarFCM } from './fcmRegistro'
 import { escucharCompras, sincronizarCompras } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
 import { revisarPerfil } from './registro'
+import { VERSION_LEGAL } from './i18n/legalDocs'
+
+/**
+ * Prueba de la autorización (Ley 1581): la aceptación de los documentos se guarda en el servidor
+ * con fecha, versión e idioma. Si no hay señal, queda pendiente y se envía la próxima vez.
+ */
+async function registrarAceptacion(uid, idioma) {
+  const pendiente = `aceptacionPendiente_${uid}`
+  try { localStorage.setItem(pendiente, JSON.stringify({ version: VERSION_LEGAL, idioma })) } catch (_) {}
+  const { error } = await supabase.from('aceptaciones_legales')
+    .upsert({ user_id: uid, version: VERSION_LEGAL, idioma }, { onConflict: 'user_id,version', ignoreDuplicates: true })
+    .then(r => r, e => ({ error: e }))
+  if (!error) { try { localStorage.removeItem(pendiente) } catch (_) {} }
+}
 
 const Permisos = registerPlugin('Permisos')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
@@ -73,10 +87,13 @@ function AppInner() {
     if (session && !initDone) {
       const uid = session.user.id
       setBienvenidaVista(!!localStorage.getItem(`bienvenida_${uid}`))
-      // Compatibilidad: si ya aceptó ambos docs por separado, marcar combinado también
-      const avisoOk = !!localStorage.getItem(`aviso_${uid}`) ||
-        (!!localStorage.getItem(`disclaimer_${uid}`) && !!localStorage.getItem(`privacidad_${uid}`))
-      setAvisoLegalAceptado(avisoOk)
+      // Vale la aceptación de la versión vigente de los documentos: si cambian, se aceptan de nuevo
+      setAvisoLegalAceptado(localStorage.getItem(`aviso_${uid}`) === VERSION_LEGAL)
+      // Una aceptación que no alcanzó a llegar al servidor (sin señal) se envía ahora
+      try {
+        const pend = JSON.parse(localStorage.getItem(`aceptacionPendiente_${uid}`) || 'null')
+        if (pend?.version === VERSION_LEGAL) registrarAceptacion(uid, pend.idioma)
+      } catch (_) {}
       setContratoAceptado(!!localStorage.getItem(`contrato_${uid}`))
 
       if (!!localStorage.getItem(`planElegido_${uid}`)) {
@@ -114,7 +131,7 @@ function AppInner() {
   }, [initDone])
 
   useEffect(() => {
-    if (initDone && !perfilFalta && bienvenidaVista && avisoLegalAceptado) {
+    if (initDone && !perfilFalta && bienvenidaVista && avisoLegalAceptado && planElegido) {
       // Pedir todos los permisos nativos de una sola vez (SMS, GPS, contactos, notificaciones)
       // FCM después de los permisos, para no encimar diálogos
       permisosPedidosRef.current = true
@@ -135,7 +152,7 @@ function AppInner() {
         })
       }
     }
-  }, [initDone, perfilFalta, bienvenidaVista, avisoLegalAceptado])
+  }, [initDone, perfilFalta, bienvenidaVista, avisoLegalAceptado, planElegido])
 
   // SMS, ubicación y notificaciones son indispensables para el botón de emergencia
   async function verificarPermisos() {
@@ -176,8 +193,9 @@ function AppInner() {
 
   function marcarAvisoLegal() {
     const uid = session.user.id
-    localStorage.setItem(`aviso_${uid}`, '1')
+    localStorage.setItem(`aviso_${uid}`, VERSION_LEGAL)
     localStorage.setItem(`bienvenida_${uid}`, '1')
+    registrarAceptacion(uid, lang)
     setAvisoLegalAceptado(true)
     setBienvenidaVista(true)
   }
@@ -196,8 +214,9 @@ function AppInner() {
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
   if (perfilFalta) return <CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} />
-  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} /></Suspense>
+  // Orden: documentos legales → planes → permisos (nadie compra un plan sin haber aceptado los términos)
   if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
+  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} /></Suspense>
   if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
 
   if (faltanPermisos.length) {

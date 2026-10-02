@@ -300,3 +300,48 @@ SELECT 'regalos guardados' AS revision, count(*)::text AS resultado
 UNION ALL
 SELECT 'compras de Google Play', count(*)::text
   FROM public.users WHERE play_purchase_token IS NOT NULL;
+
+-- ---------- Punto 7a. Prueba de la autorización de datos (Ley 1581) ----------
+-- Cada aceptación de los documentos legales queda registrada con fecha, versión e idioma.
+CREATE TABLE IF NOT EXISTS public.aceptaciones_legales (
+  user_id     uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  version     text NOT NULL,
+  idioma      text,
+  aceptado_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, version)
+);
+ALTER TABLE public.aceptaciones_legales ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Registrar mi aceptacion" ON public.aceptaciones_legales;
+CREATE POLICY "Registrar mi aceptacion" ON public.aceptaciones_legales FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Ver mis aceptaciones" ON public.aceptaciones_legales;
+CREATE POLICY "Ver mis aceptaciones" ON public.aceptaciones_legales FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+GRANT SELECT, INSERT ON public.aceptaciones_legales TO authenticated;
+
+-- ---------- Punto 7b. Se borra lo que la política dice que se borra ----------
+-- Ubicación compartida: a más tardar 24 h después de terminar. Recuperaciones: 30 días.
+-- Llaves del GPS vencidas y bloqueos viejos, también. Cada hora.
+DO $$
+BEGIN
+  PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'limpieza-privacidad';
+END $$;
+SELECT cron.schedule(
+  'limpieza-privacidad',
+  '17 * * * *',
+  $$DELETE FROM public.live_locations
+     WHERE (activo = false AND updated_at < now() - interval '24 hours')
+        OR expires_at < now() - interval '24 hours';
+    DELETE FROM public.recuperacion_sesiones
+     WHERE (estado <> 'activa' AND COALESCE(ended_at, vence_at) < now() - interval '30 days')
+        OR vence_at < now() - interval '30 days';
+    DELETE FROM public.gps_llaves WHERE valida_hasta < now();
+    DELETE FROM public.recuperacion_bloqueo
+     WHERE bloqueado_hasta IS NULL OR bloqueado_hasta < now() - interval '1 day';$$
+);
+
+-- ---------- Revisión del punto 7 ----------
+SELECT 'tabla de aceptaciones' AS revision,
+       CASE WHEN to_regclass('public.aceptaciones_legales') IS NOT NULL THEN 'sí' ELSE 'no' END AS resultado
+UNION ALL
+SELECT 'tarea de limpieza', jobname || ' · ' || schedule FROM cron.job WHERE jobname = 'limpieza-privacidad';
