@@ -235,3 +235,68 @@ SELECT 'usuarios repetidos', count(*)::text FROM (
 UNION ALL
 SELECT 'usuario unico sin importar mayusculas',
   CASE WHEN EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'users_username_minusculas') THEN 'sí' ELSE 'no' END;
+
+-- ---------- Punto 5. El Premium REGALADO se guarda aparte ----------
+-- Así ninguna compra, cancelación o reembolso de Google Play le quita el regalo a un tester,
+-- y a la vez un reembolso SÍ quita el plan comprado (antes se podían confundir).
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS premium_regalo_hasta timestamptz;
+
+-- Permiso de lectura de columnas: todas menos los tokens internos
+DO $$
+DECLARE cols TEXT;
+BEGIN
+  SELECT string_agg(quote_ident(column_name), ', ') INTO cols
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'users'
+    AND column_name NOT IN ('fcm_token', 'play_purchase_token');
+  EXECUTE 'REVOKE SELECT ON public.users FROM anon, authenticated';
+  EXECUTE format('GRANT SELECT (%s) ON public.users TO authenticated', cols);
+END $$;
+
+-- Los que hoy tienen Premium regalado (Premium vigente o sin vencimiento, y nunca compraron)
+UPDATE public.users
+   SET premium_regalo_hasta = COALESCE(premium_hasta, '2099-12-31'::timestamptz)
+ WHERE premium_regalo_hasta IS NULL
+   AND play_purchase_token IS NULL
+   AND (plan = 'premium' OR is_premium)
+   AND (premium_hasta IS NULL OR premium_hasta > now());
+
+-- La app no puede ponerse un regalo: solo el servidor o el SQL Editor
+CREATE OR REPLACE FUNCTION public.proteger_campos_usuario()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN NEW; END IF;   -- servidor o SQL Editor
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.is_premium := false;
+    NEW.premium_hasta := NULL;
+    NEW.premium_regalo_hasta := NULL;
+    NEW.play_purchase_token := NULL;
+    IF NEW.plan IN ('premium', 'familiar') THEN NEW.plan := 'basico'; END IF;
+    RETURN NEW;
+  END IF;
+
+  NEW.is_premium := OLD.is_premium;
+  NEW.premium_hasta := OLD.premium_hasta;
+  NEW.premium_regalo_hasta := OLD.premium_regalo_hasta;
+  NEW.play_purchase_token := OLD.play_purchase_token;
+  -- Desde la app solo se permite pasar a 'basico', y no si tiene un plan pago vigente
+  IF NEW.plan IS DISTINCT FROM OLD.plan THEN
+    IF NOT (NEW.plan = 'basico' AND NOT (
+         (OLD.plan IN ('premium', 'familiar') OR OLD.is_premium)
+         AND (OLD.premium_hasta IS NULL OR OLD.premium_hasta > NOW()))) THEN
+      NEW.plan := OLD.plan;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- ---------- Revisión del punto 5 ----------
+SELECT 'regalos guardados' AS revision, count(*)::text AS resultado
+  FROM public.users WHERE premium_regalo_hasta > now()
+UNION ALL
+SELECT 'compras de Google Play', count(*)::text
+  FROM public.users WHERE play_purchase_token IS NOT NULL;

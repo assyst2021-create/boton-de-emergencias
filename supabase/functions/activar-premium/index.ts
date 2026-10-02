@@ -8,7 +8,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const PAQUETE = 'com.ssthechofacil.botonemergencias'
-const ESTADOS_VIGENTES = ['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD']
+// CANCELED = la persona canceló la renovación pero YA PAGÓ hasta la fecha de vencimiento: conserva
+// el plan hasta ese día (antes se le quitaba apenas abría la app después de cancelar)
+const ESTADOS_VIGENTES = ['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED']
+// Si Google renueva la suscripción y la persona no abre la app ese día, el plan no se le cae
+// mientras tanto: 1 día de margen solo para suscripciones que se renuevan solas
+const MARGEN_RENOVACION_MS = 24 * 60 * 60 * 1000
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,27 +91,50 @@ Deno.serve(async (req) => {
 
     const item = (sub.lineItems || [])[0]
     const productId: string = item?.productId || ''
-    const vence: string | null = item?.expiryTime || null
-    const vigente = ESTADOS_VIGENTES.includes(sub.subscriptionState) && vence && new Date(vence) > new Date()
+    const venceGoogle: string | null = item?.expiryTime || null
+    const vigente = ESTADOS_VIGENTES.includes(sub.subscriptionState) && venceGoogle && new Date(venceGoogle) > new Date()
+    const seRenueva = sub.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE' && item?.autoRenewingPlan?.autoRenewEnabled === true
+    const vence: string | null = venceGoogle && seRenueva
+      ? new Date(new Date(venceGoogle).getTime() + MARGEN_RENOVACION_MS).toISOString()
+      : venceGoogle
 
-    // Premium que no salió de esta compra (p. ej. regalado): dura más que la suscripción
+    // Respaldo: si la app no alcanzó a confirmar el pago a Google (se cerró, sin señal), se confirma
+    // aquí. Google devuelve el dinero de las compras que nadie confirma en 3 días.
+    if (vigente && productId && sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING') {
+      await fetch(
+        `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(token)}:acknowledge`,
+        { method: 'POST', headers: { Authorization: `Bearer ${acceso}`, 'Content-Type': 'application/json' }, body: '{}' },
+      ).then(r => { if (!r.ok) console.warn('[activar-premium] no se pudo confirmar', r.status) }, () => {})
+    }
+
+    // El Premium REGALADO se guarda aparte (premium_regalo_hasta): ninguna compra, cancelación ni
+    // reembolso lo quita. Todo lo demás refleja exactamente lo que dice Google (antes, la fecha que
+    // guardaba la propia compra se confundía con un regalo: un reembolso podía dejar el plan puesto).
     const { data: actual } = await supabase.from('users')
-      .select('plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
-    const hastaActual = actual?.premium_hasta ? new Date(actual.premium_hasta).getTime() : null
-    const premiumActual = !!actual && (actual.plan === 'premium' || !!actual.is_premium)
-      && (hastaActual === null || hastaActual > Date.now())
-    const venceMs = vence ? new Date(vence).getTime() : 0
-    const tieneAlgoMejor = premiumActual && (hastaActual === null || hastaActual > venceMs + 24 * 60 * 60 * 1000)
+      .select('premium_regalo_hasta').eq('id', user.id).maybeSingle()
+    const regaloHasta: string | null = actual?.premium_regalo_hasta || null
+    const regaloMs = regaloHasta ? new Date(regaloHasta).getTime() : 0
+    const regaloVigente = regaloMs > Date.now()
 
     if (!vigente) {
-      if (tieneAlgoMejor) return json({ ok: false, estado: sub.subscriptionState, conserva: 'premium' })
+      if (regaloVigente) {
+        // Se acabó (o se reembolsó) la compra, pero el regalo sigue
+        await supabase.from('users').update({ plan: 'premium', is_premium: true, premium_hasta: regaloHasta })
+          .eq('id', user.id).eq('play_purchase_token', token)
+        return json({ ok: false, estado: sub.subscriptionState, conserva: 'premium' })
+      }
       await supabase.from('users').update({ plan: 'basico', is_premium: false })
         .eq('id', user.id).eq('play_purchase_token', token)
       return json({ ok: false, estado: sub.subscriptionState })
     }
 
-    const plan = tieneAlgoMejor ? 'premium' : (productId.includes('familiar') ? 'familiar' : 'premium')
-    const hasta = tieneAlgoMejor ? actual!.premium_hasta : vence
+    const planCompra = productId.includes('familiar') ? 'familiar' : 'premium'
+    const venceMs = vence ? new Date(vence).getTime() : 0
+    // Con regalo vigente: Premium hasta lo que dure más (el regalo o la compra Premium)
+    const plan = regaloVigente ? 'premium' : planCompra
+    const hasta = regaloVigente
+      ? (planCompra === 'premium' && venceMs > regaloMs ? vence : regaloHasta)
+      : vence
     const { error } = await supabase.from('users').update({
       plan,
       is_premium: plan === 'premium',

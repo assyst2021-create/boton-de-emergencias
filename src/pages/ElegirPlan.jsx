@@ -3,10 +3,12 @@ import { supabase } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
-import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras } from '../billing'
+import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual } from '../billing'
 
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play
 const URL_PLAY = 'https://play.google.com/store/apps/details?id=com.ssthechofacil.botonemergencias'
+// Donde la persona ve, cambia o cancela su suscripción (Google Play)
+const URL_SUSCRIPCIONES = 'https://play.google.com/store/account/subscriptions?package=com.ssthechofacil.botonemergencias'
 
 export default function ElegirPlan({ onElegido }) {
   const { t } = useLanguage()
@@ -126,7 +128,9 @@ export default function ElegirPlan({ onElegido }) {
     const plan = PLANES[seleccionado]
     const productId = plan.productId[ciclo]
     try {
-      const resultado = await Billing.iniciarSuscripcion({ productId })
+      // Si ya paga otro plan o ciclo, el nuevo lo reemplaza (Google abona lo que no usó)
+      const tokenAnterior = await tokenSuscripcionActual(productId)
+      const resultado = await Billing.iniciarSuscripcion({ productId, ...(tokenAnterior ? { tokenAnterior } : {}) })
       if (resultado.error === 'cancelado') return
       // Ya pagó antes con esta cuenta de Google: se reactiva sin cobrar de nuevo
       if (resultado.error === 'ya_tiene') { await restaurar(); return }
@@ -257,6 +261,12 @@ export default function ElegirPlan({ onElegido }) {
           </button>
         )}
         <p className={styles.ctaSub}>{t('elegirSinCompromisos')}</p>
+        {EN_ANDROID && (planActual === 'premium' || planActual === 'familiar') && (
+          <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'block', textAlign: 'center', color: 'var(--text2)', textDecoration: 'underline', fontSize: '0.82rem', padding: 8 }}>
+            {t('billingGestionar')}
+          </a>
+        )}
         {EN_ANDROID && (
           <button
             onClick={restaurar}
@@ -278,6 +288,9 @@ export default function ElegirPlan({ onElegido }) {
               <strong>{t('elegirContratoPlan')}</strong> {planActivo.nombre}{planActivo.precio[ciclo] ? ` — ${planActivo.precio[ciclo]}/${ciclo === 'mensual' ? t('elegirMes') : t('elegirAnio')}` : ''}
             </p>
             <p className={styles.contratoTexto}>{ciclo === 'mensual' ? t('elegirContratoRenuevaM') : t('elegirContratoRenuevaA')}</p>
+            {(planActual === 'premium' || planActual === 'familiar') && (
+              <p className={styles.contratoTexto}>{t('elegirCambioPlan')}</p>
+            )}
             <p className={styles.contratoTexto}>{t('elegirContratoCancela')}</p>
             <p className={styles.contratoFirma}>{t('elegirContratoFirma')}</p>
             <button className={styles.btnAceptar} style={{ background: planActivo.color }} onClick={iniciarPago}>
