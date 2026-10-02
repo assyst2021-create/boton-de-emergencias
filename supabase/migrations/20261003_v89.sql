@@ -345,3 +345,130 @@ SELECT 'tabla de aceptaciones' AS revision,
        CASE WHEN to_regclass('public.aceptaciones_legales') IS NOT NULL THEN 'sí' ELSE 'no' END AS resultado
 UNION ALL
 SELECT 'tarea de limpieza', jobname || ' · ' || schedule FROM cron.job WHERE jobname = 'limpieza-privacidad';
+
+-- ---------- Punto 10. Alerta automática cada 2 horas hasta que la persona la apague ----------
+-- Antes: una sola alerta 2 horas después. Ahora: después de una alerta roja o naranja (con la
+-- opción encendida y plan Familiar o Premium) se repite cada 2 horas. Solo se detiene al apagar
+-- la opción; una alerta roja o naranja nueva reinicia el reloj. El servidor la envía aunque el
+-- celular esté apagado, con la ubicación más reciente que conozca.
+
+-- 1. La app programa (o reinicia) la cadena: una sola por persona
+CREATE OR REPLACE FUNCTION public.programar_alerta_auto(
+  p_tipo text, p_lat float8 DEFAULT NULL, p_lng float8 DEFAULT NULL, p_destinatarios uuid[] DEFAULT NULL)
+RETURNS timestamptz LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE uid uuid := auth.uid(); v_ok boolean; v_cuando timestamptz := now() + interval '2 hours';
+BEGIN
+  IF uid IS NULL OR p_tipo NOT IN ('red', 'orange') THEN RETURN NULL; END IF;
+  SELECT COALESCE(u.auto_alert_enabled, false)
+         AND (u.plan IN ('premium', 'familiar') OR COALESCE(u.is_premium, false))
+         AND (u.premium_hasta IS NULL OR u.premium_hasta > now())
+    INTO v_ok FROM public.users u WHERE u.id = uid;
+  IF NOT COALESCE(v_ok, false) THEN RETURN NULL; END IF;
+  IF p_lat IS NOT NULL AND (p_lat NOT BETWEEN -90 AND 90 OR p_lng NOT BETWEEN -180 AND 180) THEN
+    p_lat := NULL; p_lng := NULL;
+  END IF;
+  DELETE FROM public.scheduled_alerts WHERE user_id = uid AND fired = false;
+  INSERT INTO public.scheduled_alerts (user_id, status_type, latitude, longitude, scheduled_at, fired, destinatarios)
+  VALUES (uid, p_tipo, p_lat, p_lng, v_cuando, false, p_destinatarios);
+  RETURN v_cuando;
+END $$;
+REVOKE ALL ON FUNCTION public.programar_alerta_auto(text, float8, float8, uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.programar_alerta_auto(text, float8, float8, uuid[]) TO authenticated;
+
+-- 2. Envía las que ya tocan y programa la siguiente 2 horas después
+CREATE OR REPLACE FUNCTION public.disparar_alertas_vencidas(
+  p_user uuid DEFAULT NULL, p_lat float8 DEFAULT NULL, p_lng float8 DEFAULT NULL)
+RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r RECORD; v_ok boolean; v_lat float8; v_lng float8; v_tomada int; n int := 0;
+BEGIN
+  FOR r IN SELECT * FROM public.scheduled_alerts
+            WHERE fired = false AND scheduled_at <= now() AND (p_user IS NULL OR user_id = p_user)
+            ORDER BY scheduled_at
+            FOR UPDATE SKIP LOCKED
+  LOOP
+    -- Se "toma" primero: si ya se envió o se canceló entretanto, no sale dos veces
+    UPDATE public.scheduled_alerts SET fired = true WHERE id = r.id AND fired = false;
+    GET DIAGNOSTICS v_tomada = ROW_COUNT;
+    IF v_tomada = 0 THEN CONTINUE; END IF;
+
+    -- La apagó o ya no tiene plan Familiar/Premium: la cadena termina
+    SELECT COALESCE(u.auto_alert_enabled, false)
+           AND (u.plan IN ('premium', 'familiar') OR COALESCE(u.is_premium, false))
+           AND (u.premium_hasta IS NULL OR u.premium_hasta > now())
+      INTO v_ok FROM public.users u WHERE u.id = r.user_id;
+    IF NOT COALESCE(v_ok, false) THEN CONTINUE; END IF;
+
+    -- Ubicación más reciente: la que manda el celular ahora, la que comparte en vivo (de hace
+    -- menos de 15 minutos) o la última que se conoce
+    v_lat := p_lat; v_lng := p_lng;
+    IF v_lat IS NULL THEN
+      SELECT l.latitude, l.longitude INTO v_lat, v_lng FROM public.live_locations l
+       WHERE l.user_id = r.user_id AND l.activo AND l.updated_at > now() - interval '15 minutes';
+    END IF;
+    IF v_lat IS NULL THEN v_lat := r.latitude; v_lng := r.longitude; END IF;
+
+    BEGIN
+      INSERT INTO public.alerts (sender_id, status_type, latitude, longitude, sent_at, expires_at, is_auto, destinatarios)
+      VALUES (r.user_id, r.status_type, v_lat, v_lng, now(), now() + interval '24 hours', true, r.destinatarios);
+      n := n + 1;
+    EXCEPTION WHEN OTHERS THEN
+      -- No salió: queda pendiente para el próximo minuto
+      UPDATE public.scheduled_alerts SET fired = false WHERE id = r.id;
+      CONTINUE;
+    END;
+
+    -- Siguiente de la cadena (una sola pendiente por persona)
+    DELETE FROM public.scheduled_alerts WHERE user_id = r.user_id AND fired = false;
+    INSERT INTO public.scheduled_alerts (user_id, status_type, latitude, longitude, scheduled_at, fired, destinatarios)
+    VALUES (r.user_id, r.status_type, v_lat, v_lng, now() + interval '2 hours', false, r.destinatarios);
+  END LOOP;
+  RETURN n;
+END $$;
+REVOKE ALL ON FUNCTION public.disparar_alertas_vencidas(uuid, float8, float8) FROM PUBLIC, anon, authenticated;
+
+-- 3. Desde la app abierta: solo las propias, con la ubicación de ese momento
+CREATE OR REPLACE FUNCTION public.disparar_mis_alertas_auto(p_lat float8 DEFAULT NULL, p_lng float8 DEFAULT NULL)
+RETURNS int LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN 0; END IF;
+  IF p_lat IS NOT NULL AND (p_lat NOT BETWEEN -90 AND 90 OR p_lng NOT BETWEEN -180 AND 180) THEN
+    p_lat := NULL; p_lng := NULL;
+  END IF;
+  RETURN public.disparar_alertas_vencidas(auth.uid(), p_lat, p_lng);
+END $$;
+REVOKE ALL ON FUNCTION public.disparar_mis_alertas_auto(float8, float8) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.disparar_mis_alertas_auto(float8, float8) TO authenticated;
+
+-- 4. Apagar la opción detiene la cadena al instante
+CREATE OR REPLACE FUNCTION public.cancelar_alertas_auto()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF COALESCE(OLD.auto_alert_enabled, false) AND NOT COALESCE(NEW.auto_alert_enabled, false) THEN
+    DELETE FROM public.scheduled_alerts WHERE user_id = NEW.id AND fired = false;
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_cancelar_alertas_auto ON public.users;
+CREATE TRIGGER trg_cancelar_alertas_auto
+  AFTER UPDATE OF auto_alert_enabled ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.cancelar_alertas_auto();
+
+-- 5. El servidor revisa cada minuto (aunque el celular esté apagado) y borra las ya enviadas viejas
+DO $$
+BEGIN
+  PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'alertas-automaticas';
+END $$;
+SELECT cron.schedule(
+  'alertas-automaticas',
+  '* * * * *',
+  $$SELECT public.disparar_alertas_vencidas();
+    DELETE FROM public.scheduled_alerts WHERE fired AND scheduled_at < now() - interval '2 days';$$
+);
+
+-- ---------- Revisión del punto 10: deben salir las 3 funciones, el disparador y las tareas ----------
+SELECT 'funcion' AS tipo, proname AS nombre FROM pg_proc
+ WHERE proname IN ('programar_alerta_auto', 'disparar_alertas_vencidas', 'disparar_mis_alertas_auto')
+UNION ALL
+SELECT 'disparador', tgname FROM pg_trigger WHERE tgname = 'trg_cancelar_alertas_auto'
+UNION ALL
+SELECT 'tarea', jobname || ' · ' || schedule FROM cron.job;

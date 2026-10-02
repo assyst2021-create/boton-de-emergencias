@@ -128,6 +128,11 @@ async function procesarCola() {
           insertarConRespaldo('alerts', { ...item, sender_id: session.user.id }, 'destinatarios'), 10000)
         // 23505 = ya llegó antes; LIMITE_ALERTAS = rechazo definitivo. Ninguno se reintenta.
         if (error && error.code !== '23505' && !/LIMITE_ALERTAS/.test(error.message || '')) pendientes.push(item)
+        else if (!error && !item.is_auto && (item.status_type === 'red' || item.status_type === 'orange')) {
+          supabase.rpc('programar_alerta_auto', {
+            p_tipo: item.status_type, p_lat: item.latitude, p_lng: item.longitude, p_destinatarios: item.destinatarios || null,
+          }).then(() => {}, () => {})
+        }
       } catch (_) { pendientes.push(item) }
     }
     // Alertas encoladas mientras se procesaba no se pierden
@@ -603,27 +608,39 @@ export default function PanicButtons() {
       return
     }
 
-    // Segunda alerta automática de 2 horas: exclusiva de Plan Premium
-    if ((boton.tipo === 'red' || boton.tipo === 'orange') && user?.auto_alert_enabled && puedeSegundaAlerta(user)) {
-      const scheduledAt = new Date(ahora.getTime() + 2 * 60 * 60 * 1000)
+    if (boton.tipo === 'red' || boton.tipo === 'orange') programarAlertaAuto(boton.tipo, p, destinatarios, authUser.id)
+  }
+
+  /**
+   * Alerta automática cada 2 horas (Familiar y Premium, con la opción encendida): una alerta roja o
+   * naranja inicia o reinicia la cadena. El servidor revisa si la opción está encendida y el plan
+   * vigente (lo que haya en este celular puede estar viejo), y la envía aunque el celular se apague.
+   */
+  async function programarAlertaAuto(tipo, p, destinatarios, uid) {
+    const { error } = await supabase.rpc('programar_alerta_auto', {
+      p_tipo: tipo, p_lat: p?.lat ?? null, p_lng: p?.lng ?? null, p_destinatarios: destinatarios || null,
+    }).then(r => r, e => ({ error: e }))
+    // El servidor aún no tiene la función (falta el SQL): una sola alerta a las 2 horas, como antes
+    if (error && (error.code === 'PGRST202' || error.code === '42883') && user?.auto_alert_enabled && puedeSegundaAlerta(user)) {
       insertarConRespaldo('scheduled_alerts', {
-        user_id: authUser.id,
-        status_type: boton.tipo,
-        latitude: p?.lat ?? null,
-        longitude: p?.lng ?? null,
-        scheduled_at: scheduledAt.toISOString(),
-        fired: false,
-        // La segunda alerta va a las mismas personas que la primera
+        user_id: uid, status_type: tipo,
+        latitude: p?.lat ?? null, longitude: p?.lng ?? null,
+        scheduled_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), fired: false,
         ...(destinatarios ? { destinatarios } : {}),
       }, 'destinatarios').then(() => {}, () => {})
     }
   }
 
-  /** Dispara alertas programadas que ya vencieron. */
+  /** Dispara alertas programadas que ya vencieron (el servidor también lo hace cada minuto). */
   async function verificarAlertasAuto() {
     const { data: { session } } = await supabase.auth.getSession()
     const authUser = session?.user
     if (!authUser) return
+    const pos = posRef.current
+    const { error: errRpc } = await supabase.rpc('disparar_mis_alertas_auto', { p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null })
+      .then(r => r, e => ({ error: e }))
+    // Con la función del servidor ya está; si la base aún no la tiene, se hace como antes
+    if (!errRpc || !(errRpc.code === 'PGRST202' || errRpc.code === '42883')) return
     const ahora = new Date().toISOString()
     const { data: pendientes } = await supabase
       .from('scheduled_alerts')

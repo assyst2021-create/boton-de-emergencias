@@ -51,6 +51,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [uid, setUid] = useState(null)
   const [autoAlerta, setAutoAlerta] = useState(false)
   const [recPermitir, setRecPermitir] = useState(false)
+  // Próxima alerta automática programada (si hay una cadena en curso)
+  const [proximaAuto, setProximaAuto] = useState(null)
   // Ventana "Recuperar celular": credenciales del dueño (se usan en el celular de un familiar)
   const [rcForm, setRcForm] = useState({ clave: '', password: '' })
   const [rcMsg, setRcMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
@@ -76,13 +78,27 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             setRecPermitir(!!data.recuperacion_activa)
           }
         })
+      cargarProximaAuto(user.id)
     })
   }, [])
 
+  async function cargarProximaAuto(id) {
+    const { data } = await supabase.from('scheduled_alerts').select('scheduled_at')
+      .eq('user_id', id).eq('fired', false).order('scheduled_at').limit(1)
+    setProximaAuto(data?.[0]?.scheduled_at || null)
+  }
+
+  // Apagarla detiene la cadena al instante (el servidor borra la que estaba programada)
   async function toggleAutoAlerta() {
     const nuevo = !autoAlerta
     setAutoAlerta(nuevo)
-    if (uid) await supabase.from('users').update({ auto_alert_enabled: nuevo }).eq('id', uid)
+    if (!nuevo) setProximaAuto(null)
+    if (uid) {
+      const { error } = await supabase.from('users').update({ auto_alert_enabled: nuevo }).eq('id', uid)
+      if (error) { setAutoAlerta(!nuevo); return }
+      window.dispatchEvent(new Event('recargarPlan'))
+      if (!nuevo) cargarProximaAuto(uid)
+    }
   }
 
   // El dueño autoriza (o quita) que su propio celular se pueda recuperar con su contraseña
@@ -238,7 +254,12 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <div className={styles.opcionToggle}>
               <span>
                 {t('autoAlertaLabel')}
-                {!esPlanPago(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+                {!esPlanPago(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 {t('autoSoloPago')}</span>}
+                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text2)', fontWeight: 500, marginTop: 2, lineHeight: 1.35 }}>
+                  {autoAlerta && proximaAuto
+                    ? `⏱ ${t('autoProxima')} ${new Date(proximaAuto).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+                    : t('autoExplica')}
+                </span>
               </span>
               {esPlanPago(perfil) ? (
                 <button
