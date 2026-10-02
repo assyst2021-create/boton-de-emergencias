@@ -104,3 +104,34 @@ BEGIN
   END IF;
   RETURN NEW;
 END; $$;
+
+-- ---------- Revisión del punto 1: deben salir 4 filas ----------
+SELECT 'columna' AS tipo, column_name AS nombre FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('idioma', 'zona_horaria')
+UNION ALL
+SELECT 'funcion', proname FROM pg_proc WHERE proname = 'ubicar_alerta'
+UNION ALL
+SELECT 'disparador', tgname FROM pg_trigger WHERE tgname = 'trg_fcm_ubicacion_alerta';
+
+-- ---------- Punto 2. Las alertas se borran de verdad del sistema a las 24 h ----------
+-- (Antes: una tarea cada hora, si existía. Ahora cada 10 minutos, y se crea si faltaba.)
+DO $$
+BEGIN
+  PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'borrar-alertas-vencidas';
+END $$;
+SELECT cron.schedule(
+  'borrar-alertas-vencidas',
+  '*/10 * * * *',
+  $$DELETE FROM public.alerts
+     WHERE expires_at < now()
+        OR (expires_at IS NULL AND sent_at < now() - interval '24 hours');$$
+);
+
+-- Borrado inmediato de lo que ya pasó de 24 h
+DELETE FROM public.alerts
+ WHERE expires_at < now() OR (expires_at IS NULL AND sent_at < now() - interval '24 hours');
+
+-- ---------- Revisión del punto 2: debe salir la tarea y 0 alertas vencidas ----------
+SELECT 'tarea' AS tipo, jobname || ' · ' || schedule AS detalle FROM cron.job WHERE jobname = 'borrar-alertas-vencidas'
+UNION ALL
+SELECT 'alertas vencidas que quedan', count(*)::text FROM public.alerts WHERE expires_at < now();

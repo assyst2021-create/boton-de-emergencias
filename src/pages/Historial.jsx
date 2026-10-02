@@ -32,19 +32,28 @@ export default function Historial() {
   const recargarSilencioso = useCallback(async () => {
     setRecargando(true)
     conectarVivo()
-    await cargar()
-    // Que se note que sí se actualizó
-    setAvisoOk(t('histActualizadoOk'))
-    setTimeout(() => setAvisoOk(''), 2500)
+    // Con señal débil una consulta puede tardar mucho: a los 10 s se suelta el botón y se avisa
+    // (si la respuesta llega después, el historial igual se actualiza solo)
+    const { ok } = await Promise.race([
+      cargar().catch(() => ({})),
+      new Promise(r => setTimeout(() => r({}), 10000)),
+    ])
+    // Que se note si sí se actualizó; sin señal se dice, en vez de un "actualizado" falso
+    setAvisoOk(ok ? `✓ ${t('histActualizadoOk')}` : `⚠️ ${t('histSinConexion')}`)
+    setTimeout(() => setAvisoOk(''), ok ? 2500 : 4000)
     setTimeout(() => setRecargando(false), 400)
   }, [t])
 
   const canalRef = useRef(null)
+  const reintentoRef = useRef(null)
 
   // Android corta el canal en vivo al dormir la pantalla: se rehace al volver
   function conectarVivo() {
+    clearTimeout(reintentoRef.current)
     if (canalRef.current) supabase.removeChannel(canalRef.current)
-    canalRef.current = supabase.channel('alertas-rt')
+    const canal = supabase.channel('alertas-rt')
+    canalRef.current = canal
+    canal
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' },
         (payload) => {
           const a = payload.new
@@ -61,7 +70,16 @@ export default function Historial() {
           if (a?.latitude == null || a?.longitude == null) return
           setAlertas(prev => prev.map(x => x.id === a.id ? { ...x, latitude: a.latitude, longitude: a.longitude } : x))
         })
-      .subscribe()
+      // Si la conexión en vivo se cae con la pantalla abierta, se rehace sola y se trae lo que
+      // haya llegado mientras tanto (antes quedaba caída hasta salir y volver a la app)
+      .subscribe(estado => {
+        if ((estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') && canalRef.current === canal) {
+          clearTimeout(reintentoRef.current)
+          reintentoRef.current = setTimeout(() => {
+            if (canalRef.current === canal && document.visibilityState === 'visible') { conectarVivo(); cargar() }
+          }, 3000)
+        }
+      })
   }
 
   useEffect(() => {
@@ -91,6 +109,7 @@ export default function Historial() {
     }, 60000)
 
     return () => {
+      clearTimeout(reintentoRef.current)
       if (canalRef.current) { supabase.removeChannel(canalRef.current); canalRef.current = null }
       document.removeEventListener('visibilitychange', onVisible)
       if (appListener) appListener.remove()
@@ -164,7 +183,7 @@ export default function Historial() {
     nombresRef.current = nombres
     telefonosRef.current = telefonos
 
-    if (ids.length === 0) { setAlertas([]); setCargando(false); localStorage.removeItem(cacheKey); return { uid: user.id, ids, nombres } }
+    if (ids.length === 0) { setAlertas([]); setCargando(false); localStorage.removeItem(cacheKey); return { ok: true, uid: user.id, ids, nombres } }
 
     if (primeras.error) { setCargando(false); return { ids, nombres } }
     // Solo de quien sigue en el grupo; las de alguien recién vinculado se piden ahora
@@ -193,10 +212,12 @@ export default function Historial() {
     setCargando(false)
     // Actualizar caché con datos frescos
     try { localStorage.setItem(cacheKey, JSON.stringify(alertas)) } catch (_) {}
-    return { ids, nombres }
+    return { ok: true, ids, nombres }
   }
 
   async function dismissAlert(id) {
+    // Una alerta de emergencia no se borra por un toque sin querer
+    if (!window.confirm(t('histConfirmarBorrar'))) return
     // Ocultar inmediatamente en pantalla
     setAlertas(prev => prev.filter(a => a.id !== id))
     // Guardar en localStorage con timestamp para que expire en 24h automáticamente
@@ -240,7 +261,7 @@ export default function Historial() {
         </div>
       </header>
 
-      {avisoOk && <p className={styles.avisoOk} role="status">✓ {avisoOk}</p>}
+      {avisoOk && <p className={styles.avisoOk} role="status">{avisoOk}</p>}
       {cargando && <div className={styles.vacio}>{t('cargando')}</div>}
 
       {!cargando && alertas.length === 0 && (
