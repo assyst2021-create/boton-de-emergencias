@@ -84,6 +84,11 @@ BEGIN
   IF uid IS NULL THEN RAISE EXCEPTION 'LLAVE_INVALIDA' USING ERRCODE = '28000'; END IF;
   UPDATE public.live_locations SET activo = false WHERE user_id = uid;
   DELETE FROM public.gps_llaves WHERE user_id = uid;
+  -- (87) Si era una recuperación, también queda cerrada (si la tabla ya existe)
+  IF to_regclass('public.recuperacion_sesiones') IS NOT NULL THEN
+    UPDATE public.recuperacion_sesiones SET estado = 'finalizada', ended_at = now()
+     WHERE owner_id = uid AND estado = 'activa';
+  END IF;
 END $$;
 REVOKE ALL ON FUNCTION public.apagar_ubicacion(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.apagar_ubicacion(text) TO anon, authenticated;

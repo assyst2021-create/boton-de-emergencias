@@ -60,7 +60,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       if (!user) return
       setUid(user.id)
       supabase.from('users').select('full_name, username, auto_alert_enabled, recuperacion_activa, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
-        .then(({ data }) => {
+        .then(async ({ data, error }) => {
+          // Si una columna nueva no se pudiera leer (permiso), se lee el perfil sin ella:
+          // así el plan nunca se muestra como "Básico" por error
+          if (error) {
+            const r = await supabase.from('users').select('full_name, username, auto_alert_enabled, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
+            data = r.data
+          }
           if (data) {
             setPerfil(data)
             setAutoAlerta(!!data.auto_alert_enabled)

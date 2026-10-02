@@ -16,6 +16,8 @@ const URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
 const admin = createClient(URL, SERVICE)
+// Cliente aparte, sin guardar sesión ni renovarla: solo para comprobar quién llama y la contraseña
+const clienteAuth = () => createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } })
 
 const MAX_INTENTOS = 5
 const BLOQUEO_MIN = 30
@@ -71,7 +73,7 @@ Deno.serve(async (req) => {
   try {
     // Quién llama (el familiar), ya autenticado como él mismo
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
-    const { data: { user: quienLlama } } = await createClient(URL, ANON).auth.getUser(token)
+    const { data: { user: quienLlama } } = await clienteAuth().auth.getUser(token)
     if (!quienLlama) return json({ ok: false, error: 'SIN_SESION' }, 401)
 
     const body = await req.json().catch(() => ({}))
@@ -101,7 +103,7 @@ Deno.serve(async (req) => {
 
     // Verificar la contraseña del dueño (en un cliente aparte: no toca la sesión del familiar)
     const verificado = email
-      ? await createClient(URL, ANON).auth.signInWithPassword({ email, password })
+      ? await clienteAuth().auth.signInWithPassword({ email, password })
       : { data: { user: null }, error: { message: 'no existe' } }
     const owner = (verificado as any).data?.user
 
@@ -120,33 +122,41 @@ Deno.serve(async (req) => {
 
     if (owner.id === quienLlama.id) return json({ ok: false, error: 'ES_TU_CELULAR' })
 
-    // El dueño tiene que haber activado la recuperación y estar vinculado con quien llama
-    const [{ data: perfil }, { data: vinculo }, { data: ownerUser }] = await Promise.all([
+    // Tienen que estar vinculados. El vínculo son DOS filas (una por cada sentido): se piden hasta
+    // 2 y basta con que exista alguna. (Con maybeSingle, al haber dos filas daba error y respondía
+    // "no vinculado" aunque sí lo estuvieran.)
+    const [{ data: perfil }, { data: vinculos }] = await Promise.all([
       admin.from('users').select('recuperacion_activa, full_name, fcm_token').eq('id', owner.id).maybeSingle(),
       admin.from('family_links').select('id').eq('status', 'accepted')
         .or(`and(user_id.eq.${quienLlama.id},linked_user_id.eq.${owner.id}),and(user_id.eq.${owner.id},linked_user_id.eq.${quienLlama.id})`)
-        .maybeSingle(),
-      admin.from('users').select('fcm_token').eq('id', owner.id).maybeSingle(),
+        .limit(2),
     ])
-    if (!vinculo) return json({ ok: false, error: 'NO_VINCULADO' })
-    if (!perfil?.recuperacion_activa) return json({ ok: false, error: 'NO_AUTORIZADO_DUENIO' })
+    if (!vinculos?.length) return json({ ok: false, error: 'NO_VINCULADO' })
 
     if (accion === 'detener') {
+      // Detener no exige el interruptor: si el dueño lo apagó en medio, igual se puede parar
       await admin.rpc('cerrar_recuperacion', { p_owner: owner.id })
-      if (ownerUser?.fcm_token) await enviarDato(ownerUser.fcm_token, { tipo: 'detener-recuperar' })
+      if (perfil?.fcm_token) await enviarDato(perfil.fcm_token, { tipo: 'detener-recuperar' }).catch(() => false)
       return json({ ok: true, detenido: true })
     }
 
-    // Solicitar: el celular tiene que poder recibir la orden
-    if (!ownerUser?.fcm_token) return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
+    // Solicitar: el dueño tiene que haber activado la recuperación y su celular poder recibir la orden
+    if (!perfil?.recuperacion_activa) return json({ ok: false, error: 'NO_AUTORIZADO_DUENIO' })
+    if (!perfil?.fcm_token) return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
 
     const llave = hex(crypto.getRandomValues(new Uint8Array(32)).buffer)  // 64 hex
-    const { data: vence } = await admin.rpc('abrir_recuperacion', {
+    const { data: vence, error: errAbrir } = await admin.rpc('abrir_recuperacion', {
       p_owner: owner.id, p_solicitante: quienLlama.id, p_llave_hash: await sha256Hex(llave), p_horas: 24,
     })
-    const enviado = await enviarDato(ownerUser.fcm_token, { tipo: 'recuperar', llave, vence: String(vence) })
+    if (errAbrir || !vence) return json({ ok: false, error: 'ERROR_SERVIDOR' })
+    const enviado = await enviarDato(perfil.fcm_token, { tipo: 'recuperar', llave, vence: String(vence) }).catch(() => false)
+    // Si Google no pudo entregar la orden (celular dado de baja, token viejo), no se deja una sesión colgada
+    if (!enviado) {
+      await admin.rpc('cerrar_recuperacion', { p_owner: owner.id })
+      return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
+    }
 
-    return json({ ok: true, vence, nombre: perfil.full_name || '', enviado })
+    return json({ ok: true, vence, nombre: perfil.full_name || '' })
   } catch (e) {
     console.error('[recuperar-celular]', e)
     return json({ ok: false, error: 'ERROR_SERVIDOR' }, 500)

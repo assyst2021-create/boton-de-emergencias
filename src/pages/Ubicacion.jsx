@@ -343,6 +343,8 @@ export default function Ubicacion() {
     const { data } = await supabase
       .from('recuperacion_sesiones').select('owner_id')
       .in('owner_id', ids).eq('estado', 'activa')
+      // Una sesión vencida (24 h) no se marca como activa aunque nadie la haya cerrado
+      .gt('vence_at', new Date().toISOString())
     setRecuperandoIds(new Set((data || []).map(r => r.owner_id)))
   }
 
