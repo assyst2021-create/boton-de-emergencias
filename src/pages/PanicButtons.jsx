@@ -677,6 +677,7 @@ export default function PanicButtons() {
               <li>{t('elegirPremiumF5')}</li>
               <li>{t('elegirPremiumF6')}</li>
               <li>{t('elegirPremiumF7')}</li>
+              <li>{t('elegirPremiumF8')}</li>
             </ul>
             <button
               className={styles.avisoModalBtn}

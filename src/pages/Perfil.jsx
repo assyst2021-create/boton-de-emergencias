@@ -217,15 +217,23 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 <div className={styles.opcionToggle}>
                   <span>
                     {t('recPermitir')}
-                    <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text2)' }}>{t('recSoloAndroid')}</span>
+                    {esPremium(perfil)
+                      ? <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text2)' }}>{t('recSoloAndroid')}</span>
+                      : <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
                   </span>
-                  <button
-                    className={recPermitir ? styles.toggleOn : styles.toggleOff}
-                    onClick={toggleRecuperar}
-                    aria-pressed={recPermitir}
-                  >
-                    {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
-                  </button>
+                  {esPremium(perfil) ? (
+                    <button
+                      className={recPermitir ? styles.toggleOn : styles.toggleOff}
+                      onClick={toggleRecuperar}
+                      aria-pressed={recPermitir}
+                    >
+                      {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
+                    </button>
+                  ) : (
+                    <button className={styles.toggleOff} onClick={() => setPaso('plan')} style={{ opacity: 0.6, cursor: 'pointer' }}>
+                      {t('activarPremiumBtn')}
+                    </button>
+                  )}
                 </div>
                 <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
                   🔒 {t('recMenu')}

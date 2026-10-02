@@ -67,6 +67,7 @@ export default function ElegirPlan({ onElegido }) {
         { icono: '📍', texto: t('elegirPremiumF5') },
         { icono: '⚡', texto: t('elegirPremiumF6') },
         { icono: '📡', texto: t('elegirPremiumF7') },
+        { icono: '🔒', texto: t('elegirPremiumF8') },
       ],
     },
   }

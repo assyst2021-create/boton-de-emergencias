@@ -9,6 +9,19 @@
 -- No está en proteger_campos_usuario, así que el dueño la puede prender/apagar desde la app.
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS recuperacion_activa boolean NOT NULL DEFAULT false;
 
+-- IMPORTANTE: la seguridad del 27-09 da permiso de SELECT columna por columna. Una columna nueva
+-- queda SIN permiso, y entonces TODA la lectura del perfil falla (la app mostraría "Plan Básico"
+-- por error). Se vuelve a dar permiso a todas las columnas seguras, incluida la nueva.
+DO $$
+DECLARE cols TEXT;
+BEGIN
+  SELECT string_agg(quote_ident(column_name), ', ') INTO cols
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'users'
+    AND column_name NOT IN ('fcm_token', 'play_purchase_token');
+  EXECUTE format('GRANT SELECT (%s) ON public.users TO authenticated', cols);
+END $$;
+
 -- ---------- 2. Sesiones de recuperación ----------
 CREATE TABLE IF NOT EXISTS public.recuperacion_sesiones (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,6 +65,17 @@ CREATE OR REPLACE FUNCTION public.set_recuperacion(activa boolean)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'NO_AUTORIZADO' USING ERRCODE = '28000'; END IF;
+  -- "Recuperar celular" es una función de Plan Premium: solo Premium puede ACTIVARLA
+  -- (apagarla siempre se permite). Familiar no cuenta, igual que en el resto de la app.
+  IF COALESCE(activa, false) AND NOT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid()
+      AND plan IS DISTINCT FROM 'familiar'
+      AND (plan = 'premium' OR is_premium)
+      AND (premium_hasta IS NULL OR premium_hasta > now())
+  ) THEN
+    RAISE EXCEPTION 'SOLO_PREMIUM' USING ERRCODE = '42501';
+  END IF;
   UPDATE public.users SET recuperacion_activa = COALESCE(activa, false) WHERE id = auth.uid();
 END $$;
 REVOKE ALL ON FUNCTION public.set_recuperacion(boolean) FROM PUBLIC;
