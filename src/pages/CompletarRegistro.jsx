@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import {
-  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible,
+  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
   leerDatosRegistro, borrarDatosRegistro,
 } from '../registro'
 
@@ -12,7 +12,7 @@ import {
  * Sin esta pantalla la persona entraba a la app sin @usuario y nadie podía agregarla.
  */
 export default function CompletarRegistro({ userId, onListo }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [previo] = useState(leerDatosRegistro)
   const [form, setForm] = useState({
     nombre: previo.nombre || '',
@@ -117,7 +117,7 @@ export default function CompletarRegistro({ userId, onListo }) {
                   >
                     {PAISES.map(p => (
                       <option key={p.codigo + p.nombre} value={p.codigo + p.nombre}>
-                        {p.bandera} {p.codigo} — {p.nombre}
+                        {p.bandera} {p.codigo} — {nombrePais(p, lang)}
                       </option>
                     ))}
                   </select>

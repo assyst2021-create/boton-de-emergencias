@@ -4,7 +4,7 @@ import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
 import {
-  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible,
+  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
   guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
 } from '../registro'
 
@@ -122,7 +122,7 @@ export default function Login() {
     <div className={styles.wrap}>
       <div className={styles.topSection}>
         <div className={styles.logo}>
-          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+          <img src="/logo.png" alt={t('appNombre')} className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
         </div>
 
@@ -174,7 +174,7 @@ export default function Login() {
                   >
                     {PAISES.map(p => (
                       <option key={p.codigo + p.nombre} value={p.codigo + p.nombre}>
-                        {p.bandera} {p.codigo} — {p.nombre}
+                        {p.bandera} {p.codigo} — {nombrePais(p, lang)}
                       </option>
                     ))}
                   </select>

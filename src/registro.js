@@ -84,6 +84,26 @@ export async function revisarPerfil(uid) {
   }
 }
 
+// Código ISO de cada país, para mostrar su nombre en el idioma de la app
+const ISO_PAIS = {
+  'Colombia': 'CO', 'EE.UU. / Canadá': ['US', 'CA'], 'México': 'MX', 'Argentina': 'AR', 'Brasil': 'BR',
+  'Chile': 'CL', 'Venezuela': 'VE', 'Perú': 'PE', 'Ecuador': 'EC', 'Bolivia': 'BO', 'Paraguay': 'PY',
+  'Uruguay': 'UY', 'Panamá': 'PA', 'Costa Rica': 'CR', 'Guatemala': 'GT', 'Honduras': 'HN',
+  'El Salvador': 'SV', 'Nicaragua': 'NI', 'Rep. Dominicana': 'DO', 'Cuba': 'CU', 'España': 'ES',
+  'Portugal': 'PT', 'Alemania': 'DE', 'Francia': 'FR', 'Italia': 'IT', 'Reino Unido': 'GB',
+}
+/** Nombre del país en el idioma de la app ("Germany", "Alemanha"…); si el celular no sabe, en español. */
+export function nombrePais(p, idioma) {
+  try {
+    const iso = ISO_PAIS[p.nombre]
+    if (!iso || typeof Intl.DisplayNames !== 'function') return p.nombre
+    const nombres = new Intl.DisplayNames([idioma], { type: 'region' })
+    return Array.isArray(iso) ? iso.map(c => nombres.of(c)).join(' / ') : nombres.of(iso)
+  } catch (_) {
+    return p.nombre
+  }
+}
+
 export const PAISES = [
   { bandera: '🇨🇴', nombre: 'Colombia', codigo: '+57' },
   { bandera: '🇺🇸', nombre: 'EE.UU. / Canadá', codigo: '+1' },

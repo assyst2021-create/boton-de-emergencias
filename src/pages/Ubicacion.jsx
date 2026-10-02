@@ -1015,8 +1015,8 @@ export default function Ubicacion() {
 function haceCuanto(iso, t) {
   const seg = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
   if (seg < 10) return t('ubiAhora')
-  if (seg < 60) return `${t('ubiHace')} ${seg} s`
-  return `${t('ubiHace')} ${Math.floor(seg / 60)} min`
+  if (seg < 60) return t('ubiHaceSeg').replace('{n}', seg)
+  return t('ubiHaceMin').replace('{n}', Math.floor(seg / 60))
 }
 
 const CAPA_OSM = {

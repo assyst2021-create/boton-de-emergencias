@@ -249,7 +249,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button className={styles.opcionRojo} onClick={cerrarSesion}>
               {t('cerrarSesion')}
             </button>
-            <div className={styles.version}>Botón de Emergencias · {t('versionApp')} {version}</div>
+            <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>
           </div>
         )}
 

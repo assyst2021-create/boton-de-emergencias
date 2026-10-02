@@ -4,12 +4,17 @@ import { translations } from './translations'
 const LanguageContext = createContext()
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'es')
+  // Primera vez: el idioma del celular, si la app lo tiene (un brasileño la ve en portugués
+  // desde el registro); si no, español. Después, el que la persona elija.
+  const [lang, setLang] = useState(() => {
+    const guardado = localStorage.getItem('app_lang')
+    if (guardado && translations[guardado]) return guardado
+    const delCelular = (navigator.language || '').slice(0, 2).toLowerCase()
+    return translations[delCelular] ? delCelular : 'es'
+  })
 
-  useEffect(() => {
-    const stored = localStorage.getItem('app_lang')
-    if (stored) setLang(stored)
-  }, [])
+  // Para lectores de pantalla y el traductor del sistema
+  useEffect(() => { document.documentElement.lang = lang }, [lang])
 
   function cambiarIdioma(code) {
     setLang(code)

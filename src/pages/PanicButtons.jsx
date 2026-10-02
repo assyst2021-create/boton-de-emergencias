@@ -660,7 +660,7 @@ export default function PanicButtons() {
     <div className={respaldo ? `${styles.wrap} ${styles.wrapLibre}` : styles.wrap}>
       <header className={styles.header}>
         <div className={styles.headerTop}>
-          <img src="/logo.png" alt="Botón de Emergencias" className={styles.logoImg} />
+          <img src="/logo.png" alt={t('appNombre')} className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
           <div className={styles.headerBotones}>
             {familiares.length > 1 && (
