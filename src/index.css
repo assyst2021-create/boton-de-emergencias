@@ -40,16 +40,18 @@ a { color: inherit; }
 /* ══════════════════════════════════════════
    MODO OSCURO / GLASS
 ═══════════════════════════════════════════ */
+/* Modo oscuro sólido (decisión de Michael): los mismos tonos de antes pero sin transparencias,
+   así el logo de fondo no se ve a través de las tarjetas y los celulares sencillos van más rápido */
 [data-tema="oscuro"] {
   --bg: #000000;
-  --bg2: rgba(255,255,255,0.07);
-  --card: rgba(255,255,255,0.10);
-  --border: rgba(255,255,255,0.18);
+  --bg2: #121212;
+  --card: #1a1a1a;
+  --border: #2e2e2e;
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
   --logo-blend: normal;
   --logo-filter: none;
-  --card-blur: blur(18px);
+  --card-blur: blur(0px);
   --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
 
@@ -62,11 +64,9 @@ a { color: inherit; }
 [data-tema="oscuro"] input,
 [data-tema="oscuro"] select,
 [data-tema="oscuro"] textarea {
-  background: rgba(255,255,255,0.10);
-  border-color: rgba(255,255,255,0.22);
+  background: #1a1a1a;
+  border-color: #383838;
   color: #ffffff;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 [data-tema="oscuro"] input::placeholder,
