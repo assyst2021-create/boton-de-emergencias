@@ -7,6 +7,10 @@ import {
   PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
   guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
 } from '../registro'
+import { mensajeErrorClave } from '../clave'
+
+// El enlace del correo para cambiar la contraseña ya venció o se usó (Supabase lo indica en la dirección)
+const ENLACE_VENCIDO = typeof window !== 'undefined' && /error_code=otp_expired|error=access_denied/.test(window.location.hash)
 
 function mensajeErrorRegistro(err, t) {
   const texto = `${err?.code || ''} ${err?.message || ''}`
@@ -22,6 +26,7 @@ export default function Login() {
   const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
   const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
+  const [avisoEnlace, setAvisoEnlace] = useState(ENLACE_VENCIDO)
   const [cargando, setCargando] = useState(false)
   const [verPassword, setVerPassword] = useState(false)
   const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
@@ -54,9 +59,13 @@ export default function Login() {
     setError('')
     if (!form.email) { setError(t('errorCorreoReset')); return }
     setResetCargando(true)
-    await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim())
-    setResetEnviado(true)
+    setAvisoEnlace(false)
+    const { error: err } = await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim())
+      .then(r => r, e => ({ error: e }))
     setResetCargando(false)
+    // Antes decía "te enviamos un correo" aunque no hubiera salido (sin señal o muchos intentos)
+    if (err) { setError(mensajeErrorClave(err, t, 'errorConexion')); return }
+    setResetEnviado(true)
   }
 
   async function handleLogin(e) {
@@ -223,6 +232,7 @@ export default function Login() {
             </div>
           )}
 
+          {avisoEnlace && modo === 'login' && <div className={styles.error}>{t('enlaceVencido')}</div>}
           {error && <div className={styles.error}>{error}</div>}
 
           <div className={styles.idiomaSelector}>

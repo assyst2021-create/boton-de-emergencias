@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { supabase } from '../supabase'
+import { supabase, clienteVerificacion } from '../supabase'
+import { validarClave, mensajeErrorClave } from '../clave'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
@@ -38,7 +39,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
     await supabase.auth.signOut()
   }
-  const [form, setForm] = useState({ nueva: '', confirmar: '' })
+  const [form, setForm] = useState({ actual: '', nueva: '', confirmar: '' })
+  const [verActual, setVerActual] = useState(false)
+  const [correoClave, setCorreoClave] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -129,18 +132,55 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
+  /**
+   * Cambiar la contraseña pide la ACTUAL: quien tenga el celular desbloqueado (por ejemplo, un ladrón)
+   * no puede cambiarla y dejar sin efecto "Recuperar celular". Al cambiarla se cierran las sesiones
+   * de los otros celulares.
+   */
   async function cambiarContrasena(e) {
     e.preventDefault()
     setError('')
-    if (form.nueva.length < 6) { setError(t('errorMin')); return }
-    if (form.nueva !== form.confirmar) { setError(t('errorNoCoinciden')); return }
+    if (!form.actual) { setError(t('errorClaveActualFalta')); return }
+    const invalida = validarClave(form.nueva, form.confirmar, t)
+    if (invalida) { setError(invalida); return }
+    if (form.nueva === form.actual) { setError(t('errorClaveIgual')); return }
     setCargando(true)
-    const { error } = await supabase.auth.updateUser({ password: form.nueva })
-    if (error) { setError(t('errorCambio')); setCargando(false); return }
-    setExito(t('exitoCambio'))
-    setForm({ nueva: '', confirmar: '' })
-    setCargando(false)
-    setTimeout(() => { setExito(''); setPaso('menu') }, 2500)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+      if (!email) { setError(t('errorConexion')); return }
+      // 1. La contraseña actual se comprueba aparte, sin tocar la sesión de la app
+      const verif = clienteVerificacion()
+      const { error: errActual } = await verif.auth.signInWithPassword({ email, password: form.actual })
+      if (errActual) { setError(/fetch|network|failed/i.test(errActual.message || '') ? t('errorConexion') : t('errorClaveActual')); return }
+      // 2. Se cambia en la sesión de la app
+      let { error } = await supabase.auth.updateUser({ password: form.nueva })
+      if (error?.code === 'reauthentication_needed') {
+        // Supabase pide un inicio de sesión reciente: se cambia con el que se acaba de comprobar
+        // y la app vuelve a entrar con la contraseña nueva
+        ;({ error } = await verif.auth.updateUser({ password: form.nueva }))
+        if (!error) await supabase.auth.signInWithPassword({ email, password: form.nueva })
+      }
+      if (error) { setError(mensajeErrorClave(error, t)); return }
+      setExito(recPermitir ? `${t('exitoCambio')} ${t('recAvisoClave')}` : t('exitoCambio'))
+      setForm({ actual: '', nueva: '', confirmar: '' })
+      setTimeout(() => { setExito(''); setPaso('menu') }, recPermitir ? 6000 : 2500)
+    } catch (_) {
+      setError(t('errorConexion'))
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  /** No recuerda la actual: se le manda el correo para crear una nueva */
+  async function enviarCorreoClave() {
+    setError('')
+    const { data: { session } } = await supabase.auth.getSession()
+    const email = session?.user?.email
+    if (!email) return
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    if (error) { setError(mensajeErrorClave(error, t, 'errorConexion')); return }
+    setCorreoClave(t('resetEnviado'))
   }
 
   return (
@@ -376,6 +416,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
           <form onSubmit={cambiarContrasena} className={styles.form}>
             <p className={styles.desc}>{t('ingresarDesc')}</p>
             <div className={styles.field}>
+              <label>{t('claveActual')}</label>
+              <div className={styles.passwordWrap}>
+                <input type={verActual ? 'text' : 'password'} placeholder={t('claveActualPh')} value={form.actual} onChange={set('actual')} autoComplete="current-password" />
+                <button type="button" className={styles.eyeBtn} onClick={() => setVerActual(v => !v)}>{verActual ? '🙈' : '👁️'}</button>
+              </div>
+            </div>
+            <div className={styles.field}>
               <label>{t('nuevaContrasena')}</label>
               <div className={styles.passwordWrap}>
                 <input type={verNueva ? 'text' : 'password'} placeholder={t('nuevaPh')} value={form.nueva} onChange={set('nueva')} autoComplete="new-password" />
@@ -394,7 +441,10 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button type="submit" className={styles.btn} disabled={cargando}>
               {cargando ? t('procesando') : t('cambiarBtn')}
             </button>
-            <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError('') }}>
+            {correoClave
+              ? <p className={styles.desc} style={{ textAlign: 'center', margin: 0 }}>{correoClave}</p>
+              : <button type="button" className={styles.volver} onClick={enviarCorreoClave}>{t('claveOlvideActual')}</button>}
+            <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError(''); setCorreoClave('') }}>
               {t('volver')}
             </button>
           </form>

@@ -24,7 +24,7 @@ async function registrarAceptacion(uid, idioma) {
 const Permisos = registerPlugin('Permisos')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 import { ThemeProvider } from './ThemeContext'
-import { supabase } from './supabase'
+import { supabase, ENTRO_POR_RECUPERACION } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import PrivacidadPublica from './pages/PrivacidadPublica'
 import Login from './pages/Login'
@@ -41,6 +41,7 @@ const GrupoFamiliar = lazy(() => import('./pages/GrupoFamiliar'))
 const Ubicacion     = lazy(() => import('./pages/Ubicacion'))
 const Perfil        = lazy(() => import('./pages/Perfil'))
 const AvisoLegal    = lazy(() => import('./pages/AvisoLegal'))
+const NuevaContrasena = lazy(() => import('./pages/NuevaContrasena'))
 
 export default function App() {
   if (window.location.pathname === '/privacidad') return <PrivacidadPublica />
@@ -49,6 +50,8 @@ export default function App() {
 
 function AppInner() {
   const [session, setSession] = useState(undefined)
+  // Entró por el enlace de "¿Olvidaste tu contraseña?": primero se pide la contraseña nueva
+  const [recuperandoClave, setRecuperandoClave] = useState(ENTRO_POR_RECUPERACION)
   const [bienvenidaVista, setBienvenidaVista] = useState(false)
   const [avisoLegalAceptado, setAvisoLegalAceptado] = useState(false)
   const [planElegido, setPlanElegido] = useState(false)
@@ -77,8 +80,15 @@ function AppInner() {
   }, [initDone, session?.user?.id, lang])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      // Enlace vencido o inválido: no hay sesión y se vuelve al inicio normal
+      if (!session) setRecuperandoClave(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, s) => {
+      if (evento === 'PASSWORD_RECOVERY') setRecuperandoClave(true)
+      setSession(s)
+    })
     return () => subscription.unsubscribe()
   }, [])
 
@@ -213,6 +223,7 @@ function AppInner() {
 
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
+  if (recuperandoClave) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><NuevaContrasena onListo={() => setRecuperandoClave(false)} /></Suspense>
   if (perfilFalta) return <CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} />
   // Orden: documentos legales → planes → permisos (nadie compra un plan sin haber aceptado los términos)
   if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
