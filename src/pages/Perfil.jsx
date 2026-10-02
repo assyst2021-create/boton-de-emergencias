@@ -18,6 +18,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const { tema, toggleTema } = useTema()
   const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
   const [paso, setPaso] = useState(pasoInicial)
+  // Versión instalada leída del celular, p. ej. "1.1.1 (87)": así se sabe qué tiene cada persona
+  const [version, setVersion] = useState('1.1.1')
+  useEffect(() => {
+    window.Capacitor?.Plugins?.Permisos?.version?.()
+      .then(v => { if (v?.nombre) setVersion(v.codigo ? `${v.nombre} (${v.codigo})` : v.nombre) })
+      .catch(() => {})
+  }, [])
 
   // Al salir: este celular deja de recibir alertas de la cuenta y deja de compartir su ubicación
   async function cerrarSesion() {
@@ -40,17 +47,24 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [perfil, setPerfil] = useState(null)
   const [uid, setUid] = useState(null)
   const [autoAlerta, setAutoAlerta] = useState(false)
+  const [recPermitir, setRecPermitir] = useState(false)
+  // Ventana "Recuperar celular": credenciales del dueño (se usan en el celular de un familiar)
+  const [rcForm, setRcForm] = useState({ clave: '', password: '' })
+  const [rcMsg, setRcMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
+  const [rcCargando, setRcCargando] = useState(false)
+  const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
       setUid(user.id)
-      supabase.from('users').select('full_name, username, auto_alert_enabled, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
+      supabase.from('users').select('full_name, username, auto_alert_enabled, recuperacion_activa, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
         .then(({ data }) => {
           if (data) {
             setPerfil(data)
             setAutoAlerta(!!data.auto_alert_enabled)
+            setRecPermitir(!!data.recuperacion_activa)
           }
         })
     })
@@ -60,6 +74,50 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     const nuevo = !autoAlerta
     setAutoAlerta(nuevo)
     if (uid) await supabase.from('users').update({ auto_alert_enabled: nuevo }).eq('id', uid)
+  }
+
+  // El dueño autoriza (o quita) que su propio celular se pueda recuperar con su contraseña
+  async function toggleRecuperar() {
+    const nuevo = !recPermitir
+    setRecPermitir(nuevo)
+    const { error } = await supabase.rpc('set_recuperacion', { activa: nuevo })
+    if (error) setRecPermitir(!nuevo)   // si falla, se devuelve
+  }
+
+  function textoErrorRec(code, min) {
+    switch (code) {
+      case 'CREDENCIALES': return t('recErrCredenciales')
+      case 'BLOQUEADO': return t('recErrBloqueado').replace('{min}', String(min || 30))
+      case 'NO_VINCULADO': return t('recErrNoVinculado')
+      case 'NO_AUTORIZADO_DUENIO': return t('recErrNoAutorizado')
+      case 'CELULAR_NO_DISPONIBLE': return t('recErrCelular')
+      case 'ES_TU_CELULAR': return t('recErrTuCelular')
+      default: return t('recErrGenerico')
+    }
+  }
+
+  async function recuperar(accion) {
+    if (rcCargando) return
+    if (!rcForm.clave.trim() || !rcForm.password) { setRcMsg({ tipo: 'error', texto: t('recErrGenerico') }); return }
+    if (accion === 'detener' && !window.confirm(t('recConfirmaDetener'))) return
+    setRcCargando(true); setRcMsg(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('recuperar-celular', {
+        body: { accion, correo_o_usuario: rcForm.clave.trim(), password: rcForm.password },
+      })
+      // functions.invoke marca error en HTTP != 2xx; el cuerpo trae el detalle
+      const res = data || (error?.context ? await error.context.json().catch(() => null) : null)
+      if (res?.ok) {
+        setRcMsg({ tipo: 'ok', texto: accion === 'detener' ? t('recDetenido') : t('recOk') })
+        setRcForm({ clave: '', password: '' })
+      } else {
+        setRcMsg({ tipo: 'error', texto: textoErrorRec(res?.error, res?.minutos) })
+      }
+    } catch (_) {
+      setRcMsg({ tipo: 'error', texto: t('recErrGenerico') })
+    } finally {
+      setRcCargando(false)
+    }
   }
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -153,10 +211,57 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </button>
               )}
             </div>
+            {EN_APP && (
+              <>
+                <div className={styles.opcionToggle}>
+                  <span>
+                    {t('recPermitir')}
+                    <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text2)' }}>{t('recSoloAndroid')}</span>
+                  </span>
+                  <button
+                    className={recPermitir ? styles.toggleOn : styles.toggleOff}
+                    onClick={toggleRecuperar}
+                    aria-pressed={recPermitir}
+                  >
+                    {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
+                  </button>
+                </div>
+                <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
+                  🔒 {t('recMenu')}
+                </button>
+              </>
+            )}
             <button className={styles.opcionRojo} onClick={cerrarSesion}>
               {t('cerrarSesion')}
             </button>
-            <div className={styles.version}>Botón de Emergencias · v1.1.1</div>
+            <div className={styles.version}>Botón de Emergencias · {t('versionApp')} {version}</div>
+          </div>
+        )}
+
+        {paso === 'recuperar' && (
+          <div className={styles.form}>
+            <p className={styles.desc}>{t('recIntro')}</p>
+            <input
+              type="text" inputMode="email" autoCapitalize="none" autoCorrect="off"
+              placeholder={t('recUsuarioPh')} value={rcForm.clave}
+              onChange={e => setRcForm(f => ({ ...f, clave: e.target.value }))}
+            />
+            <input
+              type="password" placeholder={t('recPassPh')} value={rcForm.password}
+              onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
+            />
+            {rcMsg && (
+              <p style={{ margin: '4px 0', fontSize: '0.85rem', fontWeight: 600, color: rcMsg.tipo === 'ok' ? '#1E8449' : '#C0392B' }}>
+                {rcMsg.tipo === 'ok' ? '✓ ' : '⚠️ '}{rcMsg.texto}
+              </p>
+            )}
+            <button type="button" className={styles.btn} disabled={rcCargando} onClick={() => recuperar('solicitar')}>
+              {rcCargando ? '…' : '📍 ' + t('recBtn')}
+            </button>
+            <button type="button" className={styles.volver} disabled={rcCargando} onClick={() => recuperar('detener')}>
+              {t('recDetener')}
+            </button>
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
 

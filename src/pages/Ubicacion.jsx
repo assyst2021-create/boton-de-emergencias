@@ -144,6 +144,7 @@ export default function Ubicacion() {
   const [excluidosUbi, setExcluidosUbi] = useState([])
   const [avisoMinimoUbi, setAvisoMinimoUbi] = useState(false)
   const [compartiendoCon, setCompartiendoCon] = useState(null)
+  const [recuperandoIds, setRecuperandoIds] = useState(() => new Set())
   const [minRestantes, setMinRestantes] = useState(null)
   const [recargando, setRecargando] = useState(false)
   const [fichaDir, setFichaDir] = useState(null)
@@ -332,6 +333,17 @@ export default function Ubicacion() {
 
     linksRef.current = links || []
     await cargarUbicaciones()
+    cargarRecuperaciones()
+  }
+
+  /** Marca a los familiares cuyo celular está compartiendo por "Recuperar celular" (no toca el mapa) */
+  async function cargarRecuperaciones() {
+    const ids = linksRef.current.map(l => l.user_id)
+    if (!ids.length) { setRecuperandoIds(new Set()); return }
+    const { data } = await supabase
+      .from('recuperacion_sesiones').select('owner_id')
+      .in('owner_id', ids).eq('estado', 'activa')
+    setRecuperandoIds(new Set((data || []).map(r => r.owner_id)))
   }
 
   /** Solo recarga ubicaciones usando el caché de links — rápido, 1 sola query */
@@ -892,6 +904,11 @@ export default function Ubicacion() {
               <span className={viejo ? styles.puntoViejo : styles.punto} />
               <div className={styles.filaInfo}>
                 <strong>{f.nombre}</strong>
+                {recuperandoIds.has(f.id) && (
+                  <span style={{ display: 'inline-block', width: 'fit-content', marginTop: 2, padding: '1px 8px', borderRadius: 999, background: 'rgba(192,57,43,0.12)', border: '1px solid #C0392B', color: '#C0392B', fontSize: '0.7rem', fontWeight: 800 }}>
+                    🔒 {t('recActiva')}
+                  </span>
+                )}
                 <span className={viejo ? styles.haceViejo : styles.hace}>
                   {viejo ? `⚠️ ${t('ubiDesactualizado')} · ` : ''}{haceCuanto(f.ubicacion.updated_at, t)}
                 </span>

@@ -451,14 +451,14 @@ export default function PanicButtons() {
     if (numeros.length > 0) {
       if (EN_CAPACITOR) {
         // Android: SMS silencioso — sin abrir la app de mensajes
-        setRespaldo({ numeros, cuerpo, contactos: elegidos, smsSilencioso: true })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos, boton, smsSilencioso: true })
         SilentSms.enviar({ numeros, cuerpo }).catch(() => {
           // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
           window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
         })
         if (!posRef.current) enviarUbicacionCuandoLlegue(numeros)
       } else if (ES_IOS && numeros.length > 1) {
-        setRespaldo({ numeros, cuerpo, contactos: elegidos })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos, boton })
         // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
         numeros.forEach((n, i) => {
           setTimeout(() => {
@@ -466,7 +466,7 @@ export default function PanicButtons() {
           }, i * 1200)
         })
       } else {
-        setRespaldo({ numeros, cuerpo, contactos: elegidos })
+        setRespaldo({ numeros, cuerpo, contactos: elegidos, boton })
         window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
       }
     } else {
@@ -700,22 +700,30 @@ export default function PanicButtons() {
         </div>
       )}
 
-      {respaldo && (
+      {respaldo && (() => {
+        // El texto se vuelve a armar aquí: si al tocar aún no había GPS, el mensaje salía sin el
+        // mapa; cuando el punto llega (setGps('listo') repinta), el link de WhatsApp ya lo incluye.
+        const cuerpoActual = respaldo.boton ? construirCuerpo(respaldo.boton) : respaldo.cuerpo
+        const faltaUbicacion = !posRef.current
+        return (
         <div className={styles.respaldo}>
           <strong>📤 {t('envioManualTitulo')}</strong>
           {sinNube && <p className={styles.respaldoAviso}>⚠️ {t('sinConexionNube')}</p>}
           {respaldo.smsSilencioso && (
             <p className={styles.respaldoAviso} style={{ color: '#1E8449', marginBottom: 4 }}>✓ {t('smsEnviadoAuto')}</p>
           )}
+          {faltaUbicacion && (
+            <p className={styles.respaldoAviso} style={{ color: '#e67e22', marginBottom: 4 }}>⏳ {t('buscandoUbicacionEnvio')}</p>
+          )}
           <a
             className={styles.respaldoSms}
-            href={`sms:${respaldo.numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(respaldo.cuerpo)}`}
+            href={`sms:${respaldo.numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpoActual)}`}
           >
             {t('abrirMensajes')}
           </a>
           <a
             className={styles.respaldoWa}
-            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(respaldo.cuerpo)}`}
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(cuerpoActual)}`}
             target="_blank"
             rel="noreferrer"
           >
@@ -727,7 +735,7 @@ export default function PanicButtons() {
               <a
                 key={c.linked_user_id || i}
                 className={styles.respaldoChat}
-                href={`https://wa.me/${numeroCompleto(c.users?.phone_number, user?.phone_number).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(respaldo.cuerpo)}`}
+                href={`https://wa.me/${numeroCompleto(c.users?.phone_number, user?.phone_number).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(cuerpoActual)}`}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -739,7 +747,8 @@ export default function PanicButtons() {
             {t('cerrar')}
           </button>
         </div>
-      )}
+        )
+      })()}
 
       <div className={styles.instruccion}>
         {t('instruccion')}
