@@ -46,7 +46,21 @@ function AppInner() {
   const [actualizacionLista, setActualizacionLista] = useState(false)
   const [faltanPermisos, setFaltanPermisos] = useState([])
   const permisosPedidosRef = useRef(false)
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+
+  // El servidor escribe la notificación de cada familiar en SU idioma y con SU hora:
+  // se guarda el idioma y la zona horaria de este celular (solo cuando cambian)
+  useEffect(() => {
+    if (!initDone || !session?.user?.id) return
+    const uid = session.user.id
+    let zona = 'America/Bogota'
+    try { zona = Intl.DateTimeFormat().resolvedOptions().timeZone || zona } catch (_) {}
+    const valor = `${lang}|${zona}`
+    const clave = `prefsServidor_${uid}`
+    if (localStorage.getItem(clave) === valor) return
+    supabase.from('users').update({ idioma: lang, zona_horaria: zona }).eq('id', uid)
+      .then(({ error }) => { if (!error) localStorage.setItem(clave, valor) }, () => {})
+  }, [initDone, session?.user?.id, lang])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
@@ -273,6 +287,19 @@ function SwipeRouter() {
   const navigate = useNavigate()
   const location = useLocation()
   const touchStart = useRef(null)
+
+  // Tocar una notificación lleva a su pestaña (Historial o En vivo)
+  useEffect(() => {
+    const ir = () => {
+      const destino = window.__rutaPendiente
+      if (!destino) return
+      window.__rutaPendiente = null
+      navigate(destino)
+    }
+    ir()
+    window.addEventListener('irARuta', ir)
+    return () => window.removeEventListener('irARuta', ir)
+  }, [navigate])
 
   const onTouchStart = useCallback((e) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }

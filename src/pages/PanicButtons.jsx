@@ -4,7 +4,7 @@ import { registerPlugin } from '@capacitor/core'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { puedeEnviarAlerta, esPremium, esFamiliar, puedeSegundaAlerta } from '../plan'
+import { puedeEnviarAlerta, esPremium, esFamiliar, esPlanPago, puedeSegundaAlerta } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { PAISES } from '../registro'
 
@@ -230,7 +230,7 @@ export default function PanicButtons() {
   const posRef = useRef(null)
 
   const vigilanteRef = useRef(null)
-  const ultimoToqueRef = useRef(0)
+  const ultimoToqueRef = useRef({ tipo: null, ms: 0 })
 
   function iniciarWatch() {
     if (vigilanteRef.current !== null || !navigator.geolocation) return
@@ -373,38 +373,58 @@ export default function PanicButtons() {
   }
 
   /**
-   * Si al pulsar todavía no había GPS (sin datos el primer punto puede tardar), el SMS
-   * salió sin ubicación. Apenas llegue un punto, dentro de 3 minutos, se manda otro SMS
-   * solo con la ubicación. Sigue funcionando aunque se cambie de pestaña.
+   * Espera el primer punto de GPS (máximo 3 minutos). Lo comparten el SMS de seguimiento y
+   * la alerta guardada, y sigue funcionando aunque se cambie de pestaña.
    */
-  function enviarUbicacionCuandoLlegue(numeros) {
-    if (!navigator.geolocation) return
-    const idioma = LOCALES[lang] || 'es-CO'
-    const encabezado = `${t('smsUbicacionDe')} ${user?.full_name || ''}`
-    let terminado = false
-    let revisar = null
-    let vigia = null
-    const terminar = () => {
-      terminado = true
-      clearInterval(revisar)
-      if (vigia !== null) navigator.geolocation.clearWatch(vigia)
-    }
-    const enviar = (p) => {
-      if (terminado) return
-      terminar()
-      SilentSms.enviar({ numeros, cuerpo: textoSms(`${encabezado}: ${linkMapa(p)} - ${horaSms(idioma)}`) }).catch(() => {})
-    }
-    // El vigilante de la pantalla puede tener el punto primero
-    revisar = setInterval(() => { if (posRef.current) enviar(posRef.current) }, 2000)
-    vigia = navigator.geolocation.watchPosition(
-      p => enviar({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 180000 },
-    )
-    setTimeout(() => { if (!terminado) terminar() }, 180000)
+  const esperaRef = useRef(null)
+  function esperarUbicacion() {
+    if (posRef.current) return Promise.resolve(posRef.current)
+    if (!navigator.geolocation) return Promise.resolve(null)
+    if (esperaRef.current) return esperaRef.current
+    esperaRef.current = new Promise(resolve => {
+      let terminado = false
+      let vigia = null
+      const terminar = (p) => {
+        if (terminado) return
+        terminado = true
+        clearInterval(revisar)
+        clearTimeout(tope)
+        if (vigia !== null) navigator.geolocation.clearWatch(vigia)
+        esperaRef.current = null
+        resolve(p)
+      }
+      // El vigilante de la pantalla puede tener el punto primero
+      const revisar = setInterval(() => { if (posRef.current) terminar(posRef.current) }, 2000)
+      const tope = setTimeout(() => terminar(null), 180000)
+      vigia = navigator.geolocation.watchPosition(
+        p => {
+          posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
+          setGps('listo')
+          terminar(posRef.current)
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 180000 },
+      )
+    })
+    return esperaRef.current
   }
 
+  /**
+   * Si al pulsar todavía no había GPS (sin datos el primer punto puede tardar), el SMS
+   * salió sin ubicación. Apenas llegue un punto, dentro de 3 minutos, se manda otro SMS
+   * solo con la ubicación.
+   */
+  function enviarUbicacionCuandoLlegue(numeros) {
+    const idioma = LOCALES[lang] || 'es-CO'
+    const encabezado = `${t('smsUbicacionDe')} ${user?.full_name || ''}`
+    esperarUbicacion().then(p => {
+      if (p) SilentSms.enviar({ numeros, cuerpo: textoSms(`${encabezado}: ${linkMapa(p)} - ${horaSms(idioma)}`) }).catch(() => {})
+    })
+  }
+
+  /** Pitido y vibración corta: confirman el toque aunque no se esté mirando la pantalla. */
   function tocarSonidoAlerta() {
+    try { navigator.vibrate?.([120, 60, 120]) } catch (_) {}
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)()
       const osc = ctx.createOscillator()
@@ -419,6 +439,8 @@ export default function PanicButtons() {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.5)
+      // Cada toque abría un reproductor nuevo que nunca se cerraba
+      osc.onended = () => { ctx.close().catch(() => {}) }
     } catch (e) { /* silencioso si el navegador lo bloquea */ }
   }
 
@@ -428,16 +450,20 @@ export default function PanicButtons() {
    * aviso de "abrir esta pagina en Mensajes". El guardado va despues, aparte.
    */
   function pulsarBoton(boton) {
-    // Un toque doble por nervios no debe mandar dos alertas ni gastar dos del cupo
+    // Un toque doble por nervios no debe mandar dos alertas ni gastar dos del cupo.
+    // Otro botón sí sale enseguida (p. ej. se tocó naranja y en realidad es rojo).
     const ahoraMs = Date.now()
-    if (ahoraMs - ultimoToqueRef.current < 4000) return
-    ultimoToqueRef.current = ahoraMs
+    if (ultimoToqueRef.current.tipo === boton.tipo && ahoraMs - ultimoToqueRef.current.ms < 4000) return
+    ultimoToqueRef.current = { tipo: boton.tipo, ms: ahoraMs }
     tocarSonidoAlerta()
     // Plan gratuito: 6 alertas al mes. Se corta antes de tocar nada más.
-    const usadas = Math.max(alertasMes, user ? leerContadorLocal(user.id) : 0)
-    if (!puedeEnviarAlerta(user, usadas)) { setMostrarLimite('alertas'); return }
-    setAlertasMes(usadas + 1)
-    if (user) guardarContadorLocal(user.id, usadas + 1)
+    // Familiar y Premium no gastan cupo (si el plan se vence, no llega con el mes ya gastado).
+    if (!esPlanPago(user)) {
+      const usadas = Math.max(alertasMes, user ? leerContadorLocal(user.id) : 0)
+      if (!puedeEnviarAlerta(user, usadas)) { setMostrarLimite('alertas'); return }
+      setAlertasMes(usadas + 1)
+      if (user) guardarContadorLocal(user.id, usadas + 1)
+    }
 
     // Solo a los familiares elegidos con el botón 👥 (por defecto, todos)
     const elegidos = destinosEfectivos
@@ -470,8 +496,9 @@ export default function PanicButtons() {
         window.location.href = `sms:${numeros.join(',')}${SEP_SMS}body=${encodeURIComponent(cuerpo)}`
       }
     } else {
-      setRespaldo(null)
-      setTimeout(() => setConfirmacion(null), 5000)
+      // Nadie con número (o todavía sin familiares): el SMS no puede salir solo. Se avisa y
+      // quedan WhatsApp y Mensajes a mano para mandarla a quien sea.
+      setRespaldo({ numeros: [], cuerpo, contactos: [], boton, sinNumeros: true })
     }
 
     guardarEnHistorial(boton, destinatarios)
@@ -502,6 +529,36 @@ export default function PanicButtons() {
     })
   }
 
+  /**
+   * La alerta salió sin GPS: cuando llegue el punto (máximo 3 min) se le agrega. Si sigue en la
+   * cola sin señal, se le pone ahí y sale ya con el mapa. Si ya está en la base, el servidor la
+   * completa y avisa a la familia. Se reintenta por si el guardado todavía iba en camino.
+   */
+  async function completarUbicacion(id) {
+    const p = await esperarUbicacion()
+    if (!p) return
+    for (let intento = 0; intento < 4; intento++) {
+      try {
+        const cola = JSON.parse(localStorage.getItem(COLA_KEY) || '[]')
+        const enCola = cola.find(a => a.id === id)
+        if (enCola) {
+          if (enCola.latitude == null) {
+            enCola.latitude = p.lat
+            enCola.longitude = p.lng
+            localStorage.setItem(COLA_KEY, JSON.stringify(cola))
+          }
+          return
+        }
+      } catch (_) {}
+      const { data: puesta, error } = await supabase.rpc('ubicar_alerta', { p_id: id, p_lat: p.lat, p_lng: p.lng })
+        .then(r => r, e => ({ error: e }))
+      if (puesta) return
+      // El servidor todavía no tiene esta función (falta el SQL): no hay nada que reintentar
+      if (error?.code === 'PGRST202' || error?.code === '42883') return
+      await new Promise(r => setTimeout(r, 5000))
+    }
+  }
+
   /** Guarda la alerta sin bloquear el aviso a la familia. */
   async function guardarEnHistorial(boton, destinatarios = null) {
     const ahora = new Date()
@@ -520,6 +577,10 @@ export default function PanicButtons() {
       // null = todo el grupo familiar; si no, solo esos familiares reciben notificación e historial
       ...(destinatarios ? { destinatarios } : {}),
     }
+
+    // Sin ubicación al guardar: apenas llegue el GPS se le agrega a la alerta (y a la que esté
+    // en la cola sin señal). La familia recibe un segundo aviso con el mapa.
+    if (!p) completarUbicacion(payload.id)
 
     // Sin internet: encolar y avisar. Se enviará automáticamente al volver la señal.
     if (!navigator.onLine) { encolar(payload); setSinNube(true); return }
@@ -713,6 +774,9 @@ export default function PanicButtons() {
           {respaldo.smsSilencioso && (
             <p className={styles.respaldoAviso} style={{ color: '#1E8449', marginBottom: 4 }}>✓ {t('smsEnviadoAuto')}</p>
           )}
+          {respaldo.sinNumeros && (
+            <p className={styles.respaldoAviso} style={{ marginBottom: 4 }}>⚠️ {t(familiares.length ? 'alertaSinNumeros' : 'alertaSinFamiliares')}</p>
+          )}
           {faltaUbicacion && (
             <p className={styles.respaldoAviso} style={{ color: '#e67e22', marginBottom: 4 }}>⏳ {t('buscandoUbicacionEnvio')}</p>
           )}
@@ -730,20 +794,24 @@ export default function PanicButtons() {
           >
             <LogoWhatsApp size={18} /> {t('waVarios')}
           </a>
-          <span className={styles.respaldoSub}>{t('waIndividual')}</span>
-          <div className={styles.respaldoChats}>
-            {respaldo.contactos.map((c, i) => (
-              <a
-                key={c.linked_user_id || i}
-                className={styles.respaldoChat}
-                href={`https://wa.me/${numeroCompleto(c.users?.phone_number, user?.phone_number).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(cuerpoActual)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <LogoWhatsApp size={16} color="#25D366" /> {c.users?.full_name || respaldo.numeros[i]}
-              </a>
-            ))}
-          </div>
+          {respaldo.contactos.length > 0 && (
+            <>
+              <span className={styles.respaldoSub}>{t('waIndividual')}</span>
+              <div className={styles.respaldoChats}>
+                {respaldo.contactos.map((c, i) => (
+                  <a
+                    key={c.linked_user_id || i}
+                    className={styles.respaldoChat}
+                    href={`https://wa.me/${numeroCompleto(c.users?.phone_number, user?.phone_number).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(cuerpoActual)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <LogoWhatsApp size={16} color="#25D366" /> {c.users?.full_name || c.users?.phone_number || t('familiar')}
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
           <button className={styles.respaldoCerrar} onClick={() => { setRespaldo(null); setConfirmacion(null); setSinNube(false) }}>
             {t('cerrar')}
           </button>

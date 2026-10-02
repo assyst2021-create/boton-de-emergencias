@@ -1,7 +1,8 @@
 /**
  * Edge Function: enviar-notificacion-fcm
  * Se llama desde un Database Webhook cuando se inserta una nueva alerta.
- * Busca los familiares vinculados y les envía una notificación FCM push.
+ * Busca los familiares vinculados y les envía una notificación FCM push,
+ * en el idioma y con la hora de cada familiar (versión 89).
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -82,6 +83,49 @@ async function getFcmAccessToken(): Promise<string> {
   return tokenData.access_token
 }
 
+// Textos de la notificación en el idioma de QUIEN LA RECIBE (las mismas palabras del Historial)
+const TEXTOS: Record<string, Record<string, string>> = {
+  es: {
+    red: 'EN PELIGRO', orange: 'HERIDO / NECESITO AYUDA', green: 'ESTOY BIEN / A SALVO',
+    auto: 'Alerta automática', conUbi: '📍 Toca para ver su ubicación', sinUbi: '📍 Sin ubicación por ahora',
+    ubiDe: '📍 Ubicación de', verMapa: 'Toca para verla en el mapa',
+    vivoTitulo: '📍 Ubicación en vivo', vivo: 'está compartiendo su ubicación contigo',
+    mov: 'Se está moviendo · Míralo en En vivo', unFamiliar: 'Un familiar',
+  },
+  en: {
+    red: 'IN DANGER', orange: 'INJURED / NEED HELP', green: 'I AM SAFE',
+    auto: 'Automatic alert', conUbi: '📍 Tap to see their location', sinUbi: '📍 No location yet',
+    ubiDe: '📍 Location of', verMapa: 'Tap to see it on the map',
+    vivoTitulo: '📍 Live location', vivo: 'is sharing their location with you',
+    mov: 'Is on the move · See it in Live', unFamiliar: 'A family member',
+  },
+  pt: {
+    red: 'EM PERIGO', orange: 'FERIDO / PRECISO DE AJUDA', green: 'ESTOU BEM',
+    auto: 'Alerta automático', conUbi: '📍 Toque para ver a localização', sinUbi: '📍 Sem localização por enquanto',
+    ubiDe: '📍 Localização de', verMapa: 'Toque para ver no mapa',
+    vivoTitulo: '📍 Localização ao vivo', vivo: 'está compartilhando a localização com você',
+    mov: 'Está em movimento · Veja em Ao vivo', unFamiliar: 'Um familiar',
+  },
+}
+const LOCALES: Record<string, string> = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' }
+
+/** Zona horaria guardada por el celular del familiar; si no sirve, la de Colombia. */
+function zonaValida(zona?: string | null): string {
+  try { if (zona) { new Intl.DateTimeFormat('en-US', { timeZone: zona }); return zona } } catch (_) { /* inválida */ }
+  return 'America/Bogota'
+}
+/** "15:42 · 2 oct" en el idioma y la hora del familiar. */
+function horaYFecha(iso: string | null | undefined, idioma: string, zona?: string | null): string {
+  let d = iso ? new Date(iso) : new Date()
+  // Un celular con la hora mal puesta no debe mostrar una alerta "del futuro"
+  if (isNaN(d.getTime()) || d.getTime() > Date.now() + 5 * 60 * 1000) d = new Date()
+  const loc = LOCALES[idioma] || 'es-CO'
+  const timeZone = zonaValida(zona)
+  const hora = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone })
+  const dia = d.toLocaleDateString(loc, { day: 'numeric', month: 'short', timeZone })
+  return `${hora} · ${dia}`
+}
+
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
@@ -89,6 +133,8 @@ Deno.serve(async (req) => {
     const pedida = body.record || body
     // Ubicación en vivo (empezó a compartir / se está moviendo): el registro trae user_id
     const esUbicacion = body.tipo === 'ubicacion' || body.tipo === 'movimiento'
+    // Una alerta que salió sin GPS y ya tiene la ubicación: segundo aviso con el mapa
+    const esUbicacionAlerta = body.tipo === 'ubicacion_alerta'
     const emisorId: string | undefined = esUbicacion ? pedida?.user_id : pedida?.sender_id
 
     if (!emisorId || (!esUbicacion && !pedida?.id)) {
@@ -102,14 +148,22 @@ Deno.serve(async (req) => {
       ? supabase.from('live_locations').select('*').eq('user_id', emisorId).maybeSingle()
       : supabase.from('alerts').select('*').eq('id', pedida.id).maybeSingle()
 
+    // Familiares con su idioma y zona horaria. Si esas columnas aún no existen en la base
+    // (falta el SQL), se piden sin ellas: la notificación nunca deja de salir por eso.
+    const pedirFamilia = async () => {
+      const completo = await supabase.from('family_links')
+        .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token, idioma, zona_horaria)')
+        .eq('linked_user_id', emisorId).eq('status', 'accepted')
+      if (!completo.error) return completo
+      return await supabase.from('family_links')
+        .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token)')
+        .eq('linked_user_id', emisorId).eq('status', 'accepted')
+    }
+
     // Familiares que reciben la notificación, datos del emisor y token de Google, todo a la vez
     const [{ data: alerta }, { data: links }, { data: emisor }, accessToken] = await Promise.all([
       confirmar,
-      supabase
-        .from('family_links')
-        .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token)')
-        .eq('linked_user_id', emisorId)
-        .eq('status', 'accepted'),
+      pedirFamilia(),
       supabase
         .from('users')
         .select('full_name')
@@ -122,6 +176,7 @@ Deno.serve(async (req) => {
     const confirmada = esUbicacion
       ? !!alerta?.activo
       : !!alerta && alerta.sender_id === emisorId && (!alerta.expires_at || new Date(alerta.expires_at) > new Date())
+        && (!esUbicacionAlerta || (alerta.latitude != null && alerta.longitude != null))
     if (!confirmada) {
       return new Response(JSON.stringify({ ok: false, msg: 'no confirmada en la base' }), { status: 200 })
     }
@@ -137,27 +192,39 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, enviadas: 0 }), { status: 200 })
     }
 
-    const nombre = emisor?.full_name || 'Un familiar'
-    let titulo: string, cuerpo: string
-    if (body.tipo === 'ubicacion') {
-      titulo = '📍 Ubicación en vivo'
-      cuerpo = `${nombre} está compartiendo su ubicación contigo`
-    } else if (body.tipo === 'movimiento') {
-      titulo = `🚶 ${nombre}`
-      cuerpo = 'Se está moviendo · Míralo en En vivo'
-    } else {
-      // Igual que en el Historial: el nombre arriba y el estado debajo, con las mismas palabras
+    // Cada familiar recibe el texto en su idioma y con su hora
+    const armar = (idiomaGuardado?: string | null, zona?: string | null) => {
+      const idioma = TEXTOS[idiomaGuardado || ''] ? idiomaGuardado as string : 'es'
+      const tx = TEXTOS[idioma]
+      const nombre = emisor?.full_name || tx.unFamiliar
+      if (body.tipo === 'ubicacion') {
+        return { titulo: tx.vivoTitulo, cuerpo: `${nombre} ${tx.vivo}`, ruta: 'ubicacion' }
+      }
+      if (body.tipo === 'movimiento') {
+        return { titulo: `🚶 ${nombre}`, cuerpo: tx.mov, ruta: 'ubicacion' }
+      }
       const tipo = alerta.status_type
       const emoji = tipo === 'red' ? '🔴' : tipo === 'orange' ? '🟠' : '🟢'
-      titulo = `${emoji} ${nombre}`
-      cuerpo = (tipo === 'red' ? 'EN PELIGRO' : tipo === 'orange' ? 'HERIDO / NECESITO AYUDA' : 'ESTOY BIEN / A SALVO')
-        + (alerta.is_auto ? ' · Alerta automática' : '')
+      const estado = tipo === 'red' ? tx.red : tipo === 'orange' ? tx.orange : tx.green
+      const cuando = horaYFecha(alerta.sent_at, idioma, zona)
+      if (esUbicacionAlerta) {
+        return { titulo: `${tx.ubiDe} ${nombre}`, cuerpo: `${emoji} ${estado} · ${cuando}\n${tx.verMapa}`, ruta: 'historial' }
+      }
+      // Igual que en el Historial: el nombre arriba y el estado debajo, con las mismas palabras
+      const conUbicacion = alerta.latitude != null && alerta.longitude != null
+      return {
+        titulo: `${emoji} ${nombre}`,
+        cuerpo: `${estado}${alerta.is_auto ? ` · ${tx.auto}` : ''} · ${cuando}\n${conUbicacion ? tx.conUbi : tx.sinUbi}`,
+        ruta: 'historial',
+      }
     }
 
     const projectId = SA.project_id
 
-    const tokens = destino.map(l => (l.users as any)?.fcm_token).filter(Boolean)
-    const resultados = await Promise.all(tokens.map(async (fcmToken: string) => {
+    const envios = destino
+      .map(l => ({ fcmToken: (l.users as any)?.fcm_token, ...armar((l.users as any)?.idioma, (l.users as any)?.zona_horaria) }))
+      .filter(e => e.fcmToken)
+    const resultados = await Promise.all(envios.map(async ({ fcmToken, titulo, cuerpo, ruta }) => {
       const fcmRes = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         {
@@ -170,6 +237,8 @@ Deno.serve(async (req) => {
             message: {
               token: fcmToken,
               notification: { title: titulo, body: cuerpo },
+              // Al tocarla, la app abre la pestaña donde está la información
+              data: { ruta },
               android: {
                 priority: 'high',
                 notification: {

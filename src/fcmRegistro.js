@@ -6,6 +6,15 @@
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 const CANAL = 'alertas_v3'
 
+const RUTAS_AVISO = { historial: '/historial', ubicacion: '/ubicacion' }
+/** Pide a la app que abra una pestaña. Si todavía no está lista, la ruta queda pendiente. */
+function irA(ruta) {
+  const destino = RUTAS_AVISO[ruta]
+  if (!destino) return
+  window.__rutaPendiente = destino
+  window.dispatchEvent(new Event('irARuta'))
+}
+
 let escuchando = false
 let usuarioActual = null
 let tokenActual = null
@@ -49,13 +58,24 @@ export async function registrarFCM(supabase, userId) {
             id: Math.floor(Math.random() * 2147483647),
             title: n.title || '',
             body: n.body || '',
+            // Se ve completa al desplegarla (estado, hora y ubicación)
+            largeBody: n.body || '',
             channelId: CANAL,
             sound: 'default',
             smallIcon: 'ic_stat_notification',
             iconColor: '#e8302a',
+            extra: { ruta: n.data?.ruta || '' },
             schedule: { at: new Date(Date.now() + 100) },
           }],
         }).catch(() => {})
+      })
+      // Al tocar la notificación se abre donde está la información: la alerta en el Historial,
+      // la ubicación en En vivo (también con la app cerrada: el aviso queda guardado)
+      await PushNotifications.addListener('pushNotificationActionPerformed', a => {
+        irA(a?.notification?.data?.ruta)
+      })
+      await LocalNotifications?.addListener?.('localNotificationActionPerformed', a => {
+        irA(a?.notification?.extra?.ruta)
       })
     }
 

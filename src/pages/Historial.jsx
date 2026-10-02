@@ -54,6 +54,13 @@ export default function Historial() {
           const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || t('familiar'), phone_number: telefonosRef.current[a.sender_id] } }
           setAlertas(prev => prev.some(x => x.id === a.id) ? prev : [enriquecida, ...prev])
         })
+      // Una alerta que salió sin GPS recibe la ubicación unos segundos después
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'alerts' },
+        (payload) => {
+          const a = payload.new
+          if (a?.latitude == null || a?.longitude == null) return
+          setAlertas(prev => prev.map(x => x.id === a.id ? { ...x, latitude: a.latitude, longitude: a.longitude } : x))
+        })
       .subscribe()
   }
 
