@@ -92,13 +92,14 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       case 'NO_AUTORIZADO_DUENIO': return t('recErrNoAutorizado')
       case 'CELULAR_NO_DISPONIBLE': return t('recErrCelular')
       case 'ES_TU_CELULAR': return t('recErrTuCelular')
+      case 'FALTAN_DATOS': return t('recErrFaltan')
       default: return t('recErrGenerico')
     }
   }
 
   async function recuperar(accion) {
     if (rcCargando) return
-    if (!rcForm.clave.trim() || !rcForm.password) { setRcMsg({ tipo: 'error', texto: t('recErrGenerico') }); return }
+    if (!rcForm.clave.trim() || !rcForm.password) { setRcMsg({ tipo: 'error', texto: t('recErrFaltan') }); return }
     if (accion === 'detener' && !window.confirm(t('recConfirmaDetener'))) return
     setRcCargando(true); setRcMsg(null)
     try {
