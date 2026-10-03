@@ -221,6 +221,24 @@
   text-align: left;
 }
 
+.opcionEliminar {
+  background: none;
+  border: 1.5px solid rgba(192,57,43,0.3);
+  color: #e74c3c;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 13px 16px;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.enlace {
+  color: #2e86de;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .form {
   display: flex;
   flex-direction: column;

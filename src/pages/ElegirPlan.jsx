@@ -9,7 +9,7 @@ import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincroni
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play
 const URL_PLAY = 'https://play.google.com/store/apps/details?id=com.ssthechofacil.botonemergencias'
 // Donde la persona ve, cambia o cancela su suscripción (Google Play)
-const URL_SUSCRIPCIONES = 'https://play.google.com/store/account/subscriptions?package=com.ssthechofacil.botonemergencias'
+export const URL_SUSCRIPCIONES = 'https://play.google.com/store/account/subscriptions?package=com.ssthechofacil.botonemergencias'
 
 export default function ElegirPlan({ onElegido }) {
   const { t } = useLanguage()

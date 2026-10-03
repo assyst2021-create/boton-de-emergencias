@@ -4,16 +4,18 @@ import { validarClave, mensajeErrorClave } from '../clave'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
-import ElegirPlan from './ElegirPlan'
+import ElegirPlan, { URL_SUSCRIPCIONES } from './ElegirPlan'
 import { useTema } from '../ThemeContext'
 import { useAppActions } from '../AppActionsContext'
 import { esPremium, esFamiliar, esPlanPago } from '../plan'
 import { olvidarFCM } from '../fcmRegistro'
-import { VERSION_LEGAL } from '../i18n/legalDocs'
+import { VERSION_LEGAL, RESPONSABLE } from '../i18n/legalDocs'
 
 export { AppActionsContext } from '../AppActionsContext'
 
 const AvisoLegal = lazy(() => import('./AvisoLegal'))
+// Página pública con cómo se eliminan los datos (la misma que tiene Google Play)
+const URL_ELIMINAR = 'https://boton-de-emergencia-privacidad.mefacil.com/'
 
 export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const { t, lang, cambiarIdioma } = useLanguage()
@@ -64,6 +66,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [verRecClave, setVerRecClave] = useState(false)
   const [recError, setRecError] = useState('')
   const [recGuardando, setRecGuardando] = useState(false)
+  // Eliminar cuenta: dos avisos y la contraseña
+  const [elimClave, setElimClave] = useState('')
+  const [verElimClave, setVerElimClave] = useState(false)
+  const [elimError, setElimError] = useState('')
+  const [elimCargando, setElimCargando] = useState(false)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
   useEffect(() => {
@@ -195,6 +202,45 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       setRcMsg({ tipo: 'error', texto: t('recErrGenerico') })
     } finally {
       setRcCargando(false)
+    }
+  }
+
+  function abrirEliminar() {
+    setElimClave(''); setVerElimClave(false); setElimError('')
+    setPaso('eliminar')
+  }
+
+  /**
+   * Elimina la cuenta para siempre. El servidor comprueba la contraseña (así quien tenga el celular
+   * desbloqueado no puede borrarla) y borra todos los datos y el usuario.
+   */
+  async function eliminarCuenta(e) {
+    e.preventDefault()
+    if (elimCargando) return
+    if (!elimClave) { setElimError(t('errorClaveActualFalta')); return }
+    setElimCargando(true); setElimError('')
+    try {
+      const { data, error } = await supabase.functions.invoke('eliminar-cuenta', { body: { password: elimClave } })
+      // functions.invoke marca error en HTTP != 2xx; el cuerpo trae el detalle
+      const res = data || (error?.context ? await error.context.json().catch(() => null) : null)
+      if (!res?.ok) {
+        if (res?.error === 'CREDENCIALES') setElimError(t('errorClaveActual'))
+        else if (res?.error === 'BLOQUEADO') setElimError(t('recErrBloqueado').replace('{min}', String(res.minutos || 30)))
+        else setElimError(t('elimErrGenerico').replace('{correo}', RESPONSABLE.correo))
+        return
+      }
+      // Cuenta eliminada: este celular deja de compartir y se borra lo guardado de esa cuenta
+      setPaso('eliminada')
+      try { await window.Capacitor?.Plugins?.GpsShare?.detener({ userId: uid }) } catch (_) {}
+      try {
+        sessionStorage.removeItem('ubi_sharing')
+        Object.keys(localStorage).filter(k => uid && k.includes(uid)).forEach(k => localStorage.removeItem(k))
+      } catch (_) {}
+      setTimeout(() => { supabase.auth.signOut({ scope: 'local' }).catch(() => {}) }, 4000)
+    } catch (_) {
+      setElimError(t('elimErrGenerico').replace('{correo}', RESPONSABLE.correo))
+    } finally {
+      setElimCargando(false)
     }
   }
 
@@ -359,10 +405,61 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </button>
               </>
             )}
+            <button className={styles.opcionEliminar} onClick={abrirEliminar}>
+              🗑️ {t('elimMenu')}
+            </button>
             <button className={styles.opcionRojo} onClick={cerrarSesion}>
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>
+          </div>
+        )}
+
+        {paso === 'eliminar' && (
+          <div className={styles.form}>
+            <h3 className={styles.recTitulo}>🗑️ {t('elimTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('elimIntro')}</p>
+            <ul className={styles.recLista}>
+              <li>{t('elim1')}</li>
+              <li>{t('elim2')}</li>
+              <li>{t('elim3')}</li>
+              <li>{t('elim4')}</li>
+            </ul>
+            <div className={styles.error} style={{ fontWeight: 700, lineHeight: 1.45 }}>⚠️ {t('elimAviso')}</div>
+            <div className={styles.recDatos}>
+              <span>{t('elimSuscripcion')}</span>
+              {EN_APP && (
+                <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer" className={styles.enlace}>{t('elimVerSuscripciones')}</a>
+              )}
+            </div>
+            <a href={`${URL_ELIMINAR}?lang=${lang}#eliminar`} target="_blank" rel="noopener noreferrer" className={styles.enlace} style={{ textAlign: 'center' }}>
+              {t('elimMasInfo')}
+            </a>
+            <button type="button" className={styles.btn} onClick={() => { setElimError(''); setPaso('eliminar2') }}>{t('elimContinuar')}</button>
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
+          </div>
+        )}
+
+        {paso === 'eliminar2' && (
+          <form onSubmit={eliminarCuenta} className={styles.form}>
+            <h3 className={styles.recTitulo}>⚠️ {t('elimConfirmaTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('elimConfirmaDesc')}</p>
+            <div className={styles.passwordWrap}>
+              <input type={verElimClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={elimClave}
+                onChange={e => setElimClave(e.target.value)} autoComplete="current-password" />
+              <button type="button" className={styles.eyeBtn} onClick={() => setVerElimClave(v => !v)}>{verElimClave ? '🙈' : '👁️'}</button>
+            </div>
+            {elimError && <div className={styles.error}>{elimError}</div>}
+            <button type="submit" className={styles.btn} disabled={elimCargando}>
+              {elimCargando ? t('procesando') : t('elimBtn')}
+            </button>
+            <button type="button" className={styles.volver} disabled={elimCargando} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
+          </form>
+        )}
+
+        {paso === 'eliminada' && (
+          <div className={styles.form}>
+            <div className={styles.exito} style={{ textAlign: 'center', lineHeight: 1.5 }}>✓ {t('elimHecho')}</div>
           </div>
         )}
 

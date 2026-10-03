@@ -504,3 +504,51 @@ GRANT EXECUTE ON FUNCTION public.set_recuperacion(boolean) TO authenticated;
 SELECT 'set_recuperacion' AS funcion,
        CASE WHEN prosrc LIKE '%cerrar_recuperacion%' THEN 'actualizada' ELSE 'vieja' END AS estado
   FROM pg_proc WHERE proname = 'set_recuperacion';
+
+-- ---------- Punto 7c. Eliminar cuenta desde la app ----------
+-- La llama solo la función eliminar-cuenta (servidor), después de comprobar la contraseña.
+-- Borra TODOS los datos de la persona en una sola operación: si algo falla, no se borra nada.
+-- Después, la función borra el usuario de inicio de sesión (correo y contraseña).
+CREATE OR REPLACE FUNCTION public.eliminar_datos_cuenta(p_uid uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_usuario text; v_correo text; t text;
+BEGIN
+  IF p_uid IS NULL THEN RAISE EXCEPTION 'FALTA_USUARIO'; END IF;
+  SELECT lower(username) INTO v_usuario FROM public.users WHERE id = p_uid;
+  SELECT lower(email) INTO v_correo FROM auth.users WHERE id = p_uid;
+
+  DELETE FROM public.scheduled_alerts WHERE user_id = p_uid;
+  DELETE FROM public.alerts WHERE sender_id = p_uid;
+  DELETE FROM public.family_links WHERE user_id = p_uid OR linked_user_id = p_uid;
+  DELETE FROM public.live_locations WHERE user_id = p_uid;
+  -- Tablas que se fueron agregando en otras versiones: se borran si existen
+  FOREACH t IN ARRAY ARRAY['alertas_ocultas', 'alertas_mes', 'gps_llaves', 'push_subscriptions', 'aceptaciones_legales'] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('DELETE FROM public.%I WHERE user_id = $1', t) USING p_uid;
+    END IF;
+  END LOOP;
+  IF to_regclass('public.recuperacion_sesiones') IS NOT NULL THEN
+    DELETE FROM public.recuperacion_sesiones WHERE owner_id = p_uid OR solicitante_id = p_uid;
+  END IF;
+  IF to_regclass('public.recuperacion_bloqueo') IS NOT NULL THEN
+    DELETE FROM public.recuperacion_bloqueo
+     WHERE clave IN (v_usuario, v_correo, 'eliminar:' || p_uid::text);
+  END IF;
+  DELETE FROM public.users WHERE id = p_uid;
+END $$;
+REVOKE ALL ON FUNCTION public.eliminar_datos_cuenta(uuid) FROM PUBLIC, anon, authenticated;
+
+-- Revisión: la función, y otras tablas que apunten a los usuarios. Ninguna debe decir BLOQUEA
+-- (si alguna lo dice, avisar: habría que agregarla a la función antes de usar el botón).
+SELECT 'funcion' AS tipo, proname::text AS nombre, 'lista' AS estado FROM pg_proc WHERE proname = 'eliminar_datos_cuenta'
+UNION ALL
+SELECT 'otra tabla', rc.relname::text,
+       CASE c.confdeltype WHEN 'c' THEN 'se borra sola' WHEN 'n' THEN 'se vacía sola' WHEN 'd' THEN 'se vacía sola' ELSE 'BLOQUEA' END
+  FROM pg_constraint c
+  JOIN pg_class rc ON rc.oid = c.conrelid
+  JOIN pg_namespace n ON n.oid = rc.relnamespace
+ WHERE c.contype = 'f' AND n.nspname = 'public'
+   AND c.confrelid IN ('auth.users'::regclass, 'public.users'::regclass)
+   AND rc.relname NOT IN ('users', 'scheduled_alerts', 'alerts', 'family_links', 'live_locations', 'alertas_ocultas',
+                          'alertas_mes', 'gps_llaves', 'push_subscriptions', 'aceptaciones_legales',
+                          'recuperacion_sesiones', 'recuperacion_bloqueo');
