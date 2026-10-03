@@ -9,6 +9,7 @@ import { useTema } from '../ThemeContext'
 import { useAppActions } from '../AppActionsContext'
 import { esPremium, esFamiliar, esPlanPago } from '../plan'
 import { olvidarFCM } from '../fcmRegistro'
+import { VERSION_LEGAL } from '../i18n/legalDocs'
 
 export { AppActionsContext } from '../AppActionsContext'
 
@@ -57,6 +58,12 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [rcForm, setRcForm] = useState({ clave: '', password: '' })
   const [rcMsg, setRcMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [rcCargando, setRcCargando] = useState(false)
+  // Interruptor "Permitir recuperar mi celular": autorización al activarlo, contraseña al apagarlo
+  const [recAcepto, setRecAcepto] = useState(false)
+  const [recClave, setRecClave] = useState('')
+  const [verRecClave, setVerRecClave] = useState(false)
+  const [recError, setRecError] = useState('')
+  const [recGuardando, setRecGuardando] = useState(false)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
   useEffect(() => {
@@ -101,12 +108,57 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
   }
 
-  // El dueño autoriza (o quita) que su propio celular se pueda recuperar con su contraseña
-  async function toggleRecuperar() {
-    const nuevo = !recPermitir
-    setRecPermitir(nuevo)
-    const { error } = await supabase.rpc('set_recuperacion', { activa: nuevo })
-    if (error) setRecPermitir(!nuevo)   // si falla, se devuelve
+  /**
+   * El dueño autoriza (o quita) que su propio celular se pueda recuperar. Activarlo pide la
+   * autorización expresa (Ley 1581). Apagarlo pide la contraseña: quien tenga el celular
+   * desbloqueado (por ejemplo, un ladrón) no puede apagarlo antes de que la familia lo busque.
+   */
+  function toggleRecuperar() {
+    setRecError(''); setRecAcepto(false); setRecClave(''); setVerRecClave(false); setCorreoClave('')
+    setPaso(recPermitir ? 'recApagar' : 'recAutorizar')
+  }
+
+  async function autorizarRecuperar() {
+    if (!recAcepto || recGuardando) return
+    setRecGuardando(true); setRecError('')
+    const { error } = await supabase.rpc('set_recuperacion', { activa: true }).then(r => r, e => ({ error: e }))
+    setRecGuardando(false)
+    if (error) { setRecError(/SOLO_PREMIUM/.test(error.message || '') ? t('recSoloPremium') : t('errorConexion')); return }
+    setRecPermitir(true)
+    // Prueba de la autorización (fecha, versión e idioma), igual que la de los documentos legales
+    supabase.from('aceptaciones_legales')
+      .upsert({ user_id: uid, version: `recuperar-celular ${VERSION_LEGAL}`, idioma: lang }, { onConflict: 'user_id,version', ignoreDuplicates: true })
+      .then(() => {}, () => {})
+    setPaso('menu')
+  }
+
+  async function apagarRecuperar(e) {
+    e.preventDefault()
+    if (recGuardando) return
+    if (!recClave) { setRecError(t('errorClaveActualFalta')); return }
+    setRecGuardando(true); setRecError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+      if (!email) { setRecError(t('errorConexion')); return }
+      const { error: errClave } = await clienteVerificacion().auth.signInWithPassword({ email, password: recClave })
+      if (errClave) { setRecError(/fetch|network|failed/i.test(errClave.message || '') ? t('errorConexion') : t('errorClaveActual')); return }
+      // Si este celular está compartiendo por una recuperación, apagar la opción también la detiene
+      const { data: enCurso } = await supabase.from('recuperacion_sesiones').select('id')
+        .eq('owner_id', uid).eq('estado', 'activa').gt('vence_at', new Date().toISOString()).limit(1)
+      const { error } = await supabase.rpc('set_recuperacion', { activa: false })
+      if (error) { setRecError(t('errorConexion')); return }
+      setRecPermitir(false)
+      if (enCurso?.length) {
+        try { await window.Capacitor?.Plugins?.GpsShare?.detener({ userId: uid }) } catch (_) {}
+      }
+      setRecClave('')
+      setPaso('menu')
+    } catch (_) {
+      setRecError(t('errorConexion'))
+    } finally {
+      setRecGuardando(false)
+    }
   }
 
   function textoErrorRec(code, min) {
@@ -312,6 +364,53 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             </button>
             <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>
           </div>
+        )}
+
+        {paso === 'recAutorizar' && (
+          <div className={styles.form}>
+            <h3 className={styles.recTitulo}>🔒 {t('recAutTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('recAutIntro')}</p>
+            <ul className={styles.recLista}>
+              <li>{t('recAut1')}</li>
+              <li>{t('recAut2')}</li>
+              <li>{t('recAut3')}</li>
+              <li>{t('recAut4')}</li>
+            </ul>
+            <div className={styles.recDatos}>
+              <strong>{t('recAutDatosTitulo')}</strong>
+              <span>{t('recAutDatos')}</span>
+            </div>
+            <label className={styles.recCheck}>
+              <input type="checkbox" checked={recAcepto} onChange={e => setRecAcepto(e.target.checked)} />
+              <span>{t('recAutAcepto')}</span>
+            </label>
+            {recError && <div className={styles.error}>{recError}</div>}
+            <button type="button" className={styles.btn} disabled={!recAcepto || recGuardando} onClick={autorizarRecuperar}>
+              {recGuardando ? t('procesando') : t('recAutBtn')}
+            </button>
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
+          </div>
+        )}
+
+        {paso === 'recApagar' && (
+          <form onSubmit={apagarRecuperar} className={styles.form}>
+            <h3 className={styles.recTitulo}>🔒 {t('recApagarTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('recApagarDesc')}</p>
+            <div className={styles.passwordWrap}>
+              <input type={verRecClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={recClave}
+                onChange={e => setRecClave(e.target.value)} autoComplete="current-password" />
+              <button type="button" className={styles.eyeBtn} onClick={() => setVerRecClave(v => !v)}>{verRecClave ? '🙈' : '👁️'}</button>
+            </div>
+            {recError && <div className={styles.error}>{recError}</div>}
+            <button type="submit" className={styles.btn} disabled={recGuardando}>
+              {recGuardando ? t('procesando') : t('recApagarBtn')}
+            </button>
+            {correoClave
+              ? <p className={styles.desc} style={{ textAlign: 'center', margin: 0 }}>{correoClave}</p>
+              : <button type="button" className={styles.volver} onClick={async () => { await enviarCorreoClave(); }}>{t('claveOlvideActual')}</button>}
+            {error && <div className={styles.error}>{error}</div>}
+            <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError('') }}>{t('cancelar')}</button>
+          </form>
         )}
 
         {paso === 'recuperar' && (

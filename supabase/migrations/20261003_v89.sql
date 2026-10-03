@@ -472,3 +472,35 @@ UNION ALL
 SELECT 'disparador', tgname FROM pg_trigger WHERE tgname = 'trg_cancelar_alertas_auto'
 UNION ALL
 SELECT 'tarea', jobname || ' · ' || schedule FROM cron.job;
+
+-- ---------- Punto 11. Apagar "Permitir recuperar mi celular" detiene una recuperación en curso ----------
+-- Retirar la autorización es dejar de usar el dato (Ley 1581): si el celular estaba compartiendo
+-- por una recuperación, se cierra en ese momento. La app pide la contraseña antes de apagarla.
+-- Una ubicación en vivo normal (la que la persona compartió por su cuenta) no se toca.
+CREATE OR REPLACE FUNCTION public.set_recuperacion(activa boolean)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'NO_AUTORIZADO' USING ERRCODE = '28000'; END IF;
+  -- Activarla es del plan Premium (apagarla siempre se permite)
+  IF COALESCE(activa, false) AND NOT EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid()
+      AND plan IS DISTINCT FROM 'familiar'
+      AND (plan = 'premium' OR is_premium)
+      AND (premium_hasta IS NULL OR premium_hasta > now())
+  ) THEN
+    RAISE EXCEPTION 'SOLO_PREMIUM' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.users SET recuperacion_activa = COALESCE(activa, false) WHERE id = auth.uid();
+  IF NOT COALESCE(activa, false) AND EXISTS (
+    SELECT 1 FROM public.recuperacion_sesiones WHERE owner_id = auth.uid() AND estado = 'activa'
+  ) THEN
+    PERFORM public.cerrar_recuperacion(auth.uid());
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.set_recuperacion(boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_recuperacion(boolean) TO authenticated;
+
+SELECT 'set_recuperacion' AS funcion,
+       CASE WHEN prosrc LIKE '%cerrar_recuperacion%' THEN 'actualizada' ELSE 'vieja' END AS estado
+  FROM pg_proc WHERE proname = 'set_recuperacion';
