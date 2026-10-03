@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase, clienteVerificacion } from '../supabase'
-import { validarClave, mensajeErrorClave } from '../clave'
+import { validarClave, mensajeErrorClave, URL_NUEVA_CLAVE } from '../clave'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
@@ -292,7 +292,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     const { data: { session } } = await supabase.auth.getSession()
     const email = session?.user?.email
     if (!email) return
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: URL_NUEVA_CLAVE })
     if (error) { setError(mensajeErrorClave(error, t, 'errorConexion')); return }
     setCorreoClave(t('resetEnviado'))
   }

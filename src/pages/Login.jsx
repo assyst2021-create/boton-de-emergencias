@@ -7,7 +7,7 @@ import {
   PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
   guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
 } from '../registro'
-import { mensajeErrorClave } from '../clave'
+import { mensajeErrorClave, URL_NUEVA_CLAVE } from '../clave'
 
 // El enlace del correo para cambiar la contraseña ya venció o se usó (Supabase lo indica en la dirección)
 const ENLACE_VENCIDO = typeof window !== 'undefined' && /error_code=otp_expired|error=access_denied/.test(window.location.hash)
@@ -60,7 +60,7 @@ export default function Login() {
     if (!form.email) { setError(t('errorCorreoReset')); return }
     setResetCargando(true)
     setAvisoEnlace(false)
-    const { error: err } = await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim())
+    const { error: err } = await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim(), { redirectTo: URL_NUEVA_CLAVE })
       .then(r => r, e => ({ error: e }))
     setResetCargando(false)
     // Antes decía "te enviamos un correo" aunque no hubiera salido (sin señal o muchos intentos)
