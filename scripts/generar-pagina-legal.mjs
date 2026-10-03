@@ -26,7 +26,7 @@ const T = {
 const correo = `<strong>${esc(R.correo)}</strong>`
 const ELIMINAR = {
   es: [
-    ['Desde la app (inmediato)', 'Abre Botón de Emergencias → ⚙️ Opciones → Eliminar cuenta. La app te avisa que no se puede deshacer y te pide confirmar. Al confirmar, tu cuenta se elimina de inmediato.'],
+    ['Desde la app (inmediato, versión 1.1.1 (89) en adelante)', 'Abre Botón de Emergencias → ⚙️ Opciones → Eliminar cuenta. La app te avisa que no se puede deshacer y te pide confirmar. Al confirmar, tu cuenta se elimina de inmediato.'],
     ['Sin la app (por correo)', `Si ya no tienes la app, escribe a ${correo} desde el correo con el que te registraste, con el asunto "Eliminar mi cuenta", e incluye tu @usuario. Confirmamos que eres el titular y eliminamos la cuenta en un máximo de 15 días hábiles.`],
     ['Qué se elimina', 'Tu perfil (nombre, @usuario, correo, teléfono y contraseña), tus vínculos familiares y solicitudes, tus alertas, tus ubicaciones compartidas, el registro de recuperaciones de celular, tus preferencias y el identificador de notificaciones. Se borran de forma definitiva en un máximo de 30 días y no se pueden recuperar: si vuelves, debes registrarte de cero.'],
     ['Qué no se elimina', 'Los registros de pago los guarda Google Play según sus propias políticas. Las alertas que ya enviaste pudieron llegar como SMS o WhatsApp a los celulares de tus familiares: esos mensajes quedan en sus teléfonos.'],
@@ -34,7 +34,7 @@ const ELIMINAR = {
     ['Borrar datos sin eliminar la cuenta', `Desde la app puedes borrar alertas de tu historial, quitar familiares, dejar de compartir tu ubicación y desactivar Recuperar celular. Para cualquier otro dato, escríbenos a ${correo}.`],
   ],
   en: [
-    ['From the app (immediate)', 'Open Botón de Emergencias → ⚙️ Settings → Delete account. The app warns you that it cannot be undone and asks you to confirm. Once confirmed, your account is deleted immediately.'],
+    ['From the app (immediate, version 1.1.1 (89) or later)', 'Open Botón de Emergencias → ⚙️ Settings → Delete account. The app warns you that it cannot be undone and asks you to confirm. Once confirmed, your account is deleted immediately.'],
     ['Without the app (by email)', `If you no longer have the app, write to ${correo} from the email you registered with, with the subject "Delete my account", and include your @username. We confirm you are the account holder and delete the account within 15 business days at most.`],
     ['What is deleted', 'Your profile (name, @username, email, phone and password), your family links and requests, your alerts, your shared locations, the phone recovery records, your preferences and the notification identifier. They are permanently deleted within 30 days at most and cannot be recovered: if you come back, you must register from scratch.'],
     ['What is not deleted', 'Payment records are kept by Google Play under its own policies. Alerts you already sent may have reached your family members\' phones as SMS or WhatsApp messages: those messages stay on their phones.'],
@@ -42,7 +42,7 @@ const ELIMINAR = {
     ['Delete data without deleting the account', `In the app you can delete alerts from your history, remove family members, stop sharing your location and turn off Recover phone. For any other data, write to us at ${correo}.`],
   ],
   pt: [
-    ['Pelo app (imediato)', 'Abra o Botón de Emergencias → ⚙️ Opções → Excluir conta. O app avisa que não é possível desfazer e pede confirmação. Ao confirmar, sua conta é excluída imediatamente.'],
+    ['Pelo app (imediato, versão 1.1.1 (89) ou superior)', 'Abra o Botón de Emergencias → ⚙️ Opções → Excluir conta. O app avisa que não é possível desfazer e pede confirmação. Ao confirmar, sua conta é excluída imediatamente.'],
     ['Sem o app (por e-mail)', `Se você não tem mais o app, escreva para ${correo} a partir do e-mail com que se cadastrou, com o assunto "Excluir minha conta", e inclua seu @usuário. Confirmamos que você é o titular e excluímos a conta em no máximo 15 dias úteis.`],
     ['O que é excluído', 'Seu perfil (nome, @usuário, e-mail, telefone e senha), seus vínculos familiares e solicitações, seus alertas, suas localizações compartilhadas, o registro de recuperações de celular, suas preferências e o identificador de notificações. São apagados definitivamente em no máximo 30 dias e não podem ser recuperados: se voltar, você deve se cadastrar do zero.'],
     ['O que não é excluído', 'Os registros de pagamento são guardados pelo Google Play conforme suas próprias políticas. Os alertas que você já enviou podem ter chegado como SMS ou WhatsApp aos celulares dos seus familiares: essas mensagens ficam nos telefones deles.'],
@@ -70,7 +70,8 @@ for (const l of ['es', 'en', 'pt']) {
   CONTENT[l] = { brandSub: `${R.nombre} · ${t.sub}`, tabs: [...L.DOCS_META.map(d => d.titulo), t.eliminar], docs }
 }
 
-let html = fs.readFileSync(PAGINA, 'utf8')
+// La marca de "Generado por…" de la vez anterior se quita para no repetirla
+let html = fs.readFileSync(PAGINA, 'utf8').replace(/\/\/ Generado por scripts\/generar-pagina-legal\.mjs[^\n]*\n/g, '')
 const ini = html.indexOf('const CONTENT = {')
 const fin = html.indexOf('const docIds')
 if (ini < 0 || fin < 0) throw new Error('No encontré el bloque CONTENT en la página')
