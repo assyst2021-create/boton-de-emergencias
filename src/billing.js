@@ -30,7 +30,11 @@ export async function tokenSuscripcionActual(productIdNuevo) {
 /** El servidor verifica el pago con Google y activa el plan del usuario de la sesión. */
 export async function activarCompra(supabase, token) {
   const { data, error } = await supabase.functions.invoke('activar-premium', { body: { token } })
-  if (error) throw new Error(error.message)
+  if (error) {
+    // El motivo real viene en el cuerpo de la respuesta (por ejemplo, compra_de_otra_cuenta)
+    const cuerpo = error.context ? await error.context.json().catch(() => null) : null
+    throw new Error(cuerpo?.error || error.message)
+  }
   if (data?.error) throw new Error(data.error)
   return data
 }

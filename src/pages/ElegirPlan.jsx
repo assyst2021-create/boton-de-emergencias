@@ -141,11 +141,14 @@ export default function ElegirPlan({ onElegido, conX = false }) {
       if (resultado.pendiente) { setAviso(t('billingPendiente')); return }
 
       // El pago ya está hecho: si la activación falla se reintenta, y nunca se dice que el pago falló
-      let activado = false
-      for (let intento = 0; intento < 4 && !activado; intento++) {
+      // Solo cuenta como activado si Google lo confirma (ok); si aún no, se reintenta
+      let activado = false, otraCuenta = false
+      for (let intento = 0; intento < 4 && !activado && !otraCuenta; intento++) {
         if (intento) await new Promise(r => setTimeout(r, 3000 * intento))
-        try { await activarCompra(supabase, resultado.token); activado = true } catch (_) {}
+        try { activado = (await activarCompra(supabase, resultado.token))?.ok === true }
+        catch (e) { if (/compra_de_otra_cuenta/.test(e?.message || '')) otraCuenta = true }
       }
+      if (otraCuenta) { setAviso(t('billingOtraCuenta').replace('{correo}', RESPONSABLE.correo)); return }
       if (!activado) { setAviso(t('billingPagoRecibido')); return }
       setPlanActual(seleccionado)
       onElegido()
