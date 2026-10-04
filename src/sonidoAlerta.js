@@ -1,11 +1,15 @@
 /**
  * Sonido de las alertas de emergencia en ESTE celular (lo escoge quien recibe). La parte de Android
  * (SonidosPlugin) crea el "canal" con ese sonido y la app guarda en el servidor el nombre del canal:
- * así cada familiar recibe la alerta con el sonido que él eligió. Sin elegir nada: el tono normal.
+ * así cada familiar recibe la alerta con el sonido que él eligió. Sin elegir nada: el tono normal,
+ * que suena también con el celular en silencio.
  */
 export const SONIDOS = ['sirena', 'alarma', 'campana', 'normal']
 const CLAVE = 'sonidoAlerta'
 export const CANAL_NORMAL = 'alertas_v3'
+// Lo que tiene cada persona mientras no escoja otra cosa: es una emergencia, así que las alertas
+// suenan aunque el celular esté en silencio (decisión de Michael, 04-10)
+export const PREFERENCIA_INICIAL = { sonido: 'normal', siempre: true }
 
 const plugin = () => (typeof window !== 'undefined' ? window.Capacitor?.Plugins?.Sonidos : null)
 export const hayPluginSonidos = () => !!plugin()?.configurar
@@ -25,6 +29,8 @@ export function canalLocal() {
 
 /** "alertas_s_sirena_2" → { sonido: 'sirena', siempre: true } (para recuperarlo al reinstalar) */
 export function desdeCanal(canal) {
+  // Escogió a propósito el tono normal sin sonar en silencio: se respeta
+  if (canal === CANAL_NORMAL) return { sonido: 'normal', siempre: false }
   const m = /^alertas_(s_)?(sirena|alarma|campana|normal)_\d+$/.exec(canal || '')
   return m ? { sonido: m[2], siempre: !!m[1] } : null
 }
@@ -59,8 +65,8 @@ export async function sincronizarSonido(supabase, uid) {
     const { data } = await supabase.from('users').select('canal_alerta').eq('id', uid).maybeSingle()
       .then(r => r, () => ({ data: null }))
     canalServidor = data?.canal_alerta || null
-    pref = desdeCanal(canalServidor)
-    if (!pref) return
+    // Nunca escogió (o reinstaló sin haber escogido): queda sonando siempre, también en silencio
+    pref = desdeCanal(canalServidor) || PREFERENCIA_INICIAL
   }
   const r = await plugin().configurar(pref).catch(() => null)
   if (!r) return

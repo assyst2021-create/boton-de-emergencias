@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase, clienteVerificacion } from '../supabase'
 import { validarClave, mensajeErrorClave } from '../clave'
 import AyudaClave from '../components/AyudaClave'
-import { SONIDOS, leerPreferencia, aplicarSonido, canalLocal, hayPluginSonidos } from '../sonidoAlerta'
+import { SONIDOS, leerPreferencia, aplicarSonido, canalLocal, hayPluginSonidos, PREFERENCIA_INICIAL } from '../sonidoAlerta'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
@@ -83,7 +83,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [saliendo, setSaliendo] = useState(false)
   // Sonido de las alertas (lo escoge quien recibe)
   const [sonidoSel, setSonidoSel] = useState('normal')
-  const [siempreSel, setSiempreSel] = useState(false)
+  const [siempreSel, setSiempreSel] = useState(true)
   const [estadoSonido, setEstadoSonido] = useState({ canales: false, accesoNoMolestar: false })
   const [sonidoMsg, setSonidoMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [guardandoSonido, setGuardandoSonido] = useState(false)
@@ -223,7 +223,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     } catch (_) {}
   }
   function abrirSonido() {
-    const p = leerPreferencia() || { sonido: 'normal', siempre: false }
+    const p = leerPreferencia() || PREFERENCIA_INICIAL
     setSonidoSel(p.sonido); setSiempreSel(p.siempre); setSonidoMsg(null)
     revisarEstadoSonido()
     setPaso('sonido')
