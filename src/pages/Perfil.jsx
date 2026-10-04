@@ -441,7 +441,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                   onClick={() => setPaso('plan')}
                   style={{ opacity: 0.6, cursor: 'pointer' }}
                 >
-                  {t('activarPremiumBtn')}
+                  {t('verPlanes')}
                 </button>
               )}
             </div>
@@ -464,7 +464,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                     </button>
                   ) : (
                     <button className={styles.toggleOff} onClick={() => setPaso('plan')} style={{ opacity: 0.6, cursor: 'pointer' }}>
-                      {t('activarPremiumBtn')}
+                      {t('verPlanes')}
                     </button>
                   )}
                 </div>

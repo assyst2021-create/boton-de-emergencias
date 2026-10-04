@@ -883,7 +883,7 @@ export default function Ubicacion() {
         ) : perfil !== null && !premium ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className={styles.btnCompartir} onClick={abrirPlanes} style={{ background: '#e6a817' }}>
-              👑 {t('ubiCompartir')}
+              {t('verPlanes')}
             </button>
             <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.82rem', margin: 0, lineHeight: 1.45 }}>
               {t('ubiGratisSoloVer')}
