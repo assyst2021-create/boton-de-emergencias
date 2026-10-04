@@ -63,6 +63,26 @@ function AppInner() {
   const [actualizacionLista, setActualizacionLista] = useState(false)
   const [faltanPermisos, setFaltanPermisos] = useState([])
   const permisosPedidosRef = useRef(false)
+  // Antes de que Android pida los permisos se explica para qué sirve cada uno (Google Play lo exige,
+  // sobre todo para la ubicación en segundo plano). null = revisando; quien ya los tiene no la ve.
+  const [permisosExplicados, setPermisosExplicados] = useState(() => {
+    if (!EN_CAPACITOR) return true
+    try { return localStorage.getItem('permisosExplicados') === '1' ? true : null } catch (_) { return null }
+  })
+  useEffect(() => {
+    if (permisosExplicados !== null) return
+    Permisos.verificar()
+      .then(p => {
+        const todos = !!(p?.sms && p?.ubicacion && p?.notificaciones)
+        if (todos) { try { localStorage.setItem('permisosExplicados', '1') } catch (_) {} }
+        setPermisosExplicados(todos)
+      })
+      .catch(() => setPermisosExplicados(false))
+  }, [permisosExplicados])
+  function continuarPermisos() {
+    try { localStorage.setItem('permisosExplicados', '1') } catch (_) {}
+    setPermisosExplicados(true)
+  }
   const { t, lang } = useLanguage()
 
   // El servidor escribe la notificación de cada familiar en SU idioma y con SU hora:
@@ -141,8 +161,8 @@ function AppInner() {
   }, [initDone])
 
   useEffect(() => {
-    if (initDone && !perfilFalta && bienvenidaVista && avisoLegalAceptado && planElegido) {
-      // Pedir todos los permisos nativos de una sola vez (SMS, GPS, contactos, notificaciones)
+    if (initDone && !perfilFalta && bienvenidaVista && avisoLegalAceptado && planElegido && permisosExplicados === true) {
+      // Documentos legales → planes → explicación → permisos (SMS, ubicación, notificaciones y batería)
       // FCM después de los permisos, para no encimar diálogos
       permisosPedidosRef.current = true
       Permisos.pedirTodos().catch(() => {}).finally(() => {
@@ -162,7 +182,7 @@ function AppInner() {
         })
       }
     }
-  }, [initDone, perfilFalta, bienvenidaVista, avisoLegalAceptado, planElegido])
+  }, [initDone, perfilFalta, bienvenidaVista, avisoLegalAceptado, planElegido, permisosExplicados])
 
   // SMS, ubicación y notificaciones son indispensables para el botón de emergencia
   async function verificarPermisos() {
@@ -229,6 +249,38 @@ function AppInner() {
   if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
   if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} conX /></Suspense>
   if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
+
+  if (permisosExplicados === null) return <Cargando />
+  if (permisosExplicados === false) {
+    const ITEMS = [
+      ['💬', 'perm_sms', 'permExpSms'],
+      ['📍', 'perm_ubicacion', 'permExpUbicacion'],
+      ['🔔', 'perm_notificaciones', 'permExpNotif'],
+      ['🔋', 'permExpBateriaTit', 'permExpBateria'],
+    ]
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px))', gap: 16, textAlign: 'center' }}>
+        <div style={{ fontSize: '2.8rem' }}>🛡️</div>
+        <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.25rem', textWrap: 'balance' }}>{t('permExpTitulo')}</h2>
+        <p style={{ color: 'var(--text2)', lineHeight: 1.5, margin: 0, maxWidth: 360, fontSize: '0.9rem' }}>{t('permExpIntro')}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 360 }}>
+          {ITEMS.map(([icono, titulo, texto]) => (
+            <div key={titulo} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', textAlign: 'left' }}>
+              <span style={{ fontSize: '1.35rem', lineHeight: 1.2 }}>{icono}</span>
+              <div>
+                <strong style={{ color: 'var(--text)', fontSize: '0.9rem' }}>{t(titulo)}</strong>
+                <p style={{ margin: '2px 0 0', color: 'var(--text2)', fontSize: '0.8rem', lineHeight: 1.45 }}>{t(texto)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={continuarPermisos} style={{ background: '#C0392B', color: '#fff', fontWeight: 800, fontSize: '1rem', padding: '15px 28px', borderRadius: 12, border: 'none', width: '100%', maxWidth: 360, cursor: 'pointer' }}>
+          {t('permExpBoton')}
+        </button>
+        <p style={{ color: 'var(--text2)', fontSize: '0.75rem', margin: 0, maxWidth: 360, lineHeight: 1.45 }}>{t('permExpNota')}</p>
+      </div>
+    )
+  }
 
   if (faltanPermisos.length) {
     const ICONO = { sms: '💬', ubicacion: '📍', notificaciones: '🔔' }

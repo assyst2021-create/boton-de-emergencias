@@ -65,7 +65,8 @@ export async function registrarFCM(supabase, userId) {
             smallIcon: 'ic_stat_notification',
             iconColor: '#e8302a',
             extra: { ruta: n.data?.ruta || '' },
-            schedule: { at: new Date(Date.now() + 100) },
+            // Sin "schedule": se muestra al instante. Programada (aunque fuera en 0,1 s) usaba una alarma,
+            // y sin el permiso de alarmas exactas (negado por defecto en Android 14) podía demorarse
           }],
         }).catch(() => {})
       })
