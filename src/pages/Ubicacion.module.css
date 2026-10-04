@@ -467,3 +467,17 @@
 }
 .conQuienEmpezar:focus-visible, .conQuienTodos:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }
 .selectorVentana { max-height: calc(100dvh - 32px); overflow-y: auto; }
+
+/* Este celular está compartiendo por "Recuperar celular" */
+.avisoRecuperacion {
+  flex: 1;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1.5px solid #e6a817;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.45;
+}

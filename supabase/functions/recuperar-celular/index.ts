@@ -7,6 +7,8 @@
  *   crea una sesión de 24 h y una llave, y le manda al celular una orden (dato FCM) para que
  *   empiece a compartir su ubicación solo. Protección contra fuerza bruta: 5 intentos → 30 min.
  * accion 'detener': con la contraseña, cierra la sesión y manda la orden de parar.
+ * Recuperar celular es del plan Premium: solo se puede pedir si el Premium del dueño está vigente
+ * (detener siempre se puede).
  *
  * NO toca las alertas de emergencia. Verify JWT ON: quien llama está autenticado como él mismo.
  */
@@ -64,6 +66,11 @@ async function enviarDato(fcmToken: string, datos: Record<string, string>) {
   if (res.status === 401) tokenCache = null
   return res.ok
 }
+
+// Igual que set_recuperacion: Premium (Familiar no cuenta) y sin vencer
+// deno-lint-ignore no-explicit-any
+const premiumVigente = (u: any) => !!u && u.plan !== 'familiar' && (u.plan === 'premium' || u.is_premium === true)
+  && (!u.premium_hasta || new Date(u.premium_hasta).getTime() > Date.now())
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
 async function sha256Hex(s: string) { return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))) }
@@ -126,7 +133,7 @@ Deno.serve(async (req) => {
     // 2 y basta con que exista alguna. (Con maybeSingle, al haber dos filas daba error y respondía
     // "no vinculado" aunque sí lo estuvieran.)
     const [{ data: perfil }, { data: vinculos }] = await Promise.all([
-      admin.from('users').select('recuperacion_activa, full_name, fcm_token').eq('id', owner.id).maybeSingle(),
+      admin.from('users').select('recuperacion_activa, full_name, fcm_token, plan, is_premium, premium_hasta').eq('id', owner.id).maybeSingle(),
       admin.from('family_links').select('id').eq('status', 'accepted')
         .or(`and(user_id.eq.${quienLlama.id},linked_user_id.eq.${owner.id}),and(user_id.eq.${owner.id},linked_user_id.eq.${quienLlama.id})`)
         .limit(2),
@@ -140,7 +147,8 @@ Deno.serve(async (req) => {
       return json({ ok: true, detenido: true })
     }
 
-    // Solicitar: el dueño tiene que haber activado la recuperación y su celular poder recibir la orden
+    // Solicitar: Premium vigente, el dueño tiene que haber activado la recuperación y su celular poder recibir la orden
+    if (!premiumVigente(perfil)) return json({ ok: false, error: 'NO_PREMIUM' })
     if (!perfil?.recuperacion_activa) return json({ ok: false, error: 'NO_AUTORIZADO_DUENIO' })
     if (!perfil?.fcm_token) return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
 

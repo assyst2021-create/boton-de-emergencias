@@ -33,6 +33,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
 
   // Al salir: este celular deja de recibir alertas de la cuenta y deja de compartir su ubicación
   async function cerrarSesion() {
+    try { if (uid) localStorage.removeItem(`recActiva_${uid}`) } catch (_) {}
     const { data: { session } } = await supabase.auth.getSession()
     const uid = session?.user?.id
     if (uid) {
@@ -74,6 +75,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [verElimClave, setVerElimClave] = useState(false)
   const [elimError, setElimError] = useState('')
   const [elimCargando, setElimCargando] = useState(false)
+  // Cerrar sesión con "Permitir recuperar mi celular" activo: pide la contraseña
+  const [salirClave, setSalirClave] = useState('')
+  const [verSalirClave, setVerSalirClave] = useState(false)
+  const [salirError, setSalirError] = useState('')
+  const [saliendo, setSaliendo] = useState(false)
+  // Permiso de ubicación "Permitir todo el tiempo" (null = no se sabe, por ejemplo en la web)
+  const [ubiFondo, setUbiFondo] = useState(null)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
   useEffect(() => {
@@ -94,6 +102,10 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             setPerfil(data)
             setAutoAlerta(!!data.auto_alert_enabled)
             setRecPermitir(!!data.recuperacion_activa)
+            // Copia en el celular: sin señal también se sabe que cerrar sesión pide la contraseña
+            if ('recuperacion_activa' in data) {
+              try { localStorage.setItem(`recActiva_${user.id}`, data.recuperacion_activa ? '1' : '0') } catch (_) {}
+            }
           }
         })
       cargarProximaAuto(user.id)
@@ -126,6 +138,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
    */
   function toggleRecuperar() {
     setRecError(''); setRecAcepto(false); setRecClave(''); setVerRecClave(false); setVerAyudaClave(false)
+    if (!recPermitir) revisarUbiFondo()
     setPaso(recPermitir ? 'recApagar' : 'recAutorizar')
   }
 
@@ -136,6 +149,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     setRecGuardando(false)
     if (error) { setRecError(/SOLO_PREMIUM/.test(error.message || '') ? t('recSoloPremium') : t('errorConexion')); return }
     setRecPermitir(true)
+    try { localStorage.setItem(`recActiva_${uid}`, '1') } catch (_) {}
     // Prueba de la autorización (fecha, versión e idioma), igual que la de los documentos legales
     supabase.from('aceptaciones_legales')
       .upsert({ user_id: uid, version: `recuperar-celular ${VERSION_LEGAL}`, idioma: lang }, { onConflict: 'user_id,version', ignoreDuplicates: true })
@@ -160,6 +174,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       const { error } = await supabase.rpc('set_recuperacion', { activa: false })
       if (error) { setRecError(t('errorConexion')); return }
       setRecPermitir(false)
+      try { localStorage.setItem(`recActiva_${uid}`, '0') } catch (_) {}
       if (enCurso?.length) {
         try { await window.Capacitor?.Plugins?.GpsShare?.detener({ userId: uid }) } catch (_) {}
       }
@@ -172,12 +187,72 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
   }
 
+  /**
+   * Recuperar celular necesita la ubicación en "Permitir todo el tiempo": con la app cerrada, Android
+   * no deja usar el GPS sin ese permiso y la recuperación fallaría sin avisar. Solo se exige para
+   * esta opción, no para el resto de la app.
+   */
+  async function revisarUbiFondo() {
+    try {
+      const r = await window.Capacitor?.Plugins?.Permisos?.verificar?.()
+      setUbiFondo(r && typeof r.ubicacionFondo === 'boolean' ? r.ubicacionFondo : null)
+    } catch (_) { setUbiFondo(null) }
+  }
+  useEffect(() => {
+    if (!EN_APP) return
+    revisarUbiFondo()
+    // Al volver de Ajustes se revisa otra vez
+    const alVolver = () => { if (document.visibilityState === 'visible') revisarUbiFondo() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
+  }, [])
+  const abrirAjustesApp = () => { try { window.Capacitor?.Plugins?.Permisos?.abrirAjustes?.() } catch (_) {} }
+
+  /**
+   * Con "Permitir recuperar mi celular" activo, cerrar sesión pide la contraseña: si no, quien tenga
+   * el celular (por ejemplo, un ladrón) apagaría la recuperación y ya no se podría volver a pedir.
+   */
+  async function pedirCerrarSesion() {
+    let activa = recPermitir
+    if (!perfil) {
+      try { activa = localStorage.getItem(`recActiva_${uid}`) === '1' } catch (_) {}
+      if (!activa && uid) {
+        const { data } = await supabase.from('users').select('recuperacion_activa').eq('id', uid).maybeSingle()
+          .then(r => r, () => ({ data: null }))
+        activa = !!data?.recuperacion_activa
+      }
+    }
+    if (!activa) { cerrarSesion(); return }
+    setSalirClave(''); setVerSalirClave(false); setSalirError(''); setVerAyudaClave(false)
+    setPaso('salir')
+  }
+
+  async function salirConClave(e) {
+    e.preventDefault()
+    if (saliendo) return
+    if (!salirClave) { setSalirError(t('errorClaveActualFalta')); return }
+    setSaliendo(true); setSalirError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const email = session?.user?.email
+      if (!email) { await cerrarSesion(); return }
+      const { error } = await clienteVerificacion().auth.signInWithPassword({ email, password: salirClave })
+      if (error) { setSalirError(/fetch|network|failed/i.test(error.message || '') ? t('errorConexion') : t('errorClaveActual')); return }
+      await cerrarSesion()
+    } catch (_) {
+      setSalirError(t('errorConexion'))
+    } finally {
+      setSaliendo(false)
+    }
+  }
+
   function textoErrorRec(code, min) {
     switch (code) {
       case 'CREDENCIALES': return t('recErrCredenciales')
       case 'BLOQUEADO': return t('recErrBloqueado').replace('{min}', String(min || 30))
       case 'NO_VINCULADO': return t('recErrNoVinculado')
       case 'NO_AUTORIZADO_DUENIO': return t('recErrNoAutorizado')
+      case 'NO_PREMIUM': return t('recErrNoPremium')
       case 'CELULAR_NO_DISPONIBLE': return t('recErrCelular')
       case 'ES_TU_CELULAR': return t('recErrTuCelular')
       case 'FALTAN_DATOS': return t('recErrFaltan')
@@ -393,6 +468,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                     </button>
                   )}
                 </div>
+                {recPermitir && ubiFondo === false && (
+                  <button type="button" className={styles.error} style={{ textAlign: 'left', cursor: 'pointer' }} onClick={abrirAjustesApp}>
+                    ⚠️ {t('recFaltaFondoCorto')}
+                  </button>
+                )}
                 <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
                   🔒 {t('recMenu')}
                 </button>
@@ -401,11 +481,30 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button className={styles.opcionEliminar} onClick={abrirEliminar}>
               🗑️ {t('elimMenu')}
             </button>
-            <button className={styles.opcionRojo} onClick={cerrarSesion}>
+            <button className={styles.opcionRojo} onClick={pedirCerrarSesion}>
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>
           </div>
+        )}
+
+        {paso === 'salir' && (
+          <form onSubmit={salirConClave} className={styles.form}>
+            <h3 className={styles.recTitulo}>🔒 {t('salirTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('salirDesc')}</p>
+            <div className={styles.passwordWrap}>
+              <input type={verSalirClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={salirClave}
+                onChange={e => setSalirClave(e.target.value)} autoComplete="current-password" />
+              <button type="button" className={styles.eyeBtn} onClick={() => setVerSalirClave(v => !v)}>{verSalirClave ? '🙈' : '👁️'}</button>
+            </div>
+            {salirError && <div className={styles.error}>{salirError}</div>}
+            <button type="submit" className={styles.btn} disabled={saliendo}>
+              {saliendo ? t('procesando') : t('salirBtn')}
+            </button>
+            <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
+            {verAyudaClave && <AyudaClave email={miCorreo} />}
+            <button type="button" className={styles.volver} disabled={saliendo} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
+          </form>
         )}
 
         {paso === 'eliminar' && (
@@ -476,8 +575,14 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               <input type="checkbox" checked={recAcepto} onChange={e => setRecAcepto(e.target.checked)} />
               <span>{t('recAutAcepto')}</span>
             </label>
+            {ubiFondo === false && (
+              <div className={styles.error} style={{ display: 'flex', flexDirection: 'column', gap: 8, lineHeight: 1.45 }}>
+                <span>⚠️ {t('recFaltaFondo')}</span>
+                <button type="button" className={styles.btn} style={{ padding: 10, fontSize: '0.9rem' }} onClick={abrirAjustesApp}>{t('recAbrirAjustes')}</button>
+              </div>
+            )}
             {recError && <div className={styles.error}>{recError}</div>}
-            <button type="button" className={styles.btn} disabled={!recAcepto || recGuardando} onClick={autorizarRecuperar}>
+            <button type="button" className={styles.btn} disabled={!recAcepto || recGuardando || ubiFondo === false} onClick={autorizarRecuperar}>
               {recGuardando ? t('procesando') : t('recAutBtn')}
             </button>
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('cancelar')}</button>

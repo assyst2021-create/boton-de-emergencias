@@ -150,6 +150,8 @@ export default function Ubicacion() {
   const [avisoMinimoUbi, setAvisoMinimoUbi] = useState(false)
   const [compartiendoCon, setCompartiendoCon] = useState(null)
   const [recuperandoIds, setRecuperandoIds] = useState(() => new Set())
+  // Este mismo celular está compartiendo por "Recuperar celular": aquí no se puede cortar
+  const [miRecuperacion, setMiRecuperacion] = useState(false)
   const [minRestantes, setMinRestantes] = useState(null)
   const [recargando, setRecargando] = useState(false)
   const [fichaDir, setFichaDir] = useState(null)
@@ -348,16 +350,26 @@ export default function Ubicacion() {
     return ok
   }
 
-  /** Marca a los familiares cuyo celular está compartiendo por "Recuperar celular" (no toca el mapa) */
+  /**
+   * Marca a los familiares cuyo celular está compartiendo por "Recuperar celular" (no toca el mapa),
+   * y si es ESTE celular: entonces no se muestran los botones de compartir, para que quien lo tenga
+   * no pueda cortar la recuperación desde aquí.
+   */
   async function cargarRecuperaciones() {
-    const ids = linksRef.current.map(l => l.user_id)
-    if (!ids.length) { setRecuperandoIds(new Set()); return }
-    const { data } = await supabase
+    const yo = uidGlobalRef.current
+    const ids = [...linksRef.current.map(l => l.user_id), ...(yo ? [yo] : [])]
+    if (!ids.length) { setRecuperandoIds(new Set()); setMiRecuperacion(false); return }
+    const { data, error } = await supabase
       .from('recuperacion_sesiones').select('owner_id')
       .in('owner_id', ids).eq('estado', 'activa')
       // Una sesión vencida (24 h) no se marca como activa aunque nadie la haya cerrado
       .gt('vence_at', new Date().toISOString())
-    setRecuperandoIds(new Set((data || []).map(r => r.owner_id)))
+    // Sin señal se queda como estaba
+    if (error) return
+    const activos = new Set((data || []).map(r => r.owner_id))
+    setMiRecuperacion(!!yo && activos.has(yo))
+    if (yo) activos.delete(yo)
+    setRecuperandoIds(activos)
   }
 
   /** Solo recarga ubicaciones usando el caché de links — rápido, 1 sola query */
@@ -848,7 +860,9 @@ export default function Ubicacion() {
       )}
 
       <div className={styles.acciones}>
-        {compartiendo ? (
+        {miRecuperacion ? (
+          <p className={styles.avisoRecuperacion} role="status">🔒 {t('ubiRecuperacionEsteCel')}</p>
+        ) : compartiendo ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <button className={styles.btnDetener} onClick={() => detener()}>
               ⏹ {t('ubiDetener')}
