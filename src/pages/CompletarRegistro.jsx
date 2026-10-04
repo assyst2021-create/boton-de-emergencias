@@ -4,7 +4,7 @@ import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import {
   PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
-  leerDatosRegistro, borrarDatosRegistro,
+  leerDatosRegistro, borrarDatosRegistro, telefonoCompleto,
 } from '../registro'
 
 /**
@@ -52,6 +52,7 @@ export default function CompletarRegistro({ userId, onListo }) {
     const telefono = form.telefono.trim()
     const username = normalizarUsuario(form.username)
     if (!nombre || !username || !telefono) { setError(t('errorCampos')); return }
+    if (!telefonoCompleto(pais.codigo, telefono)) { setError(t('errorTelefono')); return }
     if (!USUARIO_VALIDO.test(username)) { setError(t('errorUsuarioInvalido')); return }
     setCargando(true)
 
@@ -59,7 +60,7 @@ export default function CompletarRegistro({ userId, onListo }) {
       id: userId,
       username,
       full_name: nombre,
-      phone_number: `${pais.codigo}${telefono}`,
+      phone_number: telefonoCompleto(pais.codigo, telefono),
     })
     // Clave repetida en el id: el perfil sí alcanzó a guardarse, se continúa
     const yaExistia = err?.code === '23505' && !/username/i.test(err.message || '')

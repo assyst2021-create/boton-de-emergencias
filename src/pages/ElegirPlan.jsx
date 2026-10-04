@@ -11,7 +11,8 @@ const URL_PLAY = 'https://play.google.com/store/apps/details?id=com.ssthechofaci
 // Donde la persona ve, cambia o cancela su suscripción (Google Play)
 export const URL_SUSCRIPCIONES = 'https://play.google.com/store/account/subscriptions?package=com.ssthechofacil.botonemergencias'
 
-export default function ElegirPlan({ onElegido }) {
+// conX: después de registrarse, una X arriba para cerrar (queda en Gratis, igual que Continuar gratis)
+export default function ElegirPlan({ onElegido, conX = false }) {
   const { t } = useLanguage()
   const [ciclo, setCiclo] = useState('anual')
   const [precios, setPrecios] = useState({})
@@ -161,6 +162,9 @@ export default function ElegirPlan({ onElegido }) {
 
   return (
     <div className={styles.wrap}>
+      {conX && (
+        <button type="button" className={styles.cerrarX} onClick={elegirGratis} disabled={cargando} aria-label={t('cerrar')}>✕</button>
+      )}
 
       {/* Header */}
       <div className={styles.top}>

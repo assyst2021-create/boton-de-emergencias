@@ -93,6 +93,25 @@ const ISO_PAIS = {
   'Portugal': 'PT', 'Alemania': 'DE', 'Francia': 'FR', 'Italia': 'IT', 'Reino Unido': 'GB',
 }
 /** Nombre del país en el idioma de la app ("Germany", "Alemanha"…); si el celular no sabe, en español. */
+/**
+ * Número de celular listo para guardar: solo números, sin el indicativo si la persona lo escribió
+ * (con + o 00, o pegado al número) y sin el 0 inicial. Devuelve '' si no parece un celular.
+ * Antes se guardaba tal cual ("+57300 000 0000", "+57+57300…") y algunos celulares no entregaban el SMS.
+ */
+export function telefonoCompleto(codigo, texto) {
+  const ind = (codigo || '').replace(/\D/g, '')
+  let n = (texto || '').trim()
+  const internacional = /^(\+|00)/.test(n)
+  n = n.replace(/\D/g, '')
+  if (internacional && n.startsWith('00')) n = n.slice(2)
+  if (ind && n.startsWith(ind) && (internacional || n.length - ind.length >= 10)) n = n.slice(ind.length)
+  // +1809 (Rep. Dominicana) ya trae el 809: si la persona lo vuelve a escribir, no se repite
+  if (ind.length > 2 && ind.startsWith('1') && n.length === 10 && n.startsWith(ind.slice(1))) n = n.slice(ind.length - 1)
+  n = n.replace(/^0+/, '')
+  if (n.length < 7 || n.length > 13) return ''
+  return `${codigo}${n}`
+}
+
 export function nombrePais(p, idioma) {
   try {
     const iso = ISO_PAIS[p.nombre]

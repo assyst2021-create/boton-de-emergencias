@@ -4,13 +4,16 @@ import styles from './Login.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
 import {
-  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
+  PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais, telefonoCompleto,
   guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
 } from '../registro'
 import AyudaClave from '../components/AyudaClave'
+import { CLAVE_MINIMA, mensajeErrorClave } from '../clave'
 
 function mensajeErrorRegistro(err, t) {
   const texto = `${err?.code || ''} ${err?.message || ''}`
+  // Contraseña rechazada por el servidor: se dice exactamente qué corregir
+  if (err?.code === 'weak_password' || /weak.?password|password should/i.test(texto)) return mensajeErrorClave(err, t)
   if (/already|exists|registered/i.test(texto)) return t('errorCorreoYaRegistrado')
   if (/email/i.test(texto) && /invalid|valid/i.test(texto)) return t('errorCorreoInvalido')
   if (/fetch|network|failed to/i.test(texto)) return t('errorConexion')
@@ -20,7 +23,8 @@ function mensajeErrorRegistro(err, t) {
 export default function Login() {
   const { t, lang, cambiarIdioma } = useLanguage()
   const [modo, setModo] = useState('login')
-  const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
+  const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '', confirmar: '' })
+  const [verConfirmar, setVerConfirmar] = useState(false)
   const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -72,7 +76,11 @@ export default function Login() {
     }
     const username = normalizarUsuario(form.username)
     if (!USUARIO_VALIDO.test(username)) { setError(t('errorUsuarioInvalido')); return }
-    if (form.password.length < 6) { setError(t('errorContrasenaCorta')); return }
+    if (form.password.length < CLAVE_MINIMA) { setError(t('errorContrasenaCorta')); return }
+    // Ya no hay correo automático para recuperarla: se escribe dos veces para no quedar por fuera
+    if (form.password !== form.confirmar) { setError(t('errorNoCoinciden')); return }
+    const telefono = telefonoCompleto(pais.codigo, form.telefono)
+    if (!telefono) { setError(t('errorTelefono')); return }
     setCargando(true)
 
     const libre = await usuarioDisponible(username)
@@ -98,7 +106,7 @@ export default function Login() {
           id: authData.user.id,
           username,
           full_name: form.nombre,
-          phone_number: `${pais.codigo}${form.telefono}`,
+          phone_number: telefono,
         })
         if (!errPerfil) borrarDatosRegistro()
         sessionStorage.setItem('nuevoRegistro', '1')
@@ -195,12 +203,40 @@ export default function Login() {
                 {verPassword ? '🙈' : '👁️'}
               </button>
             </div>
+            {modo === 'registro' && form.password.length > 0 && (
+              form.password.length < CLAVE_MINIMA
+                ? <span className={styles.usernameChecking}>{t('claveFaltan').replace('{n}', String(CLAVE_MINIMA - form.password.length))}</span>
+                : <span className={styles.usernameOk}>{t('claveLista')}</span>
+            )}
             {modo === 'registro' && (
               <div className={styles.hint}>
                 🔐 {t('hintContrasena')}
               </div>
             )}
           </div>
+
+          {modo === 'registro' && (
+            <div className={styles.field}>
+              <label>{t('confirmarContrasena')}</label>
+              <div className={styles.passwordWrap}>
+                <input
+                  type={verConfirmar ? 'text' : 'password'}
+                  placeholder={t('confirmarPh')}
+                  value={form.confirmar}
+                  onChange={set('confirmar')}
+                  autoComplete="new-password"
+                />
+                <button type="button" className={styles.eyeBtn} onClick={() => setVerConfirmar(v => !v)}>
+                  {verConfirmar ? '🙈' : '👁️'}
+                </button>
+              </div>
+              {form.confirmar.length > 0 && (
+                form.confirmar === form.password
+                  ? <span className={styles.usernameOk}>{t('claveCoinciden')}</span>
+                  : <span className={styles.usernameTaken}>{t('errorNoCoinciden')}</span>
+              )}
+            </div>
+          )}
 
           {modo === 'login' && (
             <div style={{ textAlign: 'right', marginTop: -8 }}>

@@ -227,7 +227,7 @@ function AppInner() {
   if (perfilFalta) return <CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} />
   // Orden: documentos legales → planes → permisos (nadie compra un plan sin haber aceptado los términos)
   if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
-  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} /></Suspense>
+  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} conX /></Suspense>
   if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
 
   if (faltanPermisos.length) {
