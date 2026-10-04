@@ -167,7 +167,7 @@ export default function ElegirPlan({ onElegido, conX = false }) {
       )}
 
       {/* Header */}
-      <div className={styles.top}>
+      <div className={conX ? `${styles.top} ${styles.topConX}` : styles.top}>
         <h1 className={styles.titulo}>{t('elegirTitulo')}</h1>
         <p className={styles.sub}>{t('elegirSub')}</p>
       </div>
