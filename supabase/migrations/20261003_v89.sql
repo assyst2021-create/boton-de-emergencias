@@ -575,3 +575,32 @@ GRANT EXECUTE ON FUNCTION public.apagar_ubicacion(text) TO anon, authenticated;
 SELECT 'apagar_ubicacion' AS funcion,
        CASE WHEN prosrc LIKE '%recuperacion_sesiones%' THEN 'actualizada' ELSE 'vieja' END AS estado
   FROM pg_proc WHERE proname = 'apagar_ubicacion';
+
+-- ---------- Punto 20. Sonido de las alertas: el canal que eligió cada persona en su celular ----------
+-- La app crea en el celular el canal con el sonido elegido (sirena, alarma, campana o normal, y si
+-- suena en silencio) y guarda aquí su nombre; la función de notificaciones manda cada alerta a ese canal.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS canal_alerta text;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_canal_alerta_valido') THEN
+    ALTER TABLE public.users ADD CONSTRAINT users_canal_alerta_valido
+      CHECK (canal_alerta IS NULL OR canal_alerta ~ '^alertas_[a-z0-9_]{1,40}$');
+  END IF;
+END $$;
+-- La lectura del perfil es columna por columna: la columna nueva necesita su permiso
+DO $$
+DECLARE cols TEXT;
+BEGIN
+  SELECT string_agg(quote_ident(column_name), ', ') INTO cols
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'users'
+    AND column_name NOT IN ('fcm_token', 'play_purchase_token');
+  EXECUTE format('GRANT SELECT (%s) ON public.users TO authenticated', cols);
+END $$;
+
+SELECT 'columna' AS tipo, column_name::text AS nombre FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'canal_alerta'
+UNION ALL
+SELECT 'regla', conname::text FROM pg_constraint WHERE conname = 'users_canal_alerta_valido'
+UNION ALL
+SELECT 'permiso de lectura', CASE WHEN has_column_privilege('authenticated', 'public.users', 'canal_alerta', 'SELECT') THEN 'sí' ELSE 'no' END;

@@ -497,3 +497,42 @@
   border-radius: 12px;
   text-decoration: none;
 }
+
+/* Sonido de las alertas */
+.sonidoFila, .sonidoFilaActiva {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 8px 6px 12px;
+  background: var(--card);
+}
+.sonidoFilaActiva { border-color: var(--rojo); }
+.sonidoElegir {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.sonidoPunto { color: var(--rojo); font-size: 1.1rem; line-height: 1; }
+.sonidoProbar {
+  flex-shrink: 0;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}

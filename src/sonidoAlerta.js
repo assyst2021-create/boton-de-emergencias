@@ -1,0 +1,71 @@
+/**
+ * Sonido de las alertas de emergencia en ESTE celular (lo escoge quien recibe). La parte de Android
+ * (SonidosPlugin) crea el "canal" con ese sonido y la app guarda en el servidor el nombre del canal:
+ * así cada familiar recibe la alerta con el sonido que él eligió. Sin elegir nada: el tono normal.
+ */
+export const SONIDOS = ['sirena', 'alarma', 'campana', 'normal']
+const CLAVE = 'sonidoAlerta'
+export const CANAL_NORMAL = 'alertas_v3'
+
+const plugin = () => (typeof window !== 'undefined' ? window.Capacitor?.Plugins?.Sonidos : null)
+export const hayPluginSonidos = () => !!plugin()?.configurar
+
+export function leerPreferencia() {
+  try {
+    const p = JSON.parse(localStorage.getItem(CLAVE) || 'null')
+    if (p && SONIDOS.includes(p.sonido)) return { sonido: p.sonido, siempre: !!p.siempre }
+  } catch (_) {}
+  return null
+}
+
+/** Canal donde se muestran las alertas cuando la app está abierta (el mismo que usa el servidor). */
+export function canalLocal() {
+  try { return localStorage.getItem('canalAlerta') || CANAL_NORMAL } catch (_) { return CANAL_NORMAL }
+}
+
+/** "alertas_s_sirena_2" → { sonido: 'sirena', siempre: true } (para recuperarlo al reinstalar) */
+export function desdeCanal(canal) {
+  const m = /^alertas_(s_)?(sirena|alarma|campana|normal)_\d+$/.exec(canal || '')
+  return m ? { sonido: m[2], siempre: !!m[1] } : null
+}
+
+function guardarLocal(pref, canal) {
+  try {
+    localStorage.setItem(CLAVE, JSON.stringify(pref))
+    localStorage.setItem('canalAlerta', canal)
+  } catch (_) {}
+}
+
+/** Deja el sonido listo en el celular y lo guarda en el servidor. Devuelve { canal, suenaEnNoMolestar }. */
+export async function aplicarSonido(supabase, uid, pref) {
+  const r = await plugin().configurar(pref)
+  guardarLocal(pref, r.canal)
+  if (uid) {
+    const { error } = await supabase.from('users').update({ canal_alerta: r.canal }).eq('id', uid)
+    if (error) throw error
+  }
+  return r
+}
+
+/**
+ * Al abrir la app: el canal elegido existe en este celular (también después de reinstalar, cuando
+ * se recupera lo que estaba guardado en el servidor) y el servidor tiene el nombre correcto.
+ */
+export async function sincronizarSonido(supabase, uid) {
+  if (!hayPluginSonidos() || !uid) return
+  let pref = leerPreferencia()
+  let canalServidor = null
+  if (!pref) {
+    const { data } = await supabase.from('users').select('canal_alerta').eq('id', uid).maybeSingle()
+      .then(r => r, () => ({ data: null }))
+    canalServidor = data?.canal_alerta || null
+    pref = desdeCanal(canalServidor)
+    if (!pref) return
+  }
+  const r = await plugin().configurar(pref).catch(() => null)
+  if (!r) return
+  guardarLocal(pref, r.canal)
+  if (r.canal !== canalServidor) {
+    await supabase.from('users').update({ canal_alerta: r.canal }).eq('id', uid).then(() => {}, () => {})
+  }
+}

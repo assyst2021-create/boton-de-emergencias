@@ -126,6 +126,14 @@ function horaYFecha(iso: string | null | undefined, idioma: string, zona?: strin
   return `${hora} · ${dia}`
 }
 
+// Sonido de las alertas (punto 20): cada celular crea su canal y guarda el nombre en users.canal_alerta
+const CANAL_NORMAL = 'alertas_v3'
+const canalDe = (c: unknown) => typeof c === 'string' && /^alertas_[a-z0-9_]{1,40}$/.test(c) ? c : CANAL_NORMAL
+const sonidoDe = (canal: string) => {
+  const m = /(sirena|alarma|campana)/.exec(canal)
+  return m ? 'alerta_' + m[1] : 'default'
+}
+
 Deno.serve(async (req) => {
   try {
     const body = await req.json()
@@ -151,6 +159,11 @@ Deno.serve(async (req) => {
     // Familiares con su idioma y zona horaria. Si esas columnas aún no existen en la base
     // (falta el SQL), se piden sin ellas: la notificación nunca deja de salir por eso.
     const pedirFamilia = async () => {
+      // canal_alerta = el sonido que eligió cada familiar en su celular (punto 20)
+      const conSonido = await supabase.from('family_links')
+        .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token, idioma, zona_horaria, canal_alerta)')
+        .eq('linked_user_id', emisorId).eq('status', 'accepted')
+      if (!conSonido.error) return conSonido
       const completo = await supabase.from('family_links')
         .select('user_id, users!family_links_user_id_fkey(full_name, fcm_token, idioma, zona_horaria)')
         .eq('linked_user_id', emisorId).eq('status', 'accepted')
@@ -222,9 +235,11 @@ Deno.serve(async (req) => {
     const projectId = SA.project_id
 
     const envios = destino
-      .map(l => ({ fcmToken: (l.users as any)?.fcm_token, ...armar((l.users as any)?.idioma, (l.users as any)?.zona_horaria) }))
+      .map(l => ({ fcmToken: (l.users as any)?.fcm_token, canal: canalDe((l.users as any)?.canal_alerta), ...armar((l.users as any)?.idioma, (l.users as any)?.zona_horaria) }))
       .filter(e => e.fcmToken)
-    const resultados = await Promise.all(envios.map(async ({ fcmToken, titulo, cuerpo, ruta }) => {
+    const resultados = await Promise.all(envios.map(async ({ fcmToken, canal, titulo, cuerpo, ruta }) => {
+      // Alertas: con el sonido que eligió quien recibe. Avisos de ubicación: con el tono normal.
+      const canalUsado = esUbicacion ? CANAL_NORMAL : canal
       const fcmRes = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         {
@@ -242,8 +257,9 @@ Deno.serve(async (req) => {
               android: {
                 priority: 'high',
                 notification: {
-                  channel_id: 'alertas_v3',
-                  sound: 'default',
+                  channel_id: canalUsado,
+                  // Android 7 no tiene canales: ahí el sonido se escoge por su nombre
+                  sound: sonidoDe(canalUsado),
                   default_vibrate_timings: true,
                   notification_priority: 'PRIORITY_MAX',
                   visibility: 'PUBLIC',

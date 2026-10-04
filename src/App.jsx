@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { registerPlugin } from '@capacitor/core'
 import { suscribirPush } from './pushSubscription'
 import { registrarFCM } from './fcmRegistro'
+import { sincronizarSonido } from './sonidoAlerta'
 import { escucharCompras, sincronizarCompras } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
 import { revisarPerfil } from './registro'
@@ -167,6 +168,8 @@ function AppInner() {
       permisosPedidosRef.current = true
       Permisos.pedirTodos().catch(() => {}).finally(() => {
         registrarFCM(supabase, session?.user?.id)
+        // El sonido de las alertas que eligió (también después de reinstalar)
+        sincronizarSonido(supabase, session?.user?.id).catch(() => {})
         verificarPermisos()
       })
       // Renovaciones, cancelaciones y compras que no alcanzaron a activarse
