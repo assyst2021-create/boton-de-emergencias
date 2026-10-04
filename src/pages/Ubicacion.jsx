@@ -8,6 +8,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { puedeUbicacionEnVivo } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { LocalNotifications } from '@capacitor/local-notifications'
+import { nuevoUUID } from '../uuid'
 
 /** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
 const INTERVALO_MS = 1000
@@ -497,9 +498,7 @@ export default function Ubicacion() {
     // le llegan a quien no se eligió. (Si la base aún no tiene la columna, se ignora.)
     // A la vez, la llave del servicio del celular (si la base no la conoce, queda vacía).
     if (manual) {
-      const llave = EN_CAPACITOR && crypto.randomUUID
-        ? (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
-        : ''
+      const llave = EN_CAPACITOR ? (nuevoUUID() + nuevoUUID()).replace(/-/g, '') : ''
       llaveGlobal = ''
       // Máximo 3 s: sin señal no se demora el arranque (el servicio igual manda la lista)
       await Promise.race([

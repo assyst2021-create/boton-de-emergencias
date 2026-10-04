@@ -1,7 +1,7 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: var(--alto);
   padding: 0 16px;
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
   gap: 8px;
@@ -466,7 +466,7 @@
   background: #1E8449; color: #fff; font-size: 1rem; font-weight: 800; cursor: pointer;
 }
 .conQuienEmpezar:focus-visible, .conQuienTodos:focus-visible { outline: 3px solid #2471A3; outline-offset: 2px; }
-.selectorVentana { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.selectorVentana { max-height: calc(var(--alto) - 32px); overflow-y: auto; }
 
 /* Este celular está compartiendo por "Recuperar celular" */
 .avisoRecuperacion {

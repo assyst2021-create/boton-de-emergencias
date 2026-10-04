@@ -1,7 +1,7 @@
 ﻿.wrap {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: var(--alto);
   padding: 0 16px;
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
   /* Al final de la lista, justo el alto de la barra del menú (que ya trae el borde del celular) */

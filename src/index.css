@@ -38,6 +38,14 @@ a { color: inherit; }
   --logo-filter: none;
   --card-blur: blur(0px);        /* sin blur en modo claro */
   --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  /* Alto de la pantalla: el clásico (vh) para celulares con el navegador interno viejo */
+  --alto: 100vh;
+}
+
+/* En celulares nuevos, el alto real sin las barras del sistema (dvh). Todas las pantallas usan
+   var(--alto): así la medida no se pierde al comprimir la app y siempre hay una que el celular entiende. */
+@supports (height: 100dvh) {
+  :root { --alto: 100dvh; }
 }
 
 /* ══════════════════════════════════════════
@@ -91,13 +99,13 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  min-height: 100dvh;
+  min-height: var(--alto);
   -webkit-font-smoothing: antialiased;
   transition: background 0.35s ease, color 0.25s ease;
 }
 
 #root {
-  min-height: 100dvh;
+  min-height: var(--alto);
   display: flex;
   flex-direction: column;
 }

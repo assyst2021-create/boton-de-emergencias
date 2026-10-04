@@ -1,7 +1,7 @@
 ﻿.wrap {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: var(--alto);
   padding: 0 16px;
   padding-top: calc(46px + env(safe-area-inset-top, 0px));
 }

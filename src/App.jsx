@@ -238,12 +238,12 @@ function AppInner() {
 
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
-  if (recuperandoClave) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><NuevaContrasena onListo={() => setRecuperandoClave(false)} /></Suspense>
+  if (recuperandoClave) return <Suspense fallback={<div style={{minHeight:'var(--alto)',background:'var(--bg)'}}/>}><NuevaContrasena onListo={() => setRecuperandoClave(false)} /></Suspense>
   if (perfilFalta) return <Suspense fallback={<Cargando />}><CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} /></Suspense>
   // Orden: documentos legales → planes → permisos (nadie compra un plan sin haber aceptado los términos)
-  if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
-  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} conX /></Suspense>
-  if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
+  if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'var(--alto)',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
+  if (!planElegido) return <Suspense fallback={<div style={{minHeight:'var(--alto)',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} conX /></Suspense>
+  if (soloVerLegal) return <Suspense fallback={<div style={{minHeight:'var(--alto)',background:'var(--bg)'}}/>}><AvisoLegal soloVer onAceptar={() => setSoloVerLegal(false)} /></Suspense>
 
   if (permisosExplicados === null) return <Cargando />
   if (permisosExplicados === false) {
@@ -254,7 +254,7 @@ function AppInner() {
       ['🔋', 'permExpBateriaTit', 'permExpBateria'],
     ]
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px))', gap: 16, textAlign: 'center' }}>
+      <div style={{ minHeight: 'var(--alto)', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px))', gap: 16, textAlign: 'center' }}>
         <div style={{ fontSize: '2.8rem' }}>🛡️</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.25rem', textWrap: 'balance' }}>{t('permExpTitulo')}</h2>
         <p style={{ color: 'var(--text2)', lineHeight: 1.5, margin: 0, maxWidth: 360, fontSize: '0.9rem' }}>{t('permExpIntro')}</p>
@@ -280,7 +280,7 @@ function AppInner() {
   if (faltanPermisos.length) {
     const ICONO = { sms: '💬', ubicacion: '📍', notificaciones: '🔔' }
     return (
-      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', gap: 18, textAlign: 'center' }}>
+      <div style={{ minHeight: 'var(--alto)', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', gap: 18, textAlign: 'center' }}>
         <div style={{ fontSize: '3.2rem' }}>🛡️</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.3rem', textWrap: 'balance' }}>{t('permTitulo')}</h2>
         <p style={{ color: 'var(--text2)', lineHeight: 1.55, margin: 0, maxWidth: 330 }}>{t('permDesc')}</p>
@@ -399,7 +399,7 @@ function SwipeRouter() {
 
   return (
     <div
-      style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+      style={{ height: 'var(--alto)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -437,7 +437,7 @@ function GpsRequestScreen({ onContinuar }) {
   if (bloqueada) return <GpsPromptScreen onContinuar={onContinuar} />
 
   return (
-    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
+    <div style={{ height: 'var(--alto)', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <div style={{ fontSize: '3.5rem' }}>📍</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('permisoUbicacion')}</h2>
@@ -459,7 +459,7 @@ function GpsPromptScreen({ onContinuar }) {
   }
 
   return (
-    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
+    <div style={{ height: 'var(--alto)', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <div style={{ fontSize: '3.5rem' }}>🚫</div>
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0 }}>{t('gpsBloqueada')}</h2>
@@ -491,7 +491,7 @@ function NotifRequestScreen({ onContinuar }) {
   }
 
   return (
-    <div style={{ height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
+    <div style={{ height: 'var(--alto)', overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))', background: 'var(--bg)' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
         <img src="/logo-empresa.webp" alt="" style={{ width: 80, height: 80, objectFit: 'contain', mixBlendMode: 'multiply' }} />
         <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.3rem' }}>{t('notifActivarTitulo')}</h2>
@@ -519,7 +519,7 @@ function NotifRequestScreen({ onContinuar }) {
 function Cargando() {
   const { t } = useLanguage()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'var(--alto)' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🆘</div>
         <p style={{ color: 'var(--text2)' }}>{t('cargando')}</p>

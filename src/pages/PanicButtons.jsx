@@ -7,6 +7,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { puedeEnviarAlerta, esPremium, esFamiliar, esPlanPago, puedeSegundaAlerta } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { PAISES } from '../registro'
+import { nuevoUUID } from '../uuid'
 
 const SilentSms = registerPlugin('SilentSms')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
@@ -572,7 +573,7 @@ export default function PanicButtons() {
 
     const payload = {
       // ID único desde el celular: si un reintento llega dos veces, la base rechaza la copia
-      id: crypto.randomUUID(),
+      id: nuevoUUID(),
       status_type: boton.tipo,
       latitude: p?.lat ?? null,
       longitude: p?.lng ?? null,
