@@ -28,6 +28,9 @@ a { color: inherit; }
   --border: #e0e0e0;
   --text: #1a1a2e;
   --text2: #6b7280;
+  /* Enlaces y textos verdes con buen contraste en cada modo */
+  --enlace: #1a5fa8;
+  --verde-texto: #1a7a43;
   --accent: #E67E22;
   --radius: 14px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -49,6 +52,8 @@ a { color: inherit; }
   --border: #2e2e2e;
   --text: #ffffff;
   --text2: rgba(255,255,255,0.72);
+  --enlace: #5dade2;
+  --verde-texto: #2ecc71;
   --logo-blend: normal;
   --logo-filter: none;
   --card-blur: blur(0px);

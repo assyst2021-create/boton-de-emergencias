@@ -18,7 +18,7 @@ export default function AyudaClave({ email = '' }) {
     }}>
       <span>{t('claveOlvidoAyuda').replace('{correo}', RESPONSABLE.correo)}</span>
       <a href={`mailto:${RESPONSABLE.correo}?subject=${asunto}&body=${cuerpo}`}
-        style={{ fontWeight: 700, color: '#2e86de', textDecoration: 'underline' }}>
+        style={{ fontWeight: 700, color: 'var(--enlace)', textDecoration: 'underline' }}>
         ✉️ {t('claveOlvidoBtn')}
       </a>
     </div>
