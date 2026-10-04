@@ -10,7 +10,7 @@ import { useTema } from '../ThemeContext'
 import { useAppActions } from '../AppActionsContext'
 import { esPremium, esFamiliar, esPlanPago } from '../plan'
 import { olvidarFCM } from '../fcmRegistro'
-import { VERSION_LEGAL, RESPONSABLE } from '../i18n/legalDocs'
+import { VERSION_LEGAL, RESPONSABLE } from '../i18n/legalMeta'
 
 export { AppActionsContext } from '../AppActionsContext'
 

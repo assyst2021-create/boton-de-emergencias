@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
-import { RESPONSABLE } from '../i18n/legalDocs'
+import { RESPONSABLE } from '../i18n/legalMeta'
 import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual } from '../billing'
 
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play

@@ -1,5 +1,5 @@
 import { useLanguage } from '../i18n/LanguageContext'
-import { RESPONSABLE } from '../i18n/legalDocs'
+import { RESPONSABLE } from '../i18n/legalMeta'
 
 /**
  * "¿Olvidaste tu contraseña?": la app no manda correos automáticos para cambiarla (el correo gratuito

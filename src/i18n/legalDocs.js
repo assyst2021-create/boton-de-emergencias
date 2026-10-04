@@ -2,20 +2,9 @@
 // Decreto 1377 de 2013), Términos de Uso, Contrato de Servicio y Aviso Legal.
 // Cada idioma tiene: PRIVACIDAD, TERMINOS, CONTRATO, AVISO y DOCS_META.
 //
-// VERSION_LEGAL: al cambiar cualquier documento de forma importante, se cambia esta fecha y
-// todos los usuarios vuelven a ver y aceptar los documentos (la aceptación queda registrada).
+import { VERSION_LEGAL, RESPONSABLE } from './legalMeta.js'
+export { VERSION_LEGAL, RESPONSABLE }
 
-export const VERSION_LEGAL = '2026-10-03'
-
-// Datos del responsable (los exige la Ley 1581). Se muestran en los 3 idiomas.
-// La ley pide nombre, domicilio, dirección, correo y teléfono (la cédula no se publica)
-export const RESPONSABLE = {
-  nombre: 'Michael Esteven Caldon Achipis (ASSYST)',
-  domicilio: 'Cali, Colombia',
-  direccion: 'Carrera 83 E # 54-58',
-  telefono: '+57 305 923 4214',
-  correo: 'assyst2021@ssthechofacil.com',
-}
 const R = RESPONSABLE
 const APP = 'Botón de Emergencias'
 const FECHA = { es: '3 de octubre de 2026', en: 'October 3, 2026', pt: '3 de outubro de 2026' }

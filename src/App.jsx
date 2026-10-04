@@ -6,7 +6,7 @@ import { registrarFCM } from './fcmRegistro'
 import { escucharCompras, sincronizarCompras } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
 import { revisarPerfil } from './registro'
-import { VERSION_LEGAL } from './i18n/legalDocs'
+import { VERSION_LEGAL } from './i18n/legalMeta'
 
 /**
  * Prueba de la autorización (Ley 1581): la aceptación de los documentos se guarda en el servidor
@@ -26,10 +26,7 @@ const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNati
 import { ThemeProvider } from './ThemeContext'
 import { supabase, ENTRO_POR_RECUPERACION } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
-import PrivacidadPublica from './pages/PrivacidadPublica'
 import Login from './pages/Login'
-import Bienvenida from './pages/Bienvenida'
-import CompletarRegistro from './pages/CompletarRegistro'
 import Nav from './components/Nav'
 import { NavContext } from './components/NavContext'
 import { AppActionsContext } from './AppActionsContext'
@@ -42,9 +39,12 @@ const Ubicacion     = lazy(() => import('./pages/Ubicacion'))
 const Perfil        = lazy(() => import('./pages/Perfil'))
 const AvisoLegal    = lazy(() => import('./pages/AvisoLegal'))
 const NuevaContrasena = lazy(() => import('./pages/NuevaContrasena'))
+// Solo la web en /privacidad y quien quedó con el registro a medias: no se cargan al abrir la app
+const PrivacidadPublica = lazy(() => import('./pages/PrivacidadPublica'))
+const CompletarRegistro = lazy(() => import('./pages/CompletarRegistro'))
 
 export default function App() {
-  if (window.location.pathname === '/privacidad') return <PrivacidadPublica />
+  if (window.location.pathname === '/privacidad') return <Suspense fallback={null}><PrivacidadPublica /></Suspense>
   return <ThemeProvider><LanguageProvider><AppInner /></LanguageProvider></ThemeProvider>
 }
 
@@ -216,11 +216,6 @@ function AppInner() {
     else registrarFCM(supabase, session?.user?.id)
   }
 
-  function marcarBienvenida() {
-    localStorage.setItem(`bienvenida_${session.user.id}`, '1')
-    setBienvenidaVista(true)
-  }
-
   function marcarAvisoLegal() {
     const uid = session.user.id
     localStorage.setItem(`aviso_${uid}`, VERSION_LEGAL)
@@ -244,7 +239,7 @@ function AppInner() {
   if (session === undefined || (session && !initDone)) return <Cargando />
   if (!session) return <Login />
   if (recuperandoClave) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><NuevaContrasena onListo={() => setRecuperandoClave(false)} /></Suspense>
-  if (perfilFalta) return <CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} />
+  if (perfilFalta) return <Suspense fallback={<Cargando />}><CompletarRegistro userId={session.user.id} onListo={() => setPerfilFalta(false)} /></Suspense>
   // Orden: documentos legales → planes → permisos (nadie compra un plan sin haber aceptado los términos)
   if (!bienvenidaVista || !avisoLegalAceptado) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><AvisoLegal onAceptar={marcarAvisoLegal} /></Suspense>
   if (!planElegido) return <Suspense fallback={<div style={{minHeight:'100dvh',background:'var(--bg)'}}/>}><ElegirPlan onElegido={marcarPlanElegido} conX /></Suspense>
