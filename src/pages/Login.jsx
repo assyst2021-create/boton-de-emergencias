@@ -7,10 +7,7 @@ import {
   PAISES, USUARIO_VALIDO, normalizarUsuario, limpiarUsuario, useAvisoUsuario, usuarioDisponible, nombrePais,
   guardarDatosRegistro, borrarDatosRegistro, marcarRegistroEnCurso,
 } from '../registro'
-import { mensajeErrorClave, URL_NUEVA_CLAVE } from '../clave'
-
-// El enlace del correo para cambiar la contraseña ya venció o se usó (Supabase lo indica en la dirección)
-const ENLACE_VENCIDO = typeof window !== 'undefined' && /error_code=otp_expired|error=access_denied/.test(window.location.hash)
+import AyudaClave from '../components/AyudaClave'
 
 function mensajeErrorRegistro(err, t) {
   const texto = `${err?.code || ''} ${err?.message || ''}`
@@ -26,15 +23,13 @@ export default function Login() {
   const [form, setForm] = useState({ nombre: '', username: '', email: '', telefono: '', password: '' })
   const [pais, setPais] = useState(PAISES[0])
   const [error, setError] = useState('')
-  const [avisoEnlace, setAvisoEnlace] = useState(ENLACE_VENCIDO)
   const [cargando, setCargando] = useState(false)
   const [verPassword, setVerPassword] = useState(false)
   const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
   const [usernameStatus, setUsernameStatus] = useState(null) // 'ok' | 'taken' | 'checking'
   const debounceRef = useRef(null)
   const [avisoUsuario, revisarUsuario] = useAvisoUsuario()
-  const [resetEnviado, setResetEnviado] = useState(false)
-  const [resetCargando, setResetCargando] = useState(false)
+  const [verAyudaClave, setVerAyudaClave] = useState(false)
   useEffect(() => {
     const u = normalizarUsuario(form.username)
     if (modo !== 'registro' || !u) { setUsernameStatus(null); return }
@@ -53,19 +48,6 @@ export default function Login() {
     const valor = e.target.value
     if (k === 'username') revisarUsuario(valor)
     setForm(f => ({ ...f, [k]: k === 'username' ? limpiarUsuario(valor) : valor }))
-  }
-
-  async function handleReset() {
-    setError('')
-    if (!form.email) { setError(t('errorCorreoReset')); return }
-    setResetCargando(true)
-    setAvisoEnlace(false)
-    const { error: err } = await supabase.auth.resetPasswordForEmail(form.email.toLowerCase().trim(), { redirectTo: URL_NUEVA_CLAVE })
-      .then(r => r, e => ({ error: e }))
-    setResetCargando(false)
-    // Antes decía "te enviamos un correo" aunque no hubiera salido (sin señal o muchos intentos)
-    if (err) { setError(mensajeErrorClave(err, t, 'errorConexion')); return }
-    setResetEnviado(true)
   }
 
   async function handleLogin(e) {
@@ -222,17 +204,13 @@ export default function Login() {
 
           {modo === 'login' && (
             <div style={{ textAlign: 'right', marginTop: -8 }}>
-              {resetEnviado ? (
-                <span className={styles.resetOk}>{t('resetEnviado')}</span>
-              ) : (
-                <button type="button" className={styles.resetLink} onClick={handleReset} disabled={resetCargando}>
-                  {resetCargando ? t('procesando') : t('olvidaste')}
-                </button>
-              )}
+              <button type="button" className={styles.resetLink} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>
+                {t('olvidaste')}
+              </button>
             </div>
           )}
+          {modo === 'login' && verAyudaClave && <AyudaClave email={form.email} />}
 
-          {avisoEnlace && modo === 'login' && <div className={styles.error}>{t('enlaceVencido')}</div>}
           {error && <div className={styles.error}>{error}</div>}
 
           <div className={styles.idiomaSelector}>

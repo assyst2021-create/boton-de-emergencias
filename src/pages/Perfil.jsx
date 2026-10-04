@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase, clienteVerificacion } from '../supabase'
-import { validarClave, mensajeErrorClave, URL_NUEVA_CLAVE } from '../clave'
+import { validarClave, mensajeErrorClave } from '../clave'
+import AyudaClave from '../components/AyudaClave'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
@@ -44,7 +45,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   }
   const [form, setForm] = useState({ actual: '', nueva: '', confirmar: '' })
   const [verActual, setVerActual] = useState(false)
-  const [correoClave, setCorreoClave] = useState('')
+  // "¿No recuerdas tu contraseña actual?": cómo pedir ayuda (no hay correo automático)
+  const [verAyudaClave, setVerAyudaClave] = useState(false)
+  const [miCorreo, setMiCorreo] = useState('')
   const [error, setError] = useState('')
   const [exito, setExito] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -78,6 +81,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       const user = session?.user
       if (!user) return
       setUid(user.id)
+      setMiCorreo(user.email || '')
       supabase.from('users').select('full_name, username, auto_alert_enabled, recuperacion_activa, plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()
         .then(async ({ data, error }) => {
           // Si una columna nueva no se pudiera leer (permiso), se lee el perfil sin ella:
@@ -121,7 +125,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
    * desbloqueado (por ejemplo, un ladrón) no puede apagarlo antes de que la familia lo busque.
    */
   function toggleRecuperar() {
-    setRecError(''); setRecAcepto(false); setRecClave(''); setVerRecClave(false); setCorreoClave('')
+    setRecError(''); setRecAcepto(false); setRecClave(''); setVerRecClave(false); setVerAyudaClave(false)
     setPaso(recPermitir ? 'recApagar' : 'recAutorizar')
   }
 
@@ -206,7 +210,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   }
 
   function abrirEliminar() {
-    setElimClave(''); setVerElimClave(false); setElimError('')
+    setElimClave(''); setVerElimClave(false); setElimError(''); setVerAyudaClave(false)
     setPaso('eliminar')
   }
 
@@ -286,17 +290,6 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
   }
 
-  /** No recuerda la actual: se le manda el correo para crear una nueva */
-  async function enviarCorreoClave() {
-    setError('')
-    const { data: { session } } = await supabase.auth.getSession()
-    const email = session?.user?.email
-    if (!email) return
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: URL_NUEVA_CLAVE })
-    if (error) { setError(mensajeErrorClave(error, t, 'errorConexion')); return }
-    setCorreoClave(t('resetEnviado'))
-  }
-
   return (
     <div className={styles.overlay} onClick={onCerrar}>
       <div className={styles.card} onClick={e => e.stopPropagation()}>
@@ -328,7 +321,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               <span>{t('infoDocLegales')}</span>
               <span className={styles.leido}>✅ {t('docsCardLeido')}</span>
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('contrasena')}>
+            <button className={styles.opcion} onClick={() => { setVerAyudaClave(false); setPaso('contrasena') }}>
               {t('cambiarContrasena')}
             </button>
             <button className={styles.opcion} onClick={() => setPaso('creador')}>
@@ -450,6 +443,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               <button type="button" className={styles.eyeBtn} onClick={() => setVerElimClave(v => !v)}>{verElimClave ? '🙈' : '👁️'}</button>
             </div>
             {elimError && <div className={styles.error}>{elimError}</div>}
+            <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
+            {verAyudaClave && <AyudaClave email={miCorreo} />}
             <button type="submit" className={styles.btn} disabled={elimCargando}>
               {elimCargando ? t('procesando') : t('elimBtn')}
             </button>
@@ -502,9 +497,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button type="submit" className={styles.btn} disabled={recGuardando}>
               {recGuardando ? t('procesando') : t('recApagarBtn')}
             </button>
-            {correoClave
-              ? <p className={styles.desc} style={{ textAlign: 'center', margin: 0 }}>{correoClave}</p>
-              : <button type="button" className={styles.volver} onClick={async () => { await enviarCorreoClave(); }}>{t('claveOlvideActual')}</button>}
+            <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
+            {verAyudaClave && <AyudaClave email={miCorreo} />}
             {error && <div className={styles.error}>{error}</div>}
             <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError('') }}>{t('cancelar')}</button>
           </form>
@@ -658,10 +652,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button type="submit" className={styles.btn} disabled={cargando}>
               {cargando ? t('procesando') : t('cambiarBtn')}
             </button>
-            {correoClave
-              ? <p className={styles.desc} style={{ textAlign: 'center', margin: 0 }}>{correoClave}</p>
-              : <button type="button" className={styles.volver} onClick={enviarCorreoClave}>{t('claveOlvideActual')}</button>}
-            <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError(''); setCorreoClave('') }}>
+            <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
+            {verAyudaClave && <AyudaClave email={miCorreo} />}
+            <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError(''); setVerAyudaClave(false) }}>
               {t('volver')}
             </button>
           </form>

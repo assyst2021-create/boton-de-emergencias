@@ -34,7 +34,7 @@ const ELIMINAR = {
     ['Borrar datos sin eliminar la cuenta', `Desde la app puedes borrar alertas de tu historial, quitar familiares, dejar de compartir tu ubicación y desactivar Recuperar celular. Para cualquier otro dato, escríbenos a ${correo}.`],
   ],
   en: [
-    ['From the app (immediate, version 1.1.1 (89) or later)', 'Open Botón de Emergencias → ⚙️ Settings → Delete account. The app warns you that it cannot be undone and asks you to confirm. Once confirmed, your account is deleted immediately.'],
+    ['From the app (immediate, version 1.1.1 (89) or later)', 'Open Botón de Emergencias → ⚙️ Options → Delete account. The app warns you that it cannot be undone and asks you to confirm. Once confirmed, your account is deleted immediately.'],
     ['Without the app (by email)', `If you no longer have the app, write to ${correo} from the email you registered with, with the subject "Delete my account", and include your @username. We confirm you are the account holder and delete the account within 15 business days at most.`],
     ['What is deleted', 'Your profile (name, @username, email, phone and password), your family links and requests, your alerts, your shared locations, the phone recovery records, your preferences and the notification identifier. They are permanently deleted within 30 days at most and cannot be recovered: if you come back, you must register from scratch.'],
     ['What is not deleted', 'Payment records are kept by Google Play under its own policies. Alerts you already sent may have reached your family members\' phones as SMS or WhatsApp messages: those messages stay on their phones.'],

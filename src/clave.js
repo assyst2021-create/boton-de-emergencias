@@ -5,13 +5,6 @@
  */
 export const CLAVE_MINIMA = 6
 
-/**
- * A dónde lleva el enlace del correo "¿Olvidaste tu contraseña?": la app web, que pide la contraseña
- * nueva (sirve en cualquier celular, aunque el correo se abra en otro). Debe estar en Supabase →
- * Authentication → URL Configuration → Redirect URLs; si no, Supabase usa el Site URL.
- */
-export const URL_NUEVA_CLAVE = 'https://botondeemergencias.mefacil.com/'
-
 /** Revisión antes de enviar. Devuelve el texto del error o '' si está bien. */
 export function validarClave(nueva, confirmar, t) {
   if (!nueva || nueva.length < CLAVE_MINIMA) return t('errorMin')
