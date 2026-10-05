@@ -18,9 +18,17 @@ const clienteAuth = () => createClient(URL, Deno.env.get('SUPABASE_ANON_KEY')!, 
 
 const MAX_INTENTOS = 5
 const BLOQUEO_MIN = 30
-const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } })
+// La app (por dentro es un navegador) y la página web llaman desde otro dominio: sin estos permisos
+// (CORS) el navegador bloquea la llamada antes de que llegue aquí
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-region, x-supabase-api-version',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   try {
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
     const { data: { user } } = await clienteAuth().auth.getUser(token)

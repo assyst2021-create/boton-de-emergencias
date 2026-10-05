@@ -1,7 +1,7 @@
 /**
- * Edge Function: recuperar-celular (solo Android)
+ * Edge Function: recuperar-celular (el celular que se busca debe ser Android)
  * Antirrobo con consentimiento. La llama un familiar YA VINCULADO que tiene el correo/usuario
- * y la contraseña del dueño del celular perdido o robado.
+ * y la contraseña del dueño del celular perdido o robado, desde la app o desde la página web.
  *
  * accion 'solicitar': verifica contraseña + vínculo + que el dueño haya activado la recuperación,
  *   crea una sesión de 24 h y una llave, y le manda al celular una orden (dato FCM) para que
@@ -74,9 +74,17 @@ const premiumVigente = (u: any) => !!u && u.plan !== 'familiar' && (u.plan === '
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
 async function sha256Hex(s: string) { return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))) }
-const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } })
+// La app (por dentro es un navegador) y la página web llaman desde otro dominio: sin estos permisos
+// (CORS) el navegador bloquea la llamada antes de que llegue aquí
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-region, x-supabase-api-version',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   try {
     // Quién llama (el familiar), ya autenticado como él mismo
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')

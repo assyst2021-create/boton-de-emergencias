@@ -90,6 +90,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   // Permiso de ubicación "Permitir todo el tiempo" (null = no se sabe, por ejemplo en la web)
   const [ubiFondo, setUbiFondo] = useState(null)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
+  const ES_IOS = EN_APP && window.Capacitor?.getPlatform?.() === 'ios'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -506,14 +507,15 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 🔔 {t('sonidoMenu')}
               </button>
             )}
-            {EN_APP && (
+            {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede
+                buscar el celular). En la app de iPhone no se puede recuperar el propio celular, así que
+                allí no sale el permiso; sí el botón para ayudar a buscar el de un familiar. */}
+            {!ES_IOS && (
               <>
                 <div className={styles.opcionToggle}>
                   <span>
                     {t('recPermitir')}
-                    {esPremium(perfil)
-                      ? <span style={{ marginLeft: 6, fontSize: '0.72rem', color: 'var(--text2)' }}>{t('recSoloAndroid')}</span>
-                      : <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+                    {!esPremium(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
                   </span>
                   {esPremium(perfil) ? (
                     <button
@@ -534,11 +536,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                     ⚠️ {t('recFaltaFondoCorto')}
                   </button>
                 )}
-                <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
-                  🔒 {t('recMenu')}
-                </button>
               </>
             )}
+            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
+              🔒 {t('recMenu')}
+            </button>
             <button className={styles.opcionEliminar} onClick={abrirEliminar}>
               🗑️ {t('elimMenu')}
             </button>
