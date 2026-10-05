@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { registerPlugin } from '@capacitor/core'
 import { supabase } from '../supabase'
 import styles from './PanicButtons.module.css'
@@ -197,10 +198,14 @@ function conTiempoLimite(promesa, ms) {
 export default function PanicButtons() {
   const { t, lang } = useLanguage()
   const { abrirOpciones, abrirPlanes } = useNavContext()
+  const navigate = useNavigate()
   const [respaldo, setRespaldo] = useState(null)
   const [sinNube, setSinNube] = useState(false)
   const [user, setUser] = useState(null)
   const [familiares, setFamiliares] = useState([])
+  // Ya se sabe cuántos familiares hay (de la copia del celular o del servidor): antes de eso no se
+  // muestra "no tienes familiares"
+  const [familiaresListos, setFamiliaresListos] = useState(false)
   const [confirmacion, setConfirmacion] = useState(null)
   const [mostrarLimite, setMostrarLimite] = useState(null)
   const [avisoPlan, setAvisoPlan] = useState(false)
@@ -355,6 +360,7 @@ export default function PanicButtons() {
       if (cache) {
         setUser(prev => prev || cache.perfil)
         setFamiliares(prev => prev.length ? prev : cache.links)
+        setFamiliaresListos(true)
       }
     } catch (_) {}
 
@@ -370,6 +376,7 @@ export default function PanicButtons() {
     if (perfil) setUser(perfil)
     if (links) {
       setFamiliares(links)
+      setFamiliaresListos(true)
       limpiarExcluidos(authUser.id, links)
     }
     if (perfil && links) {
@@ -718,9 +725,7 @@ export default function PanicButtons() {
           <img src="/logo.png" alt={t('appNombre')} className={styles.logoImg} />
           <h1>{t('appNombre')}</h1>
           <div className={styles.headerBotones}>
-            {familiares.length > 1 && (
-              <button className={styles.salir} onClick={abrirDestinos} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
-            )}
+            <button className={styles.salir} onClick={abrirDestinos} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
             <button className={styles.salir} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
           </div>
         </div>
@@ -880,12 +885,16 @@ export default function PanicButtons() {
       </div>
 
       {/* A quién le llega la alerta: siempre a la vista, para no olvidar que se desmarcó a alguien */}
-      {familiares.length > 1 && (
+      {familiares.length > 0 ? (
         <button type="button" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={abrirDestinos}>
           👥 {todosElegidos
             ? t('destLlegaATodos')
             : `${t('destLlegaA')} ${destinosEfectivos.length} ${t('destDe')} ${familiares.length} ${t('destFamiliares')}`}
           {' · '}<u>{t('destCambiar')}</u>
+        </button>
+      ) : familiaresListos && (
+        <button type="button" className={styles.destChipParcial} onClick={abrirDestinos}>
+          👥 {t('destSinFamiliares')}{' · '}<u>{t('destAgregar')}</u>
         </button>
       )}
 
@@ -895,10 +904,12 @@ export default function PanicButtons() {
           <div className={styles.destVentana} role="dialog" aria-modal="true" aria-labelledby="dest-titulo" onClick={e => e.stopPropagation()}>
             <div className={styles.destIcono} aria-hidden="true">👥</div>
             <h3 id="dest-titulo" className={styles.destTitulo}>{t('destTitulo')}</h3>
-            <p className={styles.destDesc}>{t('destDesc')}</p>
-            <button type="button" className={styles.destTodos} onClick={() => { setAvisoMinimo(false); guardarExcluidos([]) }} disabled={todosElegidos}>
-              ✓ {t('destTodos')}
-            </button>
+            <p className={styles.destDesc}>{t(familiares.length ? 'destDesc' : 'destSinFamiliaresDesc')}</p>
+            {familiares.length > 1 && (
+              <button type="button" className={styles.destTodos} onClick={() => { setAvisoMinimo(false); guardarExcluidos([]) }} disabled={todosElegidos}>
+                ✓ {t('destTodos')}
+              </button>
+            )}
             <div className={styles.destLista}>
               {familiares.map(f => {
                 const marcado = !elegidosDestino.length || !excluidos.includes(f.linked_user_id)
@@ -911,6 +922,21 @@ export default function PanicButtons() {
               })}
             </div>
             {avisoMinimo && <p className={styles.destAviso} role="alert">{t('destMinimo')}</p>}
+            {familiares.length === 0 ? (
+              <button type="button" className={styles.destTodos} onClick={() => { setMostrarDestinos(false); navigate('/familia') }}>
+                {t('destIrFamilia')}
+              </button>
+            ) : familiares.length === 1 && (
+              // Con un solo familiar no hay a quién escoger: en Gratis es el límite del plan
+              <div className={styles.destNota}>
+                <span>{t(esPlanPago(user) ? 'destUnoPago' : 'destUnoGratis')}</span>
+                {!esPlanPago(user) && (
+                  <button type="button" className={styles.destTodos} onClick={() => { setMostrarDestinos(false); abrirPlanes() }}>
+                    {t('verPlanes')}
+                  </button>
+                )}
+              </div>
+            )}
             <button type="button" className={styles.destListo} onClick={() => setMostrarDestinos(false)}>{t('destListo')}</button>
           </div>
         </div>,

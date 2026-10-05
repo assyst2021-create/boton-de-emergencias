@@ -91,6 +91,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [ubiFondo, setUbiFondo] = useState(null)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
   const ES_IOS = EN_APP && window.Capacitor?.getPlatform?.() === 'ios'
+  const [recNotaIos, setRecNotaIos] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -502,41 +503,36 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </button>
               )}
             </div>
-            {EN_APP && hayPluginSonidos() && (
-              <button className={styles.opcion} onClick={abrirSonido}>
-                🔔 {t('sonidoMenu')}
-              </button>
-            )}
+            <button className={styles.opcion} onClick={abrirSonido}>
+              🔔 {t('sonidoMenu')}
+            </button>
             {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede
-                buscar el celular). En la app de iPhone no se puede recuperar el propio celular, así que
-                allí no sale el permiso; sí el botón para ayudar a buscar el de un familiar. */}
-            {!ES_IOS && (
-              <>
-                <div className={styles.opcionToggle}>
-                  <span>
-                    {t('recPermitir')}
-                    {!esPremium(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
-                  </span>
-                  {esPremium(perfil) ? (
-                    <button
-                      className={recPermitir ? styles.toggleOn : styles.toggleOff}
-                      onClick={toggleRecuperar}
-                      aria-pressed={recPermitir}
-                    >
-                      {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
-                    </button>
-                  ) : (
-                    <button className={styles.toggleOff} onClick={() => setPaso('plan')} style={{ opacity: 0.6, cursor: 'pointer' }}>
-                      {t('verPlanes')}
-                    </button>
-                  )}
-                </div>
-                {recPermitir && ubiFondo === false && (
-                  <button type="button" className={styles.error} style={{ textAlign: 'left', cursor: 'pointer' }} onClick={abrirAjustesApp}>
-                    ⚠️ {t('recFaltaFondoCorto')}
-                  </button>
-                )}
-              </>
+                buscar el celular). En iPhone no se puede recuperar el propio celular: el interruptor sale
+                igual (nada se oculta) y al tocarlo lo explica; el botón para buscar el de un familiar sí sirve. */}
+            <div className={styles.opcionToggle}>
+              <span>
+                {t('recPermitir')}
+                {!esPremium(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+              </span>
+              {esPremium(perfil) ? (
+                <button
+                  className={recPermitir ? styles.toggleOn : styles.toggleOff}
+                  onClick={ES_IOS ? () => setRecNotaIos(v => !v) : toggleRecuperar}
+                  aria-pressed={recPermitir}
+                >
+                  {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
+                </button>
+              ) : (
+                <button className={styles.toggleOff} onClick={() => setPaso('plan')} style={{ opacity: 0.6, cursor: 'pointer' }}>
+                  {t('verPlanes')}
+                </button>
+              )}
+            </div>
+            {ES_IOS && recNotaIos && <div className={styles.recDatos}><span>{t('recNotaIphone')}</span></div>}
+            {recPermitir && ubiFondo === false && (
+              <button type="button" className={styles.error} style={{ textAlign: 'left', cursor: 'pointer' }} onClick={abrirAjustesApp}>
+                ⚠️ {t('recFaltaFondoCorto')}
+              </button>
             )}
             <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
               🔒 {t('recMenu')}
@@ -555,6 +551,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
           <div className={styles.form}>
             <h3 className={styles.recTitulo}>🔔 {t('sonidoTitulo')}</h3>
             <p className={styles.desc} style={{ margin: 0 }}>{t('sonidoDesc')}</p>
+            {!hayPluginSonidos() && <div className={styles.recDatos}><span>{t('sonidoSoloApp')}</span></div>}
             <div role="radiogroup" aria-label={t('sonidoTitulo')} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {SONIDOS.map(s => (
                 <div key={s} className={sonidoSel === s ? styles.sonidoFilaActiva : styles.sonidoFila}>
@@ -594,7 +591,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             {sonidoMsg && (
               <div className={sonidoMsg.tipo === 'ok' ? styles.exito : styles.error}>{sonidoMsg.texto}</div>
             )}
-            <button type="button" className={styles.btn} disabled={guardandoSonido} onClick={guardarSonido}>
+            <button type="button" className={styles.btn} disabled={guardandoSonido || !hayPluginSonidos()} onClick={guardarSonido}>
               {guardandoSonido ? t('procesando') : t('sonidoGuardar')}
             </button>
             {estadoSonido.canales && (
@@ -636,9 +633,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <div className={styles.error} style={{ fontWeight: 700, lineHeight: 1.45 }}>⚠️ {t('elimAviso')}</div>
             <div className={styles.recDatos}>
               <span>{t('elimSuscripcion')}</span>
-              {EN_APP && (
-                <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer" className={styles.enlace}>{t('elimVerSuscripciones')}</a>
-              )}
+              <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer" className={styles.enlace}>{t('elimVerSuscripciones')}</a>
             </div>
             <a href={`${URL_ELIMINAR}?lang=${lang}#eliminar`} target="_blank" rel="noopener noreferrer" className={styles.enlace} style={{ textAlign: 'center' }}>
               {t('elimMasInfo')}

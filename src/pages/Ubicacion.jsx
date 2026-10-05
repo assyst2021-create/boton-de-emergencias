@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../supabase'
@@ -127,6 +128,7 @@ async function geocodearDireccion(lat, lng, cerca = 'Cerca de', idioma = 'es') {
 export default function Ubicacion() {
   const { t, lang } = useLanguage()
   const { abrirOpciones, abrirPlanes } = useNavContext()
+  const navigate = useNavigate()
   const [perfil, setPerfil] = useState(null)
   // Persiste en sessionStorage para que al volver de otra pestaña el botón
   // muestre "Deja de compartir" de inmediato, sin parpadear a "Compartir"
@@ -428,12 +430,10 @@ export default function Ubicacion() {
       .subscribe()
   }
 
-  /** Paso 1 → paso 2: después del tiempo se elige con quién (si hay más de un familiar). */
+  /** Paso 1 → paso 2: después del tiempo se elige con quién (siempre: con la familia que tenga). */
   function elegirTiempo(minutos) {
     setMostrarTiempo(false)
     if (!puedeUbicacionEnVivo(perfil)) { abrirPlanes(); return }
-    // Con uno o ningún familiar no hay nada que elegir
-    if (familiares.length < 2) { empezar(true, minutos, null); return }
     setMinutosElegidos(minutos)
     let excluidos = []
     try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
@@ -826,15 +826,17 @@ export default function Ubicacion() {
           >
             <div className={styles.selectorIcono} aria-hidden="true">👥</div>
             <h3 id="selector-conquien-titulo" className={styles.selectorTitulo}>{t('ubiConQuienTitulo')}</h3>
-            <p className={styles.selectorDesc}>{t('ubiConQuienDesc')}</p>
-            <button
-              type="button"
-              className={styles.conQuienTodos}
-              onClick={() => { setAvisoMinimoUbi(false); setExcluidosUbi([]) }}
-              disabled={familiares.every(f => !excluidosUbi.includes(f.id))}
-            >
-              ✓ {t('destTodos')}
-            </button>
+            <p className={styles.selectorDesc}>{t(familiares.length ? 'ubiConQuienDesc' : 'ubiConQuienSinFamiliares')}</p>
+            {familiares.length > 1 && (
+              <button
+                type="button"
+                className={styles.conQuienTodos}
+                onClick={() => { setAvisoMinimoUbi(false); setExcluidosUbi([]) }}
+                disabled={familiares.every(f => !excluidosUbi.includes(f.id))}
+              >
+                ✓ {t('destTodos')}
+              </button>
+            )}
             <div className={styles.selectorOpciones}>
               {familiares.map(f => {
                 const marcado = !excluidosUbi.includes(f.id)
@@ -847,6 +849,11 @@ export default function Ubicacion() {
               })}
             </div>
             {avisoMinimoUbi && <p className={styles.conQuienAviso} role="alert">{t('destMinimo')}</p>}
+            {familiares.length === 0 && (
+              <button type="button" className={styles.conQuienTodos} onClick={() => { setMostrarConQuien(false); navigate('/familia') }}>
+                {t('destIrFamilia')}
+              </button>
+            )}
             <button type="button" className={styles.conQuienEmpezar} onClick={confirmarConQuien}>
               🛰 {t('ubiEmpezarCompartir')}
             </button>
@@ -880,13 +887,17 @@ export default function Ubicacion() {
             )}
           </div>
         ) : perfil !== null && !premium ? (
+          // Plan Gratis: el botón de compartir sale igual (nada se oculta), bloqueado: lleva a los planes
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button className={styles.btnCompartir} onClick={abrirPlanes} style={{ background: '#e6a817' }}>
-              {t('verPlanes')}
+            <button className={styles.btnCompartir} onClick={abrirPlanes} style={{ opacity: 0.75 }} aria-label={`${t('ubiCompartir')} · ${t('verPlanes')}`}>
+              🛰 {t('ubiCompartir')} 🔒
             </button>
             <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '0.82rem', margin: 0, lineHeight: 1.45 }}>
               {t('ubiGratisSoloVer')}
             </p>
+            <button className={styles.btnCompartir} onClick={abrirPlanes} style={{ background: '#e6a817' }}>
+              {t('verPlanes')}
+            </button>
           </div>
         ) : (
           <button className={styles.btnCompartir} onClick={() => setMostrarTiempo(true)}>

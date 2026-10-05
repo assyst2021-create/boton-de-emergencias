@@ -385,6 +385,11 @@
 .destFilaOn { border: 1.5px solid rgba(30, 132, 73, 0.5); background: rgba(30, 132, 73, 0.08); }
 .destFila input, .destFilaOn input { width: 20px; height: 20px; accent-color: #1E8449; flex-shrink: 0; }
 .destAviso { margin: 0; font-size: 0.8rem; font-weight: 700; color: #C0392B; }
+.destNota {
+  align-self: stretch; display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border);
+  font-size: 0.8rem; line-height: 1.45; color: var(--text2); text-wrap: pretty;
+}
 .destListo {
   align-self: stretch; margin-top: 4px; padding: 13px; border-radius: 12px; border: none;
   background: #1E8449; color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;

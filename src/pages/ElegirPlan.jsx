@@ -269,21 +269,17 @@ export default function ElegirPlan({ onElegido, conX = false }) {
           </button>
         )}
         <p className={styles.ctaSub}>{t('elegirSinCompromisos')}</p>
-        {EN_ANDROID && (planActual === 'premium' || planActual === 'familiar') && (
-          <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'block', textAlign: 'center', color: 'var(--text2)', textDecoration: 'underline', fontSize: '0.82rem', padding: 8 }}>
-            {t('billingGestionar')}
-          </a>
-        )}
-        {EN_ANDROID && (
-          <button
-            onClick={restaurar}
-            disabled={restaurando || cargando}
-            style={{ background: 'none', border: 'none', color: 'var(--text2)', textDecoration: 'underline', fontSize: '0.82rem', padding: 8, cursor: 'pointer' }}
-          >
-            {restaurando ? t('procesando') : t('billingRestaurar')}
-          </button>
-        )}
+        <a href={URL_SUSCRIPCIONES} target="_blank" rel="noopener noreferrer"
+          style={{ display: 'block', textAlign: 'center', color: 'var(--text2)', textDecoration: 'underline', fontSize: '0.82rem', padding: 8 }}>
+          {t('billingGestionar')}
+        </a>
+        <button
+          onClick={EN_ANDROID ? restaurar : () => setAviso(t('billingSoloApp'))}
+          disabled={restaurando || cargando}
+          style={{ background: 'none', border: 'none', color: 'var(--text2)', textDecoration: 'underline', fontSize: '0.82rem', padding: 8, cursor: 'pointer' }}
+        >
+          {restaurando ? t('procesando') : t('billingRestaurar')}
+        </button>
       </div>
 
       {/* Modal contrato */}
