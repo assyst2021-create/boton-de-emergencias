@@ -90,8 +90,6 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   // Permiso de ubicación "Permitir todo el tiempo" (null = no se sabe, por ejemplo en la web)
   const [ubiFondo, setUbiFondo] = useState(null)
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
-  const ES_IOS = EN_APP && window.Capacitor?.getPlatform?.() === 'ios'
-  const [recNotaIos, setRecNotaIos] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -506,9 +504,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button className={styles.opcion} onClick={abrirSonido}>
               🔔 {t('sonidoMenu')}
             </button>
-            {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede
-                buscar el celular). En iPhone no se puede recuperar el propio celular: el interruptor sale
-                igual (nada se oculta) y al tocarlo lo explica; el botón para buscar el de un familiar sí sirve. */}
+            {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede buscar el celular) */}
             <div className={styles.opcionToggle}>
               <span>
                 {t('recPermitir')}
@@ -517,7 +513,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               {esPremium(perfil) ? (
                 <button
                   className={recPermitir ? styles.toggleOn : styles.toggleOff}
-                  onClick={ES_IOS ? () => setRecNotaIos(v => !v) : toggleRecuperar}
+                  onClick={toggleRecuperar}
                   aria-pressed={recPermitir}
                 >
                   {recPermitir ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
@@ -528,7 +524,6 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </button>
               )}
             </div>
-            {ES_IOS && recNotaIos && <div className={styles.recDatos}><span>{t('recNotaIphone')}</span></div>}
             {recPermitir && ubiFondo === false && (
               <button type="button" className={styles.error} style={{ textAlign: 'left', cursor: 'pointer' }} onClick={abrirAjustesApp}>
                 ⚠️ {t('recFaltaFondoCorto')}
