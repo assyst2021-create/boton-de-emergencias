@@ -170,6 +170,9 @@ function AppInner() {
         registrarFCM(supabase, session?.user?.id)
         // El sonido de las alertas que eligió (también después de reinstalar)
         sincronizarSonido(supabase, session?.user?.id).catch(() => {})
+        // Si el celular se reinició o la app se actualizó mientras compartía su ubicación (o había una
+        // recuperación de celular) y el tiempo no se ha acabado, sigue sola, en cualquier pantalla
+        window.Capacitor?.Plugins?.GpsShare?.reanudar?.().catch(() => {})
         verificarPermisos()
       })
       // Renovaciones, cancelaciones y compras que no alcanzaron a activarse

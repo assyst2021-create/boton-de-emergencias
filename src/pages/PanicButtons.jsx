@@ -110,6 +110,26 @@ function encolar(payload) {
     localStorage.setItem(COLA_KEY, JSON.stringify(cola))
   } catch (_) {}
 }
+/** Cambia datos de una alerta que está en la cola (por ejemplo, le pone la ubicación). */
+function actualizarEnCola(id, cambios) {
+  try {
+    const cola = JSON.parse(localStorage.getItem(COLA_KEY) || '[]')
+    const i = cola.findIndex(a => a.id === id)
+    if (i < 0) return
+    cola[i] = { ...cola[i], ...cambios }
+    localStorage.setItem(COLA_KEY, JSON.stringify(cola))
+  } catch (_) {}
+}
+/** Saca de la cola una alerta que el servidor ya confirmó. */
+function quitarDeCola(id) {
+  try {
+    const cola = JSON.parse(localStorage.getItem(COLA_KEY) || '[]').filter(a => a.id !== id)
+    if (cola.length) localStorage.setItem(COLA_KEY, JSON.stringify(cola))
+    else localStorage.removeItem(COLA_KEY)
+  } catch (_) {}
+}
+// Una alerta recién tocada se está mandando por su lado: la cola no la toca estos segundos
+const ESPERA_COLA_MS = 15000
 
 let _procesandoCola = false
 /** Reenvía la cola; solo saca de la cola las alertas que la base confirmó. */
@@ -124,9 +144,13 @@ async function procesarCola() {
     if (!session?.user) return
     const pendientes = []
     for (const item of cola) {
+      if (item._creadoMs && Date.now() - item._creadoMs < ESPERA_COLA_MS) { pendientes.push(item); continue }
+      // _creadoMs es solo para el celular: no va a la base
+      const fila = { ...item }
+      delete fila._creadoMs
       try {
         const { error } = await conTiempoLimite(
-          insertarConRespaldo('alerts', { ...item, sender_id: session.user.id }, 'destinatarios'), 10000)
+          insertarConRespaldo('alerts', { ...fila, sender_id: session.user.id }, 'destinatarios'), 10000)
         // 23505 = ya llegó antes; LIMITE_ALERTAS = rechazo definitivo. Ninguno se reintenta.
         if (error && error.code !== '23505' && !/LIMITE_ALERTAS/.test(error.message || '')) pendientes.push(item)
         else if (!error && !item.is_auto && (item.status_type === 'red' || item.status_type === 'orange')) {
@@ -136,9 +160,11 @@ async function procesarCola() {
         }
       } catch (_) { pendientes.push(item) }
     }
-    // Alertas encoladas mientras se procesaba no se pierden
-    const nuevas = JSON.parse(localStorage.getItem(COLA_KEY) || '[]').slice(cola.length)
-    const resto = [...pendientes, ...nuevas]
+    // Se guarda lo que haya en la cola AHORA (con los cambios que tuvo mientras tanto, como la
+    // ubicación), sin las que ya llegaron y sin perder las que se tocaron mientras se procesaba
+    const procesadas = new Set(cola.map(a => a.id))
+    const siguen = new Set(pendientes.map(a => a.id))
+    const resto = JSON.parse(localStorage.getItem(COLA_KEY) || '[]').filter(a => !procesadas.has(a.id) || siguen.has(a.id))
     if (resto.length) localStorage.setItem(COLA_KEY, JSON.stringify(resto))
     else localStorage.removeItem(COLA_KEY)
   } finally {
@@ -553,7 +579,9 @@ export default function PanicButtons() {
             enCola.longitude = p.lng
             localStorage.setItem(COLA_KEY, JSON.stringify(cola))
           }
-          return
+          // En la cola sin señal: sale ya con el mapa. Si se está mandando en este momento, puede
+          // llegar sin la ubicación: se le pone también en el servidor (se reintenta abajo)
+          if (!enCola._creadoMs) return
         }
       } catch (_) {}
       const { data: puesta, error } = await supabase.rpc('ubicar_alerta', { p_id: id, p_lat: p.lat, p_lng: p.lng })
@@ -569,45 +597,54 @@ export default function PanicButtons() {
   async function guardarEnHistorial(boton, destinatarios = null) {
     const ahora = new Date()
     const expiresAt = new Date(ahora.getTime() + 24 * 60 * 60 * 1000)
-    const p = await obtenerPosicion()
-
-    const payload = {
+    const base = {
       // ID único desde el celular: si un reintento llega dos veces, la base rechaza la copia
       id: nuevoUUID(),
       status_type: boton.tipo,
-      latitude: p?.lat ?? null,
-      longitude: p?.lng ?? null,
+      latitude: posRef.current?.lat ?? null,
+      longitude: posRef.current?.lng ?? null,
       sent_at: ahora.toISOString(),
       expires_at: expiresAt.toISOString(),
       is_auto: false,
       // null = todo el grupo familiar; si no, solo esos familiares reciben notificación e historial
       ...(destinatarios ? { destinatarios } : {}),
     }
+    const id = base.id
+    // Guardada en el celular desde el primer instante: si se apaga o Android cierra la app antes
+    // de que llegue al servidor, sale sola al volver a abrirla (con su hora real). Se borra de aquí
+    // apenas el servidor la confirma.
+    encolar({ ...base, _creadoMs: Date.now() })
+
+    const p = await obtenerPosicion()
+    const payload = { ...base, latitude: p?.lat ?? null, longitude: p?.lng ?? null }
+    if (p) actualizarEnCola(id, { latitude: p.lat, longitude: p.lng })
 
     // Sin ubicación al guardar: apenas llegue el GPS se le agrega a la alerta (y a la que esté
     // en la cola sin señal). La familia recibe un segundo aviso con el mapa.
-    if (!p) completarUbicacion(payload.id)
+    if (!p) completarUbicacion(id)
 
-    // Sin internet: encolar y avisar. Se enviará automáticamente al volver la señal.
-    if (!navigator.onLine) { encolar(payload); setSinNube(true); return }
+    // Sin internet, sin sesión o si falla: ya está en la cola y sale sola al volver la señal
+    const dejarEnCola = () => { actualizarEnCola(id, { _creadoMs: 0 }); setSinNube(true) }
+    if (!navigator.onLine) { dejarEnCola(); return }
 
     // getSession lee la sesión del celular al instante (getUser iba a internet y tardaba)
     const { data: { session } } = await supabase.auth.getSession()
     const authUser = session?.user
-    if (!authUser) { encolar(payload); setSinNube(true); return }
+    if (!authUser) { dejarEnCola(); return }
 
     try {
       const res = await conTiempoLimite(
         insertarConRespaldo('alerts', { ...payload, sender_id: authUser.id }, 'destinatarios'),
         10000,
       )
-      if (res?.error) throw res.error
+      // 23505 = ya había llegado (la mandó la cola): igual quedó guardada
+      if (res?.error && res.error.code !== '23505') throw res.error
     } catch (e) {
-      if (/LIMITE_ALERTAS/.test(e?.message || '')) { setMostrarLimite('alertas'); return }
-      encolar(payload)
-      setSinNube(true)
+      if (/LIMITE_ALERTAS/.test(e?.message || '')) { quitarDeCola(id); setMostrarLimite('alertas'); return }
+      dejarEnCola()
       return
     }
+    quitarDeCola(id)
 
     if (boton.tipo === 'red' || boton.tipo === 'orange') programarAlertaAuto(boton.tipo, p, destinatarios, authUser.id)
   }
