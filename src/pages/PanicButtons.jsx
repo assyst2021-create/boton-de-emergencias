@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { registerPlugin } from '@capacitor/core'
-import { supabase } from '../supabase'
+import { supabase, obtenerSesion, sesionGuardada } from '../supabase'
 import styles from './PanicButtons.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { puedeEnviarAlerta, esPremium, esFamiliar, esPlanPago, puedeSegundaAlerta } from '../plan'
@@ -347,22 +347,29 @@ export default function PanicButtons() {
     }
   }, [])
 
-  async function cargarDatos() {
-    const { data: { session } } = await supabase.auth.getSession()
-    const authUser = session?.user
-    if (!authUser) return null
-
-    try { setExcluidos(JSON.parse(localStorage.getItem(`destinosExcluidos_${authUser.id}`) || '[]')) } catch (_) {}
-
-    // Familiares y nombre guardados en el celular: disponibles al instante y sin internet
+  /** Familiares, nombre y a quién avisar, guardados en el celular: disponibles al instante y sin internet. */
+  function leerCopiaLocal(uid) {
+    try { setExcluidos(JSON.parse(localStorage.getItem(`destinosExcluidos_${uid}`) || '[]')) } catch (_) {}
     try {
-      const cache = JSON.parse(localStorage.getItem(`panicCache_${authUser.id}`) || 'null')
+      const cache = JSON.parse(localStorage.getItem(`panicCache_${uid}`) || 'null')
       if (cache) {
         setUser(prev => prev || cache.perfil)
         setFamiliares(prev => prev.length ? prev : cache.links)
         setFamiliaresListos(true)
       }
     } catch (_) {}
+  }
+
+  async function cargarDatos() {
+    // Primero lo guardado, sin esperar nada: con poca señal, saber quién es puede tardar y el SMS
+    // de un toque en esos segundos saldría sin familiares
+    const idGuardado = sesionGuardada()?.user?.id
+    if (idGuardado) leerCopiaLocal(idGuardado)
+
+    const session = await obtenerSesion()
+    const authUser = session?.user
+    if (!authUser) return null
+    if (authUser.id !== idGuardado) leerCopiaLocal(authUser.id)
 
     // perfil y familiares en paralelo
     const [{ data: perfil }, { data: links }] = await Promise.all([

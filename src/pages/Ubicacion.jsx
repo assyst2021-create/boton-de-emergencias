@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { supabase } from '../supabase'
+import { supabase, obtenerSesion } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { puedeUbicacionEnVivo } from '../plan'
@@ -183,7 +183,7 @@ export default function Ubicacion() {
       LocalNotifications.requestPermissions().catch(() => {})
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => { uidGlobalRef.current = session?.user?.id })
+    obtenerSesion().then(session => { uidGlobalRef.current = session?.user?.id })
 
     // Polling de respaldo: solo recarga ubicaciones (links en caché) cada 4s
     pollingRef.current = setInterval(() => {
@@ -228,7 +228,7 @@ export default function Ubicacion() {
   }, [])
 
   async function init() {
-    const { data: { session } } = await supabase.auth.getSession()
+    const session = await obtenerSesion()
     const user = session?.user
     if (!user) return
     uidGlobalRef.current = user.id
@@ -673,8 +673,8 @@ export default function Ubicacion() {
     setMinRestantes(null)
     setCompartiendoCon(null)
     setCompartiendo(false)
-    // getSession lee la sesión del celular al instante (getUser iba a internet y demoraba la parada)
-    const { data: { session } } = await supabase.auth.getSession()
+    // La sesión del celular al instante (getUser iba a internet y demoraba la parada); sin internet, la guardada
+    const session = await obtenerSesion()
     const user = session?.user
     if (user) {
       // Parar el servicio nativo si está corriendo

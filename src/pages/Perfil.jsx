@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { supabase, clienteVerificacion } from '../supabase'
+import { supabase, clienteVerificacion, obtenerSesion } from '../supabase'
 import { validarClave, mensajeErrorClave } from '../clave'
 import AyudaClave from '../components/AyudaClave'
 import { SONIDOS, leerPreferencia, aplicarSonido, canalLocal, hayPluginSonidos, PREFERENCIA_INICIAL } from '../sonidoAlerta'
@@ -34,9 +34,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
 
   // Al salir: este celular deja de recibir alertas de la cuenta y deja de compartir su ubicación
   async function cerrarSesion() {
-    try { if (uid) localStorage.removeItem(`recActiva_${uid}`) } catch (_) {}
-    const { data: { session } } = await supabase.auth.getSession()
+    const session = await obtenerSesion()
     const uid = session?.user?.id
+    try { if (uid) localStorage.removeItem(`recActiva_${uid}`) } catch (_) {}
     if (uid) {
       try { await window.Capacitor?.Plugins?.GpsShare?.detener({ userId: uid }) } catch (_) {}
       await supabase.from('live_locations').update({ activo: false }).eq('user_id', uid).then(() => {}, () => {})
@@ -92,7 +92,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const EN_APP = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    obtenerSesion().then(session => {
       const user = session?.user
       if (!user) return
       setUid(user.id)
@@ -170,7 +170,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     if (!recClave) { setRecError(t('errorClaveActualFalta')); return }
     setRecGuardando(true); setRecError('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await obtenerSesion()
       const email = session?.user?.email
       if (!email) { setRecError(t('errorConexion')); return }
       const { error: errClave } = await clienteVerificacion().auth.signInWithPassword({ email, password: recClave })
@@ -289,7 +289,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     if (!salirClave) { setSalirError(t('errorClaveActualFalta')); return }
     setSaliendo(true); setSalirError('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await obtenerSesion()
       const email = session?.user?.email
       if (!email) { await cerrarSesion(); return }
       const { error } = await clienteVerificacion().auth.signInWithPassword({ email, password: salirClave })
@@ -395,7 +395,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     if (form.nueva === form.actual) { setError(t('errorClaveIgual')); return }
     setCargando(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const session = await obtenerSesion()
       const email = session?.user?.email
       if (!email) { setError(t('errorConexion')); return }
       // 1. La contraseña actual se comprueba aparte, sin tocar la sesión de la app

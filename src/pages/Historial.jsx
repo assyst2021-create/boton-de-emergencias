@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from '../supabase'
+import { supabase, obtenerSesion } from '../supabase'
 import styles from './Historial.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useNavContext } from '../components/NavContext'
@@ -118,7 +118,7 @@ export default function Historial() {
   }, [])
 
   async function cargar() {
-    const { data: { session } } = await supabase.auth.getSession()
+    const session = await obtenerSesion()
     const user = session?.user
     if (!user) return {}
     userIdRef.current = user.id

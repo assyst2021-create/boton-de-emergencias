@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
+import { supabase, obtenerSesion } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -83,7 +83,7 @@ export default function ElegirPlan({ onElegido, conX = false }) {
   const [mostrarContrato, setMostrarContrato] = useState(false)
 
   function cargarPlanActual() {
-    return supabase.auth.getSession().then(({ data: { session } }) => {
+    return obtenerSesion().then(session => {
       const user = session?.user
       if (!user) return
       return supabase.from('users').select('plan, is_premium, premium_hasta').eq('id', user.id).maybeSingle()

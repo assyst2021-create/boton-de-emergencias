@@ -25,7 +25,7 @@ async function registrarAceptacion(uid, idioma) {
 const Permisos = registerPlugin('Permisos')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 import { ThemeProvider } from './ThemeContext'
-import { supabase, ENTRO_POR_RECUPERACION } from './supabase'
+import { supabase, ENTRO_POR_RECUPERACION, sesionGuardada, ESPERA_SESION_MS } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
 import Login from './pages/Login'
 import Nav from './components/Nav'
@@ -101,16 +101,27 @@ function AppInner() {
   }, [initDone, session?.user?.id, lang])
 
   useEffect(() => {
+    // Sin internet y con el permiso de 1 hora vencido, Supabase responde "sin sesión" aunque la
+    // sesión sigue guardada en el celular: se usa la guardada (al volver la señal se renueva sola).
+    // Al cerrar sesión de verdad, Supabase la borra antes de avisar, así que ahí sí queda en null.
+    let resuelta = false
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+      resuelta = true
+      const s = session || sesionGuardada()
+      setSession(s)
       // Enlace vencido o inválido: no hay sesión y se vuelve al inicio normal
-      if (!session) setRecuperandoClave(false)
-    })
+      if (!s) setRecuperandoClave(false)
+    }, () => { resuelta = true; setSession(sesionGuardada()) })
+    // Sin internet getSession() tarda hasta ~30 s reintentando: se entra de una con la sesión guardada
+    const guardada = sesionGuardada()
+    const espera = setTimeout(() => {
+      if (!resuelta && guardada) setSession(prev => prev || guardada)
+    }, navigator.onLine === false ? 0 : ESPERA_SESION_MS)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, s) => {
       if (evento === 'PASSWORD_RECOVERY') setRecuperandoClave(true)
-      setSession(s)
+      setSession(s || sesionGuardada())
     })
-    return () => subscription.unsubscribe()
+    return () => { subscription.unsubscribe(); clearTimeout(espera) }
   }, [])
 
   // Cargar flags por usuario desde localStorage
