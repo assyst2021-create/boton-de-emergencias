@@ -163,6 +163,9 @@ export default function Ubicacion() {
   const [mostrarConQuien, setMostrarConQuien] = useState(false)
   const [minutosElegidos, setMinutosElegidos] = useState(60)
   const [excluidosUbi, setExcluidosUbi] = useState([])
+  // La lista de familiares ya llegó del servidor: antes de eso no se puede empezar a compartir, porque
+  // con la lista vacía saldría para todo el grupo y no solo para los marcados (versión 94)
+  const [familiaCargada, setFamiliaCargada] = useState(false)
   const [avisoMinimoUbi, setAvisoMinimoUbi] = useState(false)
   const [compartiendoCon, setCompartiendoCon] = useState(null)
   const [recuperandoIds, setRecuperandoIds] = useState(() => new Set())
@@ -245,13 +248,20 @@ export default function Ubicacion() {
     const user = session?.user
     if (!user) return
     uidGlobalRef.current = user.id
+    // Mientras llega del servidor, el plan guardado en el celular (de la pantalla de alertas): con señal
+    // lenta, «Compartir» mandaba a Planes a quien sí tiene plan (versión 94)
+    try {
+      const guardado = JSON.parse(localStorage.getItem(`panicCache_${user.id}`) || 'null')?.perfil
+      if (guardado) setPerfil(prev => prev || guardado)
+    } catch (_) {}
 
     const [{ data: p }, , { data: mia }] = await Promise.all([
       supabase.from('users').select('id, full_name, username, plan, is_premium, premium_hasta, auto_alert_enabled').eq('id', user.id).maybeSingle(),
       cargarFamiliaresCompleto(user.id),
       supabase.from('live_locations').select('*').eq('user_id', user.id).maybeSingle(),
     ])
-    setPerfil(p)
+    // Sin señal se queda el que ya se conoce
+    if (p) setPerfil(p)
     escuchar()
 
     if (detenidoRef.current || sessionStorage.getItem('ubi_stopped') === '1') return
@@ -361,6 +371,14 @@ export default function Ubicacion() {
     if (error || !links) return false
 
     linksRef.current = links
+    // Los nombres de una vez (la ubicación de cada uno llega después): la lista para escoger con quién
+    // compartir queda completa aunque la consulta de ubicaciones tarde o falle
+    setFamiliares(prev => links.map(l => ({
+      id: l.user_id,
+      nombre: l.users?.full_name || l.users?.username || '—',
+      ubicacion: prev.find(f => f.id === l.user_id)?.ubicacion || null,
+    })))
+    setFamiliaCargada(true)
     const ok = await cargarUbicaciones()
     cargarRecuperaciones()
     return ok
@@ -448,14 +466,24 @@ export default function Ubicacion() {
     setMostrarTiempo(false)
     if (!puedeUbicacionEnVivo(perfil)) { abrirPlanes(); return }
     setMinutosElegidos(minutos)
-    let excluidos = []
-    try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
-    // Si por cambios del grupo no queda nadie marcado, se marcan todos
-    if (familiares.every(f => excluidos.includes(f.id))) excluidos = []
-    setExcluidosUbi(excluidos)
+    leerExcluidosUbi(familiares)
     setAvisoMinimoUbi(false)
     setMostrarConQuien(true)
+    // La lista todavía no llegó (mala señal): se vuelve a pedir
+    if (!familiaCargada && uidGlobalRef.current) cargarFamiliaresCompleto(uidGlobalRef.current)
   }
+
+  /** Los que la persona desmarcó la última vez. Si por cambios del grupo no queda nadie marcado, todos. */
+  function leerExcluidosUbi(lista) {
+    let excluidos = []
+    try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
+    if (lista.length && lista.every(f => excluidos.includes(f.id))) excluidos = []
+    setExcluidosUbi(excluidos)
+  }
+  // La lista llegó con la ventana abierta: se marcan otra vez como estaban guardados
+  useEffect(() => {
+    if (familiaCargada && mostrarConQuien) leerExcluidosUbi(familiares)
+  }, [familiaCargada])
 
   function alternarConQuien(id) {
     setAvisoMinimoUbi(false)
@@ -468,6 +496,7 @@ export default function Ubicacion() {
   }
 
   function confirmarConQuien() {
+    if (!familiaCargada) return
     const marcados = familiares.filter(f => !excluidosUbi.includes(f.id))
     // Todos (o ninguno por algún cambio del grupo) = compartir con todo el grupo familiar
     const lista = marcados.length && marcados.length < familiares.length ? marcados.map(f => f.id) : null
@@ -839,7 +868,7 @@ export default function Ubicacion() {
           >
             <div className={styles.selectorIcono} aria-hidden="true">👥</div>
             <h3 id="selector-conquien-titulo" className={styles.selectorTitulo}>{t('ubiConQuienTitulo')}</h3>
-            <p className={styles.selectorDesc}>{t(familiares.length ? 'ubiConQuienDesc' : 'ubiConQuienSinFamiliares')}</p>
+            <p className={styles.selectorDesc}>{t(!familiaCargada ? 'ubiConQuienCargando' : familiares.length ? 'ubiConQuienDesc' : 'ubiConQuienSinFamiliares')}</p>
             {familiares.length > 1 && (
               <button
                 type="button"
@@ -862,12 +891,12 @@ export default function Ubicacion() {
               })}
             </div>
             {avisoMinimoUbi && <p className={styles.conQuienAviso} role="alert">{t('destMinimo')}</p>}
-            {familiares.length === 0 && (
+            {familiaCargada && familiares.length === 0 && (
               <button type="button" className={styles.conQuienTodos} onClick={() => { setMostrarConQuien(false); navigate('/familia') }}>
                 {t('destIrFamilia')}
               </button>
             )}
-            <button type="button" className={styles.conQuienEmpezar} onClick={confirmarConQuien}>
+            <button type="button" className={styles.conQuienEmpezar} onClick={confirmarConQuien} disabled={!familiaCargada}>
               🛰 {t('ubiEmpezarCompartir')}
             </button>
             <button className={styles.selectorCancelar} onClick={() => setMostrarConQuien(false)}>

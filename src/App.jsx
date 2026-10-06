@@ -66,22 +66,24 @@ function AppInner() {
   const permisosPedidosRef = useRef(false)
   // Antes de que Android pida los permisos se explica para qué sirve cada uno (Google Play lo exige,
   // sobre todo para la ubicación en segundo plano). null = revisando; quien ya los tiene no la ve.
+  // '2' = vista desde la versión 94, que agregó el permiso de No molestar (quien venía de antes y no
+  // lo tiene la ve una vez más)
   const [permisosExplicados, setPermisosExplicados] = useState(() => {
     if (!EN_CAPACITOR) return true
-    try { return localStorage.getItem('permisosExplicados') === '1' ? true : null } catch (_) { return null }
+    try { return localStorage.getItem('permisosExplicados') === '2' ? true : null } catch (_) { return null }
   })
   useEffect(() => {
     if (permisosExplicados !== null) return
     Permisos.verificar()
       .then(p => {
-        const todos = !!(p?.sms && p?.ubicacion && p?.notificaciones)
-        if (todos) { try { localStorage.setItem('permisosExplicados', '1') } catch (_) {} }
+        const todos = !!(p?.sms && p?.ubicacion && p?.notificaciones) && p?.noMolestar !== false
+        if (todos) { try { localStorage.setItem('permisosExplicados', '2') } catch (_) {} }
         setPermisosExplicados(todos)
       })
       .catch(() => setPermisosExplicados(false))
   }, [permisosExplicados])
   function continuarPermisos() {
-    try { localStorage.setItem('permisosExplicados', '1') } catch (_) {}
+    try { localStorage.setItem('permisosExplicados', '2') } catch (_) {}
     setPermisosExplicados(true)
   }
   const { t, lang } = useLanguage()
@@ -217,6 +219,9 @@ function AppInner() {
       if (document.visibilityState === 'visible' && permisosPedidosRef.current) {
         verificarPermisos()
         revisarActualizacion(supabase, () => setActualizacionLista(true))
+        // De vuelta del ajuste de No molestar (o de cualquier ajuste): el sonido de las alertas queda
+        // listo con los permisos que haya ahora
+        sincronizarSonido(supabase, sesionGuardada()?.user?.id).catch(() => {})
       }
     }
     document.addEventListener('visibilitychange', alVolver)
@@ -269,6 +274,7 @@ function AppInner() {
       ['📍', 'perm_ubicacion', 'permExpUbicacion'],
       ['🔔', 'perm_notificaciones', 'permExpNotif'],
       ['🔋', 'permExpBateriaTit', 'permExpBateria'],
+      ['🌙', 'permExpNoMolestarTit', 'permExpNoMolestar'],
     ]
     return (
       <div style={{ minHeight: 'var(--alto)', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px))', gap: 16, textAlign: 'center' }}>

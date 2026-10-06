@@ -516,6 +516,25 @@ export default function PanicButtons() {
   }
 
   /**
+   * A quién le llega la alerta en este instante. Si la lista todavía no está en pantalla (la app se
+   * acaba de abrir), se lee en este mismo momento la copia guardada en el celular, con los desmarcados:
+   * así nunca sale para todos por haberse presionado antes de que cargara.
+   */
+  function destinosAlPulsar() {
+    if (familiares.length) return { elegidos: destinosEfectivos, todos: todosElegidos }
+    const uid = user?.id || sesionGuardada()?.user?.id
+    try {
+      const links = JSON.parse(localStorage.getItem(`panicCache_${uid}`) || 'null')?.links || []
+      const fuera = JSON.parse(localStorage.getItem(`destinosExcluidos_${uid}`) || '[]')
+      const marcados = links.filter(f => !fuera.includes(f.linked_user_id))
+      const elegidos = marcados.length ? marcados : links
+      return { elegidos, todos: elegidos.length === links.length }
+    } catch (_) {
+      return { elegidos: [], todos: true }
+    }
+  }
+
+  /**
    * Se ejecuta de forma SINCRONA dentro del toque del usuario: abre Mensajes
    * en ese mismo instante, que es la unica forma de que iOS no muestre el
    * aviso de "abrir esta pagina en Mensajes". El guardado va despues, aparte.
@@ -537,8 +556,8 @@ export default function PanicButtons() {
     }
 
     // Solo a los familiares elegidos con el botón 👥 (por defecto, todos)
-    const elegidos = destinosEfectivos
-    const destinatarios = todosElegidos ? null : elegidos.map(f => f.linked_user_id)
+    const { elegidos, todos } = destinosAlPulsar()
+    const destinatarios = todos ? null : elegidos.map(f => f.linked_user_id)
     const numeros = numerosDestino(elegidos, user?.phone_number)
     const cuerpo = construirCuerpo(boton)
 
@@ -590,8 +609,8 @@ export default function PanicButtons() {
         resolve(cached)
       } else {
         // Sin posición: la última que el celular ya conoce (al instante) o la del navegador, hasta
-        // 10 min, esperando máximo 1.5 s. La alerta no se demora esperando el GPS; la ubicación
-        // sigue llegando por SMS.
+        // 10 min, esperando máximo 0,8 s (versión 94; antes 1,5 s). La alerta no se demora esperando
+        // el GPS: si no alcanza, sale ya y la familia recibe después un segundo aviso con el mapa.
         let listo = false
         const fin = p => { if (!listo) { listo = true; resolve(p) } }
         ultimaUbicacionNativa().then(p => {
@@ -600,9 +619,9 @@ export default function PanicButtons() {
         navigator.geolocation.getCurrentPosition(
           p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; fin(posRef.current) },
           () => {},
-          { timeout: 1500, maximumAge: 600000, enableHighAccuracy: false }
+          { timeout: 800, maximumAge: 600000, enableHighAccuracy: false }
         )
-        setTimeout(() => fin(posRef.current), 1500)
+        setTimeout(() => fin(posRef.current), 800)
       }
     })
   }
