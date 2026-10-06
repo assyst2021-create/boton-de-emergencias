@@ -126,13 +126,17 @@ function horaYFecha(iso: string | null | undefined, idioma: string, zona?: strin
   return `${hora} · ${dia}`
 }
 
-// Sonido de las alertas (punto 20): cada celular crea su canal y guarda el nombre en users.canal_alerta
+// Sonido de las alertas (punto 20): cada celular guarda en users.canal_alerta cómo suena
 const CANAL_NORMAL = 'alertas_v3'
 const canalDe = (c: unknown) => typeof c === 'string' && /^alertas_[a-z0-9_]{1,40}$/.test(c) ? c : CANAL_NORMAL
 const sonidoDe = (canal: string) => {
   const m = /(sirena|alarma|campana)/.exec(canal)
   return m ? 'alerta_' + m[1] : 'default'
 }
+// App 93+: el celular reproduce él mismo el sonido elegido cuando le llega la señal "sonar" (ya no
+// depende de canales de Android, que fallaban si no coincidían). Esos celulares guardan
+// "alertas_sonar_…"; los de versiones anteriores siguen recibiendo exactamente como antes.
+const suenaPorSuCuenta = (canal: string) => canal.startsWith('alertas_sonar_')
 
 Deno.serve(async (req) => {
   try {
@@ -173,8 +177,14 @@ Deno.serve(async (req) => {
         .eq('linked_user_id', emisorId).eq('status', 'accepted')
     }
 
+    // La lista de familiares del EMISOR (la que ve en su app): solo ellos reciben sus alertas y avisos.
+    // Si un vínculo quedó a medias (la otra persona lo tiene a él, pero él no a ella), esa persona
+    // no está en su lista, no la puede desmarcar y antes igual le llegaba todo.
+    const pedirListaEmisor = () => supabase.from('family_links')
+      .select('linked_user_id').eq('user_id', emisorId).eq('status', 'accepted')
+
     // Familiares que reciben la notificación, datos del emisor y token de Google, todo a la vez
-    const [{ data: alerta }, { data: links }, { data: emisor }, accessToken] = await Promise.all([
+    const [{ data: alerta }, { data: linksTodos }, { data: emisor }, accessToken, { data: listaEmisor }] = await Promise.all([
       confirmar,
       pedirFamilia(),
       supabase
@@ -183,7 +193,12 @@ Deno.serve(async (req) => {
         .eq('id', emisorId)
         .maybeSingle(),
       tokenFcm(),
+      pedirListaEmisor(),
     ])
+    // Solo quienes están en la lista del emisor. Si justo esa consulta fallara, la alerta igual sale
+    // como antes (en una emergencia, que llegue va primero)
+    const enLista = listaEmisor ? new Set(listaEmisor.map((l: { linked_user_id: string }) => l.linked_user_id)) : null
+    const links = enLista ? (linksTodos || []).filter(l => enLista.has(l.user_id)) : (linksTodos || [])
 
     // Alerta que no existe, de otra persona o ya vencida; ubicación que no se está compartiendo
     const confirmada = esUbicacion
@@ -239,7 +254,18 @@ Deno.serve(async (req) => {
       .filter(e => e.fcmToken)
     const resultados = await Promise.all(envios.map(async ({ fcmToken, canal, titulo, cuerpo, ruta }) => {
       // Alertas: con el sonido que eligió quien recibe. Avisos de ubicación: con el tono normal.
-      const canalUsado = esUbicacion ? CANAL_NORMAL : canal
+      // App 93+: la notificación va por el canal normal y, aparte, la señal "sonar" (solo para la
+      // alerta, no para el segundo aviso con el mapa ni para los de ubicación)
+      const sonar = !esUbicacion && !esUbicacionAlerta && suenaPorSuCuenta(canal)
+      const canalUsado = esUbicacion || suenaPorSuCuenta(canal) ? CANAL_NORMAL : canal
+      // Sale al mismo tiempo que la notificación; se espera antes de responder (si no, se puede cortar)
+      const envioSonar = sonar
+        ? fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: { token: fcmToken, data: { tipo: 'sonar', ruta }, android: { priority: 'high' } } }),
+          }).then(async r => { if (!r.ok) console.warn('[fcm] sonar:', JSON.stringify(await r.json())) }, e => console.warn('[fcm] sonar:', e))
+        : Promise.resolve()
       const fcmRes = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         {
@@ -272,6 +298,7 @@ Deno.serve(async (req) => {
       // Si Google rechaza el token guardado, la próxima alerta pide uno nuevo
       if (fcmRes.status === 401) tokenCache = null
       if (!fcmRes.ok) console.warn('[fcm] error:', JSON.stringify(await fcmRes.json()))
+      await envioSonar
       return fcmRes.ok
     }))
     const enviadas = resultados.filter(Boolean).length

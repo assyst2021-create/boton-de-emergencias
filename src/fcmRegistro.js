@@ -3,7 +3,6 @@
  * La Edge Function enviar-notificacion-fcm usa ese token para avisar a la
  * familia aunque la app esté cerrada.
  */
-import { canalLocal } from './sonidoAlerta'
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 const CANAL = 'alertas_v3'
 
@@ -61,8 +60,8 @@ export async function registrarFCM(supabase, userId) {
             body: n.body || '',
             // Se ve completa al desplegarla (estado, hora y ubicación)
             largeBody: n.body || '',
-            // Las alertas, con el sonido que esta persona eligió; los demás avisos, con el normal
-            channelId: n.data?.ruta === 'historial' ? canalLocal() : CANAL,
+            // Canal normal: el sonido que esta persona eligió lo reproduce la app (señal "sonar")
+            channelId: CANAL,
             sound: 'default',
             smallIcon: 'ic_stat_notification',
             iconColor: '#e8302a',

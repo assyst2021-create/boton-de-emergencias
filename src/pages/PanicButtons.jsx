@@ -9,6 +9,7 @@ import { puedeEnviarAlerta, esPremium, esFamiliar, esPlanPago, puedeSegundaAlert
 import { useNavContext } from '../components/NavContext'
 import { PAISES } from '../registro'
 import { nuevoUUID } from '../uuid'
+import { ultimaUbicacionNativa, ubicacionActualNativa } from '../ubicacionNativa'
 
 const SilentSms = registerPlugin('SilentSms')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
@@ -179,7 +180,10 @@ async function procesarCola() {
  */
 async function insertarConRespaldo(tabla, fila, campo) {
   let res = await supabase.from(tabla).insert(fila)
-  if (res.error && fila[campo] != null && (res.error.message || '').includes(campo)) {
+  // Solo si la base de verdad no tiene esa columna (PGRST204 / 42703). Antes bastaba con que el
+  // error mencionara la palabra: se podía reenviar SIN destinatarios = a todo el grupo.
+  const faltaColumna = res.error && (res.error.code === 'PGRST204' || res.error.code === '42703')
+  if (faltaColumna && fila[campo] != null && (res.error.message || '').includes(campo)) {
     const sinCampo = { ...fila }
     delete sinCampo[campo]
     res = await supabase.from(tabla).insert(sinCampo)
@@ -269,8 +273,29 @@ export default function PanicButtons() {
   const vigilanteRef = useRef(null)
   const ultimoToqueRef = useRef({ tipo: null, ms: 0 })
 
+  /**
+   * Lo más rápido primero (versión 93): la última ubicación que el celular ya conoce, al instante,
+   * y enseguida una actual del servicio de ubicación del celular (1 a 3 s). La del navegador sigue
+   * por detrás y mantiene el punto al día.
+   */
+  function ubicacionDelCelular() {
+    ultimaUbicacionNativa().then(p => {
+      if (p && p.edadMs < 10 * 60 * 1000 && !posRef.current) {
+        posRef.current = { lat: p.lat, lng: p.lng }
+        setGps('listo')
+      }
+    })
+    ubicacionActualNativa(10000).then(p => {
+      if (p) {
+        posRef.current = { lat: p.lat, lng: p.lng }
+        setGps('listo')
+      }
+    })
+  }
+
   function iniciarWatch() {
     if (vigilanteRef.current !== null || !navigator.geolocation) return
+    ubicacionDelCelular()
     // Ubicación rápida (antenas/wifi o última conocida) mientras llega la de GPS preciso
     navigator.geolocation.getCurrentPosition(
       p => {
@@ -298,7 +323,7 @@ export default function PanicButtons() {
     window.addEventListener('online', procesarCola)
     // Al volver a la app también se traen los familiares: si alguien te desvinculó mientras
     // tanto, deja de estar en la lista (el tiempo real no avisa cuando se borra una fila)
-    const onVisible = () => { if (document.visibilityState === 'visible') { procesarCola(); cargarDatos() } }
+    const onVisible = () => { if (document.visibilityState === 'visible') { procesarCola(); cargarDatos(); if (vigilanteRef.current !== null) ubicacionDelCelular() } }
     document.addEventListener('visibilitychange', onVisible)
     const reintentoCola = setInterval(procesarCola, 20000)
     procesarCola()
@@ -564,13 +589,20 @@ export default function PanicButtons() {
         )
         resolve(cached)
       } else {
-        // Sin posición: la del sistema de hasta 10 min, o esperar máximo 1.5 s. La alerta no
-        // se demora esperando el GPS (antes eran 3 s); la ubicación sigue llegando por SMS.
+        // Sin posición: la última que el celular ya conoce (al instante) o la del navegador, hasta
+        // 10 min, esperando máximo 1.5 s. La alerta no se demora esperando el GPS; la ubicación
+        // sigue llegando por SMS.
+        let listo = false
+        const fin = p => { if (!listo) { listo = true; resolve(p) } }
+        ultimaUbicacionNativa().then(p => {
+          if (p && p.edadMs < 10 * 60 * 1000) { posRef.current = { lat: p.lat, lng: p.lng }; fin(posRef.current) }
+        })
         navigator.geolocation.getCurrentPosition(
-          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(posRef.current) },
-          () => resolve(null),
+          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; fin(posRef.current) },
+          () => {},
           { timeout: 1500, maximumAge: 600000, enableHighAccuracy: false }
         )
+        setTimeout(() => fin(posRef.current), 1500)
       }
     })
   }

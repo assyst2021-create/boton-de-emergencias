@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase, clienteVerificacion, obtenerSesion } from '../supabase'
 import { validarClave, mensajeErrorClave } from '../clave'
 import AyudaClave from '../components/AyudaClave'
-import { SONIDOS, leerPreferencia, aplicarSonido, canalLocal, hayPluginSonidos, PREFERENCIA_INICIAL } from '../sonidoAlerta'
+import { SONIDOS, leerPreferencia, aplicarSonido, hayPluginSonidos, PREFERENCIA_INICIAL } from '../sonidoAlerta'
 import styles from './Perfil.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { IDIOMAS } from '../i18n/translations'
@@ -84,7 +84,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   // Sonido de las alertas (lo escoge quien recibe)
   const [sonidoSel, setSonidoSel] = useState('normal')
   const [siempreSel, setSiempreSel] = useState(true)
-  const [estadoSonido, setEstadoSonido] = useState({ canales: false, accesoNoMolestar: false })
+  const [estadoSonido, setEstadoSonido] = useState({ canales: false })
+  // Nombre del tono escogido de la lista del celular ("tono")
+  const [tonoNombre, setTonoNombre] = useState('')
   const [sonidoMsg, setSonidoMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [guardandoSonido, setGuardandoSonido] = useState(false)
   // Permiso de ubicación "Permitir todo el tiempo" (null = no se sabe, por ejemplo en la web)
@@ -219,7 +221,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   async function revisarEstadoSonido() {
     try {
       const e = await sonidosPlugin()?.estado?.()
-      if (e) setEstadoSonido({ canales: !!e.canales, accesoNoMolestar: !!e.accesoNoMolestar })
+      if (e) { setEstadoSonido({ canales: !!e.canales }); setTonoNombre(e.tonoNombre || '') }
     } catch (_) {}
   }
   function abrirSonido() {
@@ -228,12 +230,10 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     revisarEstadoSonido()
     setPaso('sonido')
   }
-  // Al volver de Ajustes (permiso de No molestar o tono del celular) se revisa otra vez
+  // Al salir de la pantalla se calla el sonido de prueba
   useEffect(() => {
     if (paso !== 'sonido') return
-    const alVolver = () => { if (document.visibilityState === 'visible') revisarEstadoSonido() }
-    document.addEventListener('visibilitychange', alVolver)
-    return () => { document.removeEventListener('visibilitychange', alVolver); sonidosPlugin()?.detener?.().catch(() => {}) }
+    return () => { sonidosPlugin()?.detener?.().catch(() => {}) }
   }, [paso])
 
   function probarSonido(sonido) {
@@ -244,9 +244,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     if (guardandoSonido) return
     setGuardandoSonido(true); setSonidoMsg(null)
     try {
-      const r = await aplicarSonido(supabase, uid, { sonido: sonidoSel, siempre: siempreSel })
-      const nota = siempreSel && !r.suenaEnNoMolestar ? ` ${t('sonidoSinNoMolestar')}` : ''
-      setSonidoMsg({ tipo: 'ok', texto: t('sonidoGuardado') + nota })
+      await aplicarSonido(supabase, uid, { sonido: sonidoSel, siempre: siempreSel })
+      setSonidoMsg({ tipo: 'ok', texto: t('sonidoGuardado') })
     } catch (_) {
       setSonidoMsg({ tipo: 'error', texto: t('errorConexion') })
     } finally {
@@ -254,11 +253,16 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
   }
 
-  // "Más tonos del celular": primero se deja listo el canal elegido y se abren sus ajustes de Android
+  // "Otro tono de tu celular": se escoge de la lista de tonos del teléfono y queda guardado de una
   async function masTonos() {
+    setSonidoMsg(null)
     try {
-      await aplicarSonido(supabase, uid, { sonido: sonidoSel, siempre: siempreSel })
-      await sonidosPlugin()?.abrirAjustesCanal?.({ canal: canalLocal() })
+      const r = await sonidosPlugin()?.elegirTono?.()
+      if (!r?.ok) return
+      setTonoNombre(r.nombre || '')
+      setSonidoSel('tono')
+      await aplicarSonido(supabase, uid, { sonido: 'tono', siempre: siempreSel })
+      setSonidoMsg({ tipo: 'ok', texto: t('sonidoGuardado') })
     } catch (_) {
       setSonidoMsg({ tipo: 'error', texto: t('errorConexion') })
     }
@@ -559,6 +563,17 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                   </button>
                 </div>
               ))}
+              {(sonidoSel === 'tono' || tonoNombre) && (
+                <div className={sonidoSel === 'tono' ? styles.sonidoFilaActiva : styles.sonidoFila}>
+                  <button type="button" role="radio" aria-checked={sonidoSel === 'tono'} className={styles.sonidoElegir} onClick={() => { setSonidoSel('tono'); setSonidoMsg(null) }}>
+                    <span className={styles.sonidoPunto}>{sonidoSel === 'tono' ? '●' : '○'}</span>
+                    🎵 {tonoNombre || t('sonido_tono')}
+                  </button>
+                  <button type="button" className={styles.sonidoProbar} onClick={() => probarSonido('tono')} aria-label={`${t('sonidoProbar')} ${tonoNombre || t('sonido_tono')}`}>
+                    ▶ {t('sonidoProbar')}
+                  </button>
+                </div>
+              )}
             </div>
             {estadoSonido.canales && (
               <>
@@ -572,15 +587,6 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                     {siempreSel ? t('autoAlertaActiva') : t('autoAlertaInactiva')}
                   </button>
                 </div>
-                {siempreSel && !estadoSonido.accesoNoMolestar && (
-                  <div className={styles.recDatos}>
-                    <span>{t('sonidoPermisoFalta')}</span>
-                    <button type="button" className={styles.btn} style={{ padding: 10, fontSize: '0.9rem' }}
-                      onClick={() => sonidosPlugin()?.pedirAccesoNoMolestar?.().catch(() => {})}>
-                      {t('sonidoPermisoBtn')}
-                    </button>
-                  </div>
-                )}
               </>
             )}
             {sonidoMsg && (

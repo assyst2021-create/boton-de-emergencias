@@ -1,10 +1,13 @@
 /**
- * Sonido de las alertas de emergencia en ESTE celular (lo escoge quien recibe). La parte de Android
- * (SonidosPlugin) crea el "canal" con ese sonido y la app guarda en el servidor el nombre del canal:
- * así cada familiar recibe la alerta con el sonido que él eligió. Sin elegir nada: el tono normal,
- * que suena también con el celular en silencio.
+ * Sonido de las alertas de emergencia en ESTE celular (lo escoge quien recibe). Desde la versión 93
+ * la app misma lo reproduce cuando le llega una alerta (SonidosPlugin.sonarAlerta, señal "sonar" del
+ * servidor), con el volumen de alarma si así se eligió: ya no depende de los canales de Android.
+ * En el servidor se guarda "alertas_sonar_<sonido>[_s]" solo para que sepa que este celular suena
+ * por su cuenta. Sin elegir nada: el tono normal, que suena también con el celular en silencio.
  */
 export const SONIDOS = ['sirena', 'alarma', 'campana', 'normal']
+// "tono" = un tono escogido de la lista del celular
+const VALIDOS = [...SONIDOS, 'tono']
 const CLAVE = 'sonidoAlerta'
 export const CANAL_NORMAL = 'alertas_v3'
 // Lo que tiene cada persona mientras no escoja otra cosa: es una emergencia, así que las alertas
@@ -17,35 +20,30 @@ export const hayPluginSonidos = () => !!plugin()?.configurar
 export function leerPreferencia() {
   try {
     const p = JSON.parse(localStorage.getItem(CLAVE) || 'null')
-    if (p && SONIDOS.includes(p.sonido)) return { sonido: p.sonido, siempre: !!p.siempre }
+    if (p && VALIDOS.includes(p.sonido)) return { sonido: p.sonido, siempre: !!p.siempre }
   } catch (_) {}
   return null
 }
 
-/** Canal donde se muestran las alertas cuando la app está abierta (el mismo que usa el servidor). */
-export function canalLocal() {
-  try { return localStorage.getItem('canalAlerta') || CANAL_NORMAL } catch (_) { return CANAL_NORMAL }
-}
-
-/** "alertas_s_sirena_2" → { sonido: 'sirena', siempre: true } (para recuperarlo al reinstalar) */
+/** Lo guardado en el servidor → { sonido, siempre } (para recuperarlo al reinstalar). */
 export function desdeCanal(canal) {
-  // Escogió a propósito el tono normal sin sonar en silencio: se respeta
+  const nuevo = /^alertas_sonar_(sirena|alarma|campana|normal|tono)(_s)?$/.exec(canal || '')
+  if (nuevo) return { sonido: nuevo[1], siempre: !!nuevo[2] }
+  // Versiones 89 a 92 (canales de Android)
   if (canal === CANAL_NORMAL) return { sonido: 'normal', siempre: false }
-  const m = /^alertas_(s_)?(sirena|alarma|campana|normal)_\d+$/.exec(canal || '')
-  return m ? { sonido: m[2], siempre: !!m[1] } : null
+  const viejo = /^alertas_(s_)?(sirena|alarma|campana|normal)_\d+$/.exec(canal || '')
+  return viejo ? { sonido: viejo[2], siempre: !!viejo[1] } : null
 }
 
-function guardarLocal(pref, canal) {
-  try {
-    localStorage.setItem(CLAVE, JSON.stringify(pref))
-    localStorage.setItem('canalAlerta', canal)
-  } catch (_) {}
+function guardarLocal(pref) {
+  try { localStorage.setItem(CLAVE, JSON.stringify(pref)) } catch (_) {}
 }
 
-/** Deja el sonido listo en el celular y lo guarda en el servidor. Devuelve { canal, suenaEnNoMolestar }. */
+/** Deja el sonido listo en el celular y lo avisa al servidor. Devuelve { canal, suenaEnNoMolestar }. */
 export async function aplicarSonido(supabase, uid, pref) {
   const r = await plugin().configurar(pref)
-  guardarLocal(pref, r.canal)
+  // Lo que de verdad quedó (por ejemplo, "tono" sin tono escogido queda en el normal)
+  guardarLocal(desdeCanal(r.canal) || pref)
   if (uid) {
     const { error } = await supabase.from('users').update({ canal_alerta: r.canal }).eq('id', uid)
     if (error) throw error
@@ -54,8 +52,8 @@ export async function aplicarSonido(supabase, uid, pref) {
 }
 
 /**
- * Al abrir la app: el canal elegido existe en este celular (también después de reinstalar, cuando
- * se recupera lo que estaba guardado en el servidor) y el servidor tiene el nombre correcto.
+ * Al abrir la app: el sonido elegido queda listo en este celular (también después de reinstalar,
+ * cuando se recupera lo que estaba guardado en el servidor) y el servidor sabe que suena por su cuenta.
  */
 export async function sincronizarSonido(supabase, uid) {
   if (!hayPluginSonidos() || !uid) return
@@ -70,7 +68,7 @@ export async function sincronizarSonido(supabase, uid) {
   }
   const r = await plugin().configurar(pref).catch(() => null)
   if (!r) return
-  guardarLocal(pref, r.canal)
+  guardarLocal(desdeCanal(r.canal) || pref)
   if (r.canal !== canalServidor) {
     await supabase.from('users').update({ canal_alerta: r.canal }).eq('id', uid).then(() => {}, () => {})
   }

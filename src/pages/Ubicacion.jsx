@@ -10,6 +10,7 @@ import { puedeUbicacionEnVivo } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { nuevoUUID } from '../uuid'
+import { ultimaUbicacionNativa, ubicacionActualNativa } from '../ubicacionNativa'
 
 /** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
 const INTERVALO_MS = 1000
@@ -85,7 +86,19 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
  * Punto inmediato (wifi/antenas o uno de hace menos de 2 min) para que la familia vea
  * algo de una vez mientras el GPS fino responde. Si es muy impreciso no se usa.
  */
-function posicionRapida() {
+async function posicionRapida() {
+  // Versión 93: primero el servicio de ubicación del celular (la última conocida, si es reciente,
+  // o una de ahora en máximo 4 s); si no hay (página web) o falla, la del navegador como antes
+  const ultima = await ultimaUbicacionNativa()
+  if (ultima && ultima.edadMs < 120000 && ultima.precision <= 300) {
+    return { lat: ultima.lat, lng: ultima.lng, precision: ultima.precision, ts: Date.now() - ultima.edadMs }
+  }
+  const actual = await ubicacionActualNativa(4000)
+  if (actual && actual.precision <= 300) return { lat: actual.lat, lng: actual.lng, precision: actual.precision, ts: Date.now() }
+  return posicionRapidaNavegador()
+}
+
+function posicionRapidaNavegador() {
   return new Promise(resolve => {
     if (!navigator.geolocation) return resolve(null)
     navigator.geolocation.getCurrentPosition(

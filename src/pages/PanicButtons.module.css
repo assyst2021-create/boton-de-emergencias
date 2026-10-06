@@ -173,11 +173,13 @@
 .btnTitulo { font-size: 1.2rem; font-size: clamp(0.9rem, 12cqh, 1.3rem); font-weight: 800; letter-spacing: 0.03em; line-height: 1.2; text-align: center; text-wrap: balance; position: relative; z-index: 1; }
 .btnMensaje { font-size: 0.9rem; font-size: clamp(0.8rem, 9cqh, 0.95rem); line-height: 1.3; opacity: 0.92; text-align: center; max-width: 300px; position: relative; z-index: 1; }
 
-/* Botón bajito: primero se quita el texto pequeño y, si aún no cabe, el círculo de color */
-@container (max-height: 118px) { .btnMensaje { display: none; } }
-@container (max-height: 74px) { .btnEmoji { display: none; } }
-/* Botón muy bajito (celular pequeño o letra del sistema grande): menos relleno para que el título quepa completo */
-@container (max-height: 90px) { .panico { padding: 4px 12px; gap: 2px; } .btnTitulo { line-height: 1.1; } }
+/* El mensaje que se va a enviar SIEMPRE se ve debajo del título (pedido de Michael, 06-10).
+   Botón bajito: primero se achica y luego se quita el círculo de color, nunca el mensaje */
+@container (max-height: 118px) { .panico { gap: 2px; } .btnEmoji { font-size: clamp(1rem, 16cqh, 1.5rem); } .btnMensaje { font-size: 0.76rem; line-height: 1.2; } }
+@container (max-height: 100px) { .btnEmoji { display: none; } }
+/* Botón muy bajito (celular pequeño o letra del sistema grande): menos relleno para que título y mensaje quepan */
+@container (max-height: 90px) { .panico { padding: 4px 12px; } .btnTitulo { line-height: 1.1; } }
+@container (max-height: 66px) { .btnTitulo { font-size: 0.85rem; } .btnMensaje { font-size: 0.68rem; line-height: 1.15; } }
 
 /* Celulares bajitos: encabezado más compacto para dejarles más espacio a los botones */
 @media (max-height: 760px) {
