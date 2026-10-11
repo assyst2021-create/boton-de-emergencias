@@ -345,6 +345,22 @@
 
 .btn:disabled { opacity: 0.6; }
 
+/* Botón de segunda importancia (Detener recuperación, Cancelar): se ve como botón, sin competir con el rojo */
+.btnSecundario {
+  background: var(--card);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px;
+  border-radius: 10px;
+}
+.btnSecundario:disabled { opacity: 0.6; }
+
+/* Recuperar celular: los dos botones lado a lado, del mismo alto (versión 95) */
+.recBotones { display: flex; gap: 10px; align-items: stretch; }
+.recBotones > button { flex: 1; min-width: 0; font-size: 0.92rem; line-height: 1.25; padding: 12px 10px; }
+
 .volver {
   background: none;
   color: var(--text2);

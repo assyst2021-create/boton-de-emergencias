@@ -1,11 +1,18 @@
 /**
- * Edge Function: recuperar-celular (el celular que se busca debe ser Android)
+ * Edge Function: recuperar-celular
  * Antirrobo con consentimiento. La llama un familiar YA VINCULADO que tiene el correo/usuario
  * y la contraseña del dueño del celular perdido o robado, desde la app o desde la página web.
  *
  * accion 'solicitar': verifica contraseña + vínculo + que el dueño haya activado la recuperación,
  *   crea una sesión de 24 h y una llave, y le manda al celular una orden (dato FCM) para que
  *   empiece a compartir su ubicación solo. Protección contra fuerza bruta: 5 intentos → 30 min.
+ * accion 'familiares' (versión 95): hace las mismas revisiones que 'solicitar' y, si todo está bien,
+ *   devuelve los familiares del dueño (su propia lista) para escoger quién ve la ubicación del
+ *   celular. No empieza nada. Quien pide (en cuyo celular se va a mirar el mapa) va primero y siempre
+ *   queda incluido.
+ * accion 'solicitar' con compartir_con (versión 95): solo esos familiares (y quien pide) ven la
+ *   ubicación. La base lo guarda en la sesión y lo aplica a cada punto que sube el celular. Sin
+ *   compartir_con (versiones anteriores de la app): todo el grupo, como siempre.
  * accion 'detener': con la contraseña, cierra la sesión y manda la orden de parar.
  * Recuperar celular es del plan Premium: solo se puede pedir si el Premium del dueño está vigente
  * (detener siempre se puede).
@@ -92,7 +99,7 @@ Deno.serve(async (req) => {
     if (!quienLlama) return json({ ok: false, error: 'SIN_SESION' }, 401)
 
     const body = await req.json().catch(() => ({}))
-    const accion = body.accion === 'detener' ? 'detener' : 'solicitar'
+    const accion = body.accion === 'detener' ? 'detener' : body.accion === 'familiares' ? 'familiares' : 'solicitar'
     const clave = String(body.correo_o_usuario || '').trim().toLowerCase()
     const password = String(body.password || '')
     if (!clave || !password) return json({ ok: false, error: 'FALTAN_DATOS' })
@@ -160,11 +167,46 @@ Deno.serve(async (req) => {
     if (!perfil?.recuperacion_activa) return json({ ok: false, error: 'NO_AUTORIZADO_DUENIO' })
     if (!perfil?.fcm_token) return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
 
+    // La lista del dueño: sus familiares aceptados
+    const { data: lista, error: errLista } = await admin.from('family_links')
+      .select('linked_user_id, users!family_links_linked_user_id_fkey(full_name, username)')
+      .eq('user_id', owner.id).eq('status', 'accepted')
+    if (errLista) return json({ ok: false, error: 'ERROR_SERVIDOR' })
+    const suyos = (lista || []).map(l => l.linked_user_id as string)
+
+    if (accion === 'familiares') {
+      // deno-lint-ignore no-explicit-any
+      const familiares = (lista || []).map((l: any) => ({
+        id: l.linked_user_id, nombre: l.users?.full_name || l.users?.username || '—', este: l.linked_user_id === quienLlama.id,
+      }))
+      if (!familiares.some(f => f.este)) {
+        const { data: yo } = await admin.from('users').select('full_name, username').eq('id', quienLlama.id).maybeSingle()
+        familiares.push({ id: quienLlama.id, nombre: yo?.full_name || yo?.username || '—', este: true })
+      }
+      familiares.sort((a, b) => Number(b.este) - Number(a.este))
+      return json({ ok: true, familiares })
+    }
+
+    // Con quién se comparte: solo familiares del dueño, y siempre quien pide. Todos marcados = todo
+    // el grupo (null), igual que al compartir desde el Mapa
+    let con: string[] | null = null
+    if (Array.isArray(body.compartir_con)) {
+      const elegidos = new Set<string>(body.compartir_con.filter((x: unknown) => typeof x === 'string' && suyos.includes(x as string)))
+      elegidos.add(quienLlama.id)
+      con = suyos.every(id => elegidos.has(id)) ? null : [...elegidos]
+    }
+
     const llave = hex(crypto.getRandomValues(new Uint8Array(32)).buffer)  // 64 hex
+    // p_con solo cuando se escogió a alguien: así funciona también si el SQL de la 95 aún no se corrió.
+    // Si se escogió y la base todavía no lo conoce, NO se empieza (no se comparte con quien se quitó)
     const { data: vence, error: errAbrir } = await admin.rpc('abrir_recuperacion', {
       p_owner: owner.id, p_solicitante: quienLlama.id, p_llave_hash: await sha256Hex(llave), p_horas: 24,
+      ...(con ? { p_con: con } : {}),
     })
-    if (errAbrir || !vence) return json({ ok: false, error: 'ERROR_SERVIDOR' })
+    if (errAbrir || !vence) {
+      if (errAbrir) console.error('[recuperar-celular] abrir_recuperacion:', errAbrir.message)
+      return json({ ok: false, error: 'ERROR_SERVIDOR' })
+    }
     const enviado = await enviarDato(perfil.fcm_token, { tipo: 'recuperar', llave, vence: String(vence) }).catch(() => false)
     // Si Google no pudo entregar la orden (celular dado de baja, token viejo), no se deja una sesión colgada
     if (!enviado) {

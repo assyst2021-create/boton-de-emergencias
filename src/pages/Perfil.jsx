@@ -65,6 +65,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [rcForm, setRcForm] = useState({ clave: '', password: '' })
   const [rcMsg, setRcMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [rcCargando, setRcCargando] = useState(false)
+  // Paso de escoger quién ve la ubicación del celular (versión 95): { familiares: [{ id, nombre, este }], fuera: [ids] }
+  const [rcElegir, setRcElegir] = useState(null)
   // Interruptor "Permitir recuperar mi celular": autorización al activarlo, contraseña al apagarlo
   const [recAcepto, setRecAcepto] = useState(false)
   const [recClave, setRecClave] = useState('')
@@ -346,18 +348,30 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
   }
 
-  async function recuperar(accion) {
+  /**
+   * accion 'familiares' (versión 95): el servidor revisa usuario y contraseña y devuelve los familiares
+   * del dueño para escoger quién ve la ubicación del celular; todavía no empieza nada.
+   * accion 'solicitar': empieza, solo para los escogidos (compartirCon = ids; null = todo el grupo).
+   */
+  async function recuperar(accion, compartirCon) {
     if (rcCargando) return
     if (!rcForm.clave.trim() || !rcForm.password) { setRcMsg({ tipo: 'error', texto: t('recErrFaltan') }); return }
     if (accion === 'detener' && !window.confirm(t('recConfirmaDetener'))) return
     setRcCargando(true); setRcMsg(null)
     try {
       const { data, error } = await supabase.functions.invoke('recuperar-celular', {
-        body: { accion, correo_o_usuario: rcForm.clave.trim(), password: rcForm.password },
+        body: {
+          accion, correo_o_usuario: rcForm.clave.trim(), password: rcForm.password,
+          ...(accion === 'solicitar' ? { compartir_con: compartirCon ?? null } : {}),
+        },
       })
       // functions.invoke marca error en HTTP != 2xx; el cuerpo trae el detalle
       const res = data || (error?.context ? await error.context.json().catch(() => null) : null)
-      if (res?.ok) {
+      if (res?.ok && accion === 'familiares' && Array.isArray(res.familiares)) {
+        setRcElegir({ familiares: res.familiares, fuera: [] })
+      } else if (res?.ok) {
+        // (Si el servidor todavía es el de antes, "familiares" ya empieza para todo el grupo: se avisa igual)
+        setRcElegir(null)
         setRcMsg({ tipo: 'ok', texto: accion === 'detener' ? t('recDetenido') : t('recOk') })
         setRcForm({ clave: '', password: '' })
       } else {
@@ -368,6 +382,16 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     } finally {
       setRcCargando(false)
     }
+  }
+
+  function alternarRecuperarCon(id) {
+    setRcElegir(e => e && ({ ...e, fuera: e.fuera.includes(id) ? e.fuera.filter(x => x !== id) : [...e.fuera, id] }))
+  }
+  function empezarRecuperacion() {
+    if (!rcElegir) return
+    const marcados = rcElegir.familiares.filter(f => f.este || !rcElegir.fuera.includes(f.id)).map(f => f.id)
+    // Todos marcados = todo el grupo (igual que al compartir desde el Mapa)
+    recuperar('solicitar', marcados.length === rcElegir.familiares.length ? null : marcados)
   }
 
   function abrirEliminar() {
@@ -559,7 +583,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 ⚠️ {t('recFaltaFondoCorto')}
               </button>
             )}
-            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
+            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcElegir(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
               🔒 {t('recMenu')}
             </button>
             <button className={styles.opcionEliminar} onClick={abrirEliminar}>
@@ -751,28 +775,72 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
 
         {paso === 'recuperar' && (
           <div className={styles.form}>
-            <p className={styles.desc}>{t('recIntro')}</p>
-            <input
-              type="text" inputMode="email" autoCapitalize="none" autoCorrect="off"
-              placeholder={t('recUsuarioPh')} value={rcForm.clave}
-              onChange={e => setRcForm(f => ({ ...f, clave: e.target.value }))}
-            />
-            <input
-              type="password" placeholder={t('recPassPh')} value={rcForm.password}
-              onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
-            />
-            {rcMsg && (
-              <p style={{ margin: '4px 0', fontSize: '0.85rem', fontWeight: 600, color: rcMsg.tipo === 'ok' ? '#1E8449' : '#C0392B' }}>
-                {rcMsg.tipo === 'ok' ? '✓ ' : '⚠️ '}{rcMsg.texto}
-              </p>
+            {rcElegir ? (
+              <>
+                {/* Con quién se comparte la ubicación del celular (versión 95) */}
+                <h3 className={styles.recTitulo}>👥 {t('recConQuienTitulo')}</h3>
+                <p className={styles.desc} style={{ margin: 0 }}>{t('recConQuienDesc')}</p>
+                {rcElegir.familiares.length > 1 && (
+                  <button type="button" className={styles.btnSecundario} style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: '0.85rem' }}
+                    disabled={rcCargando || rcElegir.fuera.length === 0}
+                    onClick={() => setRcElegir(e => ({ ...e, fuera: [] }))}>
+                    ✓ {t('destTodos')}
+                  </button>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {rcElegir.familiares.map(f => {
+                    const marcado = f.este || !rcElegir.fuera.includes(f.id)
+                    return (
+                      <label key={f.id} className={`${marcado ? styles.sonidoFilaActiva : styles.sonidoFila} ${styles.recCheck}`} style={{ padding: '12px 14px', cursor: f.este ? 'default' : 'pointer' }}>
+                        <input type="checkbox" checked={marcado} disabled={f.este || rcCargando} onChange={() => alternarRecuperarCon(f.id)} />
+                        <span>{f.nombre}{f.este ? ` ${t('recEsteCelular')}` : ''}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                {rcMsg && (
+                  <p style={{ margin: '4px 0', fontSize: '0.85rem', fontWeight: 600, color: rcMsg.tipo === 'ok' ? '#1E8449' : '#C0392B' }}>
+                    {rcMsg.tipo === 'ok' ? '✓ ' : '⚠️ '}{rcMsg.texto}
+                  </p>
+                )}
+                <div className={styles.recBotones}>
+                  <button type="button" className={styles.btn} disabled={rcCargando} onClick={empezarRecuperacion}>
+                    {rcCargando ? '…' : '📍 ' + t('recEmpezar')}
+                  </button>
+                  <button type="button" className={styles.btnSecundario} disabled={rcCargando} onClick={() => { setRcElegir(null); setRcMsg(null) }}>
+                    {t('cancelar')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className={styles.desc}>{t('recIntro')}</p>
+                <input
+                  type="text" inputMode="email" autoCapitalize="none" autoCorrect="off"
+                  placeholder={t('recUsuarioPh')} value={rcForm.clave}
+                  onChange={e => setRcForm(f => ({ ...f, clave: e.target.value }))}
+                />
+                <input
+                  type="password" placeholder={t('recPassPh')} value={rcForm.password}
+                  onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
+                />
+                {rcMsg && (
+                  <p style={{ margin: '4px 0', fontSize: '0.85rem', fontWeight: 600, color: rcMsg.tipo === 'ok' ? '#1E8449' : '#C0392B' }}>
+                    {rcMsg.tipo === 'ok' ? '✓ ' : '⚠️ '}{rcMsg.texto}
+                  </p>
+                )}
+                {/* Lado a lado: compartir a la izquierda, detener a la derecha (versión 95) */}
+                <div className={styles.recBotones}>
+                  <button type="button" className={styles.btn} disabled={rcCargando} onClick={() => recuperar('familiares')}>
+                    {rcCargando ? '…' : '📍 ' + t('recBtn')}
+                  </button>
+                  <button type="button" className={styles.btnSecundario} disabled={rcCargando} onClick={() => recuperar('detener')}>
+                    ⏹ {t('recDetener')}
+                  </button>
+                </div>
+              </>
             )}
-            <button type="button" className={styles.btn} disabled={rcCargando} onClick={() => recuperar('solicitar')}>
-              {rcCargando ? '…' : '📍 ' + t('recBtn')}
-            </button>
-            <button type="button" className={styles.volver} disabled={rcCargando} onClick={() => recuperar('detener')}>
-              {t('recDetener')}
-            </button>
-            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
+            <button type="button" className={styles.volver} onClick={() => { setRcElegir(null); setPaso('menu') }}>{t('volver')}</button>
           </div>
         )}
 
