@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
     const body = await req.json().catch(() => ({}))
 
-    // Revisión automática: solo sincroniza la base con lo que dice Google (no activa nada nuevo)
+    // Revisión automática: deja la base igual a lo que dice Google (nada se activa sin que Google lo confirme)
     if (body?.revisar === true) return json({ ok: true, ...(await revisarSuscripciones(supabase)) })
 
     // El usuario sale de su sesión, nunca del body
