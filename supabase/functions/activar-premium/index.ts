@@ -4,16 +4,36 @@
  * activa el plan del usuario que hace la llamada (no el que diga el body).
  * También sirve para sincronizar renovaciones/cancelaciones: la app la llama
  * al abrir con las compras que Google le reporta.
+ *
+ * Versión 95 (pagos que no pueden fallar):
+ *  - Una suscripción que se renueva sola guardaba su vencimiento + 1 DÍA: si terminaba y la persona
+ *    no abría la app, seguía como Premium hasta un día después. Ahora el margen es de 15 minutos.
+ *  - Revisión automática ({ revisar: true }; la llama la base cada 5 minutos): le pregunta a Google por
+ *    las suscripciones que vencen pronto o ya vencieron (renovación, fin), por todas las vigentes cada
+ *    6 horas (reembolsos, cancelaciones) y reintenta las compras que no se pudieron confirmar al
+ *    comprar. Así el plan se pone y se quita a tiempo aunque la persona no abra la app.
+ *  - Una compra que Google aún no confirma (pago pendiente o error de Google) queda anotada en
+ *    compras_pendientes: nunca se pierde.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+type SupabaseClient = ReturnType<typeof createClient>
 
 const PAQUETE = 'com.ssthechofacil.botonemergencias'
 // CANCELED = la persona canceló la renovación pero YA PAGÓ hasta la fecha de vencimiento: conserva
 // el plan hasta ese día (antes se le quitaba apenas abría la app después de cancelar)
 const ESTADOS_VIGENTES = ['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED']
-// Si Google renueva la suscripción y la persona no abre la app ese día, el plan no se le cae
-// mientras tanto: 1 día de margen solo para suscripciones que se renuevan solas
-const MARGEN_RENOVACION_MS = 24 * 60 * 60 * 1000
+// Pago que Google todavía no confirma (por ejemplo, en efectivo o una tarjeta lenta)
+const ESTADO_PENDIENTE = 'SUBSCRIPTION_STATE_PENDING'
+// Suscripción que se renueva sola: margen corto para que la renovación alcance a llegar (la revisión
+// automática pregunta cada 5 minutos). Antes era 1 día y el Premium seguía después de vencer.
+const MARGEN_RENOVACION_MS = 15 * 60 * 1000
+// Revisión automática
+const ENTRE_REVISIONES_MS = 2 * 60 * 1000          // no corre dos veces seguidas aunque la llamen
+const VENTANA_VENCE_MS = 20 * 60 * 1000            // las que vencen en los próximos 20 minutos
+const VENCIDAS_HASTA_MS = 3 * 24 * 60 * 60 * 1000  // y las que vencieron hace menos de 3 días
+const REVISAR_TODAS_CADA_MS = 6 * 60 * 60 * 1000   // todas las vigentes, cada 6 horas
+const PENDIENTE_MAX_MS = 3 * 24 * 60 * 60 * 1000   // Google devuelve el dinero si nadie confirma en 3 días
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,91 +79,223 @@ async function tokenGooglePlay(): Promise<string> {
   return data.access_token
 }
 
+// deno-lint-ignore no-explicit-any
+type Suscripcion = any
+
+/** Lo que Google dice de esa compra. */
+async function consultarGoogle(acceso: string, token: string): Promise<{ ok: boolean, status: number, sub: Suscripcion }> {
+  const r = await fetch(
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`,
+    { headers: { Authorization: `Bearer ${acceso}` } },
+  )
+  const sub = await r.json().catch(() => ({}))
+  return { ok: r.ok, status: r.status, sub }
+}
+
+/** Anota (o borra) una compra que Google todavía no confirma. Si la tabla aún no existe, no pasa nada. */
+async function anotarPendiente(supabase: SupabaseClient, token: string, userId: string, estado: string) {
+  const { data: previa } = await supabase.from('compras_pendientes').select('intentos').eq('token', token).maybeSingle()
+  await supabase.from('compras_pendientes').upsert({
+    token, user_id: userId, intentos: (previa?.intentos || 0) + 1, ultimo_estado: estado,
+  }, { onConflict: 'token' })
+}
+async function quitarPendiente(supabase: SupabaseClient, token: string) {
+  await supabase.from('compras_pendientes').delete().eq('token', token)
+}
+async function marcarRevisada(supabase: SupabaseClient, userId: string, estado: string) {
+  await supabase.from('suscripciones_revision').upsert({ user_id: userId, revisado_at: new Date().toISOString(), estado }, { onConflict: 'user_id' })
+}
+
+/**
+ * Aplica al usuario lo que Google dice de su suscripción (la misma lógica de siempre). Devuelve lo
+ * que se le responde a la app: { ok: true, plan, vence } o { ok: false, estado, ... }.
+ */
+async function aplicarSuscripcion(supabase: SupabaseClient, acceso: string, userId: string, token: string, sub: Suscripcion) {
+  const item = (sub.lineItems || [])[0]
+  const productId: string = item?.productId || ''
+  const venceGoogle: string | null = item?.expiryTime || null
+  const vigente = ESTADOS_VIGENTES.includes(sub.subscriptionState) && !!venceGoogle && new Date(venceGoogle) > new Date()
+  const seRenueva = sub.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE' && item?.autoRenewingPlan?.autoRenewEnabled === true
+  const vence: string | null = venceGoogle && seRenueva
+    ? new Date(new Date(venceGoogle).getTime() + MARGEN_RENOVACION_MS).toISOString()
+    : venceGoogle
+
+  // Respaldo: si la app no alcanzó a confirmar el pago a Google (se cerró, sin señal), se confirma
+  // aquí. Google devuelve el dinero de las compras que nadie confirma en 3 días.
+  if (vigente && productId && sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING') {
+    await fetch(
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(token)}:acknowledge`,
+      { method: 'POST', headers: { Authorization: `Bearer ${acceso}`, 'Content-Type': 'application/json' }, body: '{}' },
+    ).then(r => { if (!r.ok) console.warn('[activar-premium] no se pudo confirmar', r.status) }, () => {})
+  }
+
+  // El Premium REGALADO se guarda aparte (premium_regalo_hasta): ninguna compra, cancelación ni
+  // reembolso lo quita. Todo lo demás refleja exactamente lo que dice Google.
+  const { data: actual } = await supabase.from('users')
+    .select('premium_regalo_hasta').eq('id', userId).maybeSingle()
+  const regaloHasta: string | null = actual?.premium_regalo_hasta || null
+  const regaloMs = regaloHasta ? new Date(regaloHasta).getTime() : 0
+  const regaloVigente = regaloMs > Date.now()
+
+  if (!vigente) {
+    if (regaloVigente) {
+      // Se acabó (o se reembolsó) la compra, pero el regalo sigue
+      await supabase.from('users').update({ plan: 'premium', is_premium: true, premium_hasta: regaloHasta })
+        .eq('id', userId).eq('play_purchase_token', token)
+      return { ok: false, estado: sub.subscriptionState, conserva: 'premium' }
+    }
+    await supabase.from('users').update({ plan: 'basico', is_premium: false })
+      .eq('id', userId).eq('play_purchase_token', token)
+    return { ok: false, estado: sub.subscriptionState, pendiente: sub.subscriptionState === ESTADO_PENDIENTE }
+  }
+
+  const planCompra = productId.includes('familiar') ? 'familiar' : 'premium'
+  const venceMs = vence ? new Date(vence).getTime() : 0
+  // Con regalo vigente: Premium hasta lo que dure más (el regalo o la compra Premium)
+  const plan = regaloVigente ? 'premium' : planCompra
+  const hasta = regaloVigente
+    ? (planCompra === 'premium' && venceMs > regaloMs ? vence : regaloHasta)
+    : vence
+  const { error } = await supabase.from('users').update({
+    plan,
+    is_premium: plan === 'premium',
+    premium_hasta: hasta,
+    play_purchase_token: token,
+  }).eq('id', userId)
+  if (error) throw error
+
+  return { ok: true, plan, vence: hasta }
+}
+
+/** Una compra desde la app (o la sincronización al abrirla): la persona de la sesión. */
+async function activarDesdeApp(supabase: SupabaseClient, userId: string, token: string) {
+  // Un mismo pago no puede activar dos cuentas
+  const { data: otro } = await supabase.from('users').select('id')
+    .eq('play_purchase_token', token).neq('id', userId).maybeSingle()
+  if (otro) return json({ error: 'compra_de_otra_cuenta' }, 409)
+
+  const acceso = await tokenGooglePlay()
+  const g = await consultarGoogle(acceso, token)
+  if (!g.ok) {
+    console.error('[activar-premium] Google respondió', g.status, JSON.stringify(g.sub))
+    // Se anota: la revisión automática la vuelve a intentar cada 5 minutos (aunque cierre la app)
+    await anotarPendiente(supabase, token, userId, `google_${g.status}`)
+    return json({ error: 'google_no_confirma' }, 402)
+  }
+
+  const res = await aplicarSuscripcion(supabase, acceso, userId, token, g.sub)
+  if (res.ok) await quitarPendiente(supabase, token)
+  else if (res.pendiente) await anotarPendiente(supabase, token, userId, ESTADO_PENDIENTE)
+  else await quitarPendiente(supabase, token)
+  await marcarRevisada(supabase, userId, g.sub.subscriptionState || '')
+  return json(res)
+}
+
+/** Revisión automática (cada 5 minutos, desde la base). */
+async function revisarSuscripciones(supabase: SupabaseClient) {
+  // Turno: si otra revisión corrió hace menos de 2 minutos, esta no hace nada
+  const ahora = Date.now()
+  const { data: turno, error: errTurno } = await supabase.from('app_config')
+    .update({ valor: new Date(ahora).toISOString() })
+    .eq('clave', 'revision_suscripciones')
+    .lt('valor', new Date(ahora - ENTRE_REVISIONES_MS).toISOString())
+    .select('clave')
+  if (errTurno) throw errTurno
+  if (!turno?.length) return { omitida: true }
+
+  const acceso = await tokenGooglePlay()
+  const resumen = { pendientes: 0, activadas: 0, revisadas: 0, quitadas: 0, errores: 0 }
+
+  // 1) Compras que no se pudieron confirmar al comprar
+  const { data: pendientes } = await supabase.from('compras_pendientes')
+    .select('token, user_id, creada_at').order('creada_at').limit(50)
+  for (const p of pendientes || []) {
+    resumen.pendientes++
+    const viejaMs = ahora - new Date(p.creada_at).getTime()
+    try {
+      const { data: otro } = await supabase.from('users').select('id')
+        .eq('play_purchase_token', p.token).neq('id', p.user_id).maybeSingle()
+      if (otro) { await quitarPendiente(supabase, p.token); continue }
+      const g = await consultarGoogle(acceso, p.token)
+      if (!g.ok) {
+        if (viejaMs > PENDIENTE_MAX_MS) await quitarPendiente(supabase, p.token)
+        else await anotarPendiente(supabase, p.token, p.user_id, `google_${g.status}`)
+        continue
+      }
+      const res = await aplicarSuscripcion(supabase, acceso, p.user_id, p.token, g.sub)
+      if (res.ok) { resumen.activadas++; await quitarPendiente(supabase, p.token) }
+      else if (res.pendiente && viejaMs <= PENDIENTE_MAX_MS) await anotarPendiente(supabase, p.token, p.user_id, ESTADO_PENDIENTE)
+      else await quitarPendiente(supabase, p.token)
+      await marcarRevisada(supabase, p.user_id, g.sub.subscriptionState || '')
+    } catch (e) {
+      resumen.errores++
+      console.error('[activar-premium] pendiente', e)
+    }
+  }
+
+  // 2) Suscripciones que vencen en los próximos minutos o ya vencieron (hace menos de 3 días)
+  const limite = new Date(ahora + VENTANA_VENCE_MS).toISOString()
+  const { data: porVencer } = await supabase.from('users')
+    .select('id, play_purchase_token')
+    .not('play_purchase_token', 'is', null)
+    // Solo quien todavía figura con plan pago (a quien ya se le quitó no se le pregunta más)
+    .in('plan', ['premium', 'familiar'])
+    .gt('premium_hasta', new Date(ahora - VENCIDAS_HASTA_MS).toISOString())
+    .lt('premium_hasta', limite)
+    .limit(100)
+  // 3) Las vigentes que no se revisan hace 6 horas (reembolsos, cancelaciones, cambios de plan)
+  const { data: vigentes } = await supabase.from('users')
+    .select('id, play_purchase_token')
+    .not('play_purchase_token', 'is', null)
+    .in('plan', ['premium', 'familiar'])
+    .gte('premium_hasta', limite)
+    .limit(500)
+  const { data: revisiones } = vigentes?.length
+    ? await supabase.from('suscripciones_revision').select('user_id, revisado_at').in('user_id', vigentes.map(v => v.id))
+    : { data: [] }
+  const revisadoMs: Record<string, number> = Object.fromEntries((revisiones || []).map(r => [r.user_id, new Date(r.revisado_at).getTime()]))
+  const tocaRevisar = (vigentes || []).filter(v => !revisadoMs[v.id] || ahora - revisadoMs[v.id] > REVISAR_TODAS_CADA_MS).slice(0, 50)
+
+  const vistos = new Set<string>()
+  const lista = [...(porVencer || []), ...tocaRevisar].filter(u => !vistos.has(u.id) && vistos.add(u.id))
+  // De a 5 a la vez
+  for (let i = 0; i < lista.length; i += 5) {
+    await Promise.all(lista.slice(i, i + 5).map(async u => {
+      resumen.revisadas++
+      try {
+        const g = await consultarGoogle(acceso, u.play_purchase_token)
+        // Si Google no responde, no se cambia nada (se vuelve a preguntar en la próxima revisión)
+        if (!g.ok) { resumen.errores++; console.warn('[activar-premium] revisión: Google respondió', g.status); return }
+        const res = await aplicarSuscripcion(supabase, acceso, u.id, u.play_purchase_token, g.sub)
+        if (!res.ok && !res.conserva) resumen.quitadas++
+        await marcarRevisada(supabase, u.id, g.sub.subscriptionState || '')
+      } catch (e) {
+        resumen.errores++
+        console.error('[activar-premium] revisión', e)
+      }
+    }))
+  }
+  return resumen
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const body = await req.json().catch(() => ({}))
+
+    // Revisión automática: solo sincroniza la base con lo que dice Google (no activa nada nuevo)
+    if (body?.revisar === true) return json({ ok: true, ...(await revisarSuscripciones(supabase)) })
 
     // El usuario sale de su sesión, nunca del body
     const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '')
     const { data: { user } } = await supabase.auth.getUser(jwt)
     if (!user) return json({ error: 'no_autenticado' }, 401)
 
-    const { token } = await req.json()
+    const token = body?.token
     if (!token) return json({ error: 'token requerido' }, 400)
-
-    // Un mismo pago no puede activar dos cuentas
-    const { data: otro } = await supabase.from('users').select('id')
-      .eq('play_purchase_token', token).neq('id', user.id).maybeSingle()
-    if (otro) return json({ error: 'compra_de_otra_cuenta' }, 409)
-
-    const acceso = await tokenGooglePlay()
-    const r = await fetch(
-      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`,
-      { headers: { Authorization: `Bearer ${acceso}` } },
-    )
-    const sub = await r.json()
-    if (!r.ok) {
-      console.error('[activar-premium] Google respondió', r.status, JSON.stringify(sub))
-      return json({ error: 'google_no_confirma' }, 402)
-    }
-
-    const item = (sub.lineItems || [])[0]
-    const productId: string = item?.productId || ''
-    const venceGoogle: string | null = item?.expiryTime || null
-    const vigente = ESTADOS_VIGENTES.includes(sub.subscriptionState) && venceGoogle && new Date(venceGoogle) > new Date()
-    const seRenueva = sub.subscriptionState === 'SUBSCRIPTION_STATE_ACTIVE' && item?.autoRenewingPlan?.autoRenewEnabled === true
-    const vence: string | null = venceGoogle && seRenueva
-      ? new Date(new Date(venceGoogle).getTime() + MARGEN_RENOVACION_MS).toISOString()
-      : venceGoogle
-
-    // Respaldo: si la app no alcanzó a confirmar el pago a Google (se cerró, sin señal), se confirma
-    // aquí. Google devuelve el dinero de las compras que nadie confirma en 3 días.
-    if (vigente && productId && sub.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_PENDING') {
-      await fetch(
-        `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(token)}:acknowledge`,
-        { method: 'POST', headers: { Authorization: `Bearer ${acceso}`, 'Content-Type': 'application/json' }, body: '{}' },
-      ).then(r => { if (!r.ok) console.warn('[activar-premium] no se pudo confirmar', r.status) }, () => {})
-    }
-
-    // El Premium REGALADO se guarda aparte (premium_regalo_hasta): ninguna compra, cancelación ni
-    // reembolso lo quita. Todo lo demás refleja exactamente lo que dice Google (antes, la fecha que
-    // guardaba la propia compra se confundía con un regalo: un reembolso podía dejar el plan puesto).
-    const { data: actual } = await supabase.from('users')
-      .select('premium_regalo_hasta').eq('id', user.id).maybeSingle()
-    const regaloHasta: string | null = actual?.premium_regalo_hasta || null
-    const regaloMs = regaloHasta ? new Date(regaloHasta).getTime() : 0
-    const regaloVigente = regaloMs > Date.now()
-
-    if (!vigente) {
-      if (regaloVigente) {
-        // Se acabó (o se reembolsó) la compra, pero el regalo sigue
-        await supabase.from('users').update({ plan: 'premium', is_premium: true, premium_hasta: regaloHasta })
-          .eq('id', user.id).eq('play_purchase_token', token)
-        return json({ ok: false, estado: sub.subscriptionState, conserva: 'premium' })
-      }
-      await supabase.from('users').update({ plan: 'basico', is_premium: false })
-        .eq('id', user.id).eq('play_purchase_token', token)
-      return json({ ok: false, estado: sub.subscriptionState })
-    }
-
-    const planCompra = productId.includes('familiar') ? 'familiar' : 'premium'
-    const venceMs = vence ? new Date(vence).getTime() : 0
-    // Con regalo vigente: Premium hasta lo que dure más (el regalo o la compra Premium)
-    const plan = regaloVigente ? 'premium' : planCompra
-    const hasta = regaloVigente
-      ? (planCompra === 'premium' && venceMs > regaloMs ? vence : regaloHasta)
-      : vence
-    const { error } = await supabase.from('users').update({
-      plan,
-      is_premium: plan === 'premium',
-      premium_hasta: hasta,
-      play_purchase_token: token,
-    }).eq('id', user.id)
-    if (error) throw error
-
-    return json({ ok: true, plan, vence: hasta })
+    return await activarDesdeApp(supabase, user.id, token)
   } catch (e) {
     console.error('[activar-premium]', e)
     return json({ error: String(e) }, 500)

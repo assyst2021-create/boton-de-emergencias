@@ -42,19 +42,26 @@ export async function activarCompra(supabase, token) {
 /**
  * Manda al servidor las suscripciones que Google tiene para esta cuenta.
  * Recupera compras perdidas y actualiza renovaciones y cancelaciones.
+ * Devuelve lo que respondió el servidor por cada una: { ok, ... } o { error } (versión 95: antes los
+ * errores se perdían y "Restaurar compras" siempre decía que no había compras).
  */
 export async function sincronizarCompras(supabase) {
   if (!EN_ANDROID) return []
   const r = await Billing.restaurarCompras().catch(() => null)
   // Premium al final: si por un momento hubiera dos suscripciones, gana la mejor
   const rango = c => (c.productId || '').includes('premium') ? 2 : 1
-  const compras = (r?.compras || []).filter(c => !c.pendiente && c.token).sort((a, b) => rango(a) - rango(b))
+  // También las pendientes: el servidor las anota y las activa solo cuando Google las apruebe
+  const compras = (r?.compras || []).filter(c => c.token).sort((a, b) => rango(a) - rango(b))
   const resultados = []
   for (const c of compras) {
-    try { resultados.push(await activarCompra(supabase, c.token)) } catch (_) {}
+    try { resultados.push(await activarCompra(supabase, c.token)) }
+    catch (e) { resultados.push({ ok: false, error: e?.message || 'error', pendiente: !!c.pendiente }) }
   }
   return resultados
 }
+
+/** Que el servidor haya cambiado algo (activó, renovó o quitó un plan): hay que recargar el plan. */
+export const cambioElPlan = resultados => resultados.some(r => r && !r.error)
 
 let escuchando = false
 /** Compras que terminan cuando la pantalla de pago ya no estaba esperando. */

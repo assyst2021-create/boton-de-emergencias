@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, obtenerSesion } from '../supabase'
 import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
@@ -96,9 +96,13 @@ export default function ElegirPlan({ onElegido, conX = false }) {
     })
   }
 
+  // La pantalla sigue abierta: los reintentos de una compra solo la actualizan si sigue aquí
+  const montadaRef = useRef(true)
   useEffect(() => {
+    montadaRef.current = true
     cargarPlanActual()
     obtenerPrecios().then(p => { setPrecios(p); setPreciosListos(true) })
+    return () => { montadaRef.current = false }
   }, [])
 
   async function restaurar() {
@@ -107,7 +111,12 @@ export default function ElegirPlan({ onElegido, conX = false }) {
     setAviso(null)
     const res = await sincronizarCompras(supabase)
     await cargarPlanActual()
-    setAviso(res.some(r => r?.ok) ? t('billingRestaurado') : t('billingSinCompras'))
+    // Lo que de verdad pasó (antes, cualquier problema decía "no encontramos suscripciones")
+    if (res.some(r => r?.ok)) setAviso(t('billingRestaurado'))
+    else if (res.some(r => /compra_de_otra_cuenta/.test(r?.error || ''))) setAviso(t('billingOtraCuenta').replace('{correo}', RESPONSABLE.correo))
+    else if (res.some(r => r?.pendiente || /google_no_confirma/.test(r?.error || ''))) setAviso(t('billingPendiente'))
+    else setAviso(t('billingSinCompras'))
+    window.dispatchEvent(new Event('recargarPlan'))
     setRestaurando(false)
   }
 
@@ -120,6 +129,19 @@ export default function ElegirPlan({ onElegido, conX = false }) {
     if (user) await supabase.from('users').update({ plan: 'basico' }).eq('id', user.id)
     setCargando(false)
     onElegido()
+  }
+
+  /** Reintenta activar una compra cada 15 s durante 3 minutos; al quedar, lo muestra. */
+  async function seguirIntentando(token, plan, yaMismo = false) {
+    for (let i = 0; i < 12; i++) {
+      if (i || !yaMismo) await new Promise(r => setTimeout(r, 15000))
+      const res = await activarCompra(supabase, token).catch(() => null)
+      if (res?.ok) {
+        window.dispatchEvent(new Event('recargarPlan'))
+        if (montadaRef.current) { setPlanActual(plan); setAviso(t('billingActivado')) }
+        return
+      }
+    }
   }
 
   async function iniciarPago() {
@@ -138,19 +160,34 @@ export default function ElegirPlan({ onElegido, conX = false }) {
       if (resultado.error === 'ya_tiene') { await restaurar(); return }
       if (resultado.error) throw new Error(resultado.error)
       // Pago en efectivo o pendiente: Google avisa cuando se confirme
-      if (resultado.pendiente) { setAviso(t('billingPendiente')); return }
+      if (resultado.pendiente) {
+        setAviso(t('billingPendiente'))
+        // El servidor la anota y la activa solo cuando Google la apruebe (aunque se cierre la app)
+        seguirIntentando(resultado.token, seleccionado, true)
+        return
+      }
 
       // El pago ya está hecho: si la activación falla se reintenta, y nunca se dice que el pago falló
       // Solo cuenta como activado si Google lo confirma (ok); si aún no, se reintenta
-      let activado = false, otraCuenta = false
-      for (let intento = 0; intento < 4 && !activado && !otraCuenta; intento++) {
+      let activado = false, otraCuenta = false, pendiente = false
+      for (let intento = 0; intento < 4 && !activado && !otraCuenta && !pendiente; intento++) {
         if (intento) await new Promise(r => setTimeout(r, 3000 * intento))
-        try { activado = (await activarCompra(supabase, resultado.token))?.ok === true }
-        catch (e) { if (/compra_de_otra_cuenta/.test(e?.message || '')) otraCuenta = true }
+        try {
+          const res = await activarCompra(supabase, resultado.token)
+          activado = res?.ok === true
+          pendiente = res?.pendiente === true
+        } catch (e) { if (/compra_de_otra_cuenta/.test(e?.message || '')) otraCuenta = true }
       }
       if (otraCuenta) { setAviso(t('billingOtraCuenta').replace('{correo}', RESPONSABLE.correo)); return }
-      if (!activado) { setAviso(t('billingPagoRecibido')); return }
+      if (!activado) {
+        // El servidor ya la dejó anotada y la activa solo (aunque se cierre la app); mientras la
+        // pantalla siga abierta, aquí también se sigue intentando para mostrarlo apenas quede
+        setAviso(t(pendiente ? 'billingPendiente' : 'billingPagoRecibido'))
+        seguirIntentando(resultado.token, seleccionado)
+        return
+      }
       setPlanActual(seleccionado)
+      window.dispatchEvent(new Event('recargarPlan'))
       onElegido()
     } catch (_) {
       setErrorPago(t('billingError'))

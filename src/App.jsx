@@ -4,7 +4,7 @@ import { registerPlugin } from '@capacitor/core'
 import { suscribirPush } from './pushSubscription'
 import { registrarFCM } from './fcmRegistro'
 import { sincronizarSonido } from './sonidoAlerta'
-import { escucharCompras, sincronizarCompras } from './billing'
+import { escucharCompras, sincronizarCompras, cambioElPlan } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
 import { revisarPerfil } from './registro'
 import { VERSION_LEGAL } from './i18n/legalMeta'
@@ -24,6 +24,8 @@ async function registrarAceptacion(uid, idioma) {
 
 const Permisos = registerPlugin('Permisos')
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
+// Última vez que se revisaron las compras con la tienda (al abrir y al volver a la app)
+let ultimaRevisionCompras = 0
 import { ThemeProvider } from './ThemeContext'
 import { supabase, ENTRO_POR_RECUPERACION, sesionGuardada, ESPERA_SESION_MS } from './supabase'
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext'
@@ -191,7 +193,8 @@ function AppInner() {
       // Renovaciones, cancelaciones y compras que no alcanzaron a activarse
       const recargarPlan = () => window.dispatchEvent(new Event('recargarPlan'))
       escucharCompras(supabase, recargarPlan)
-      sincronizarCompras(supabase).then(r => { if (r.length) recargarPlan() })
+      ultimaRevisionCompras = Date.now()
+      sincronizarCompras(supabase).then(r => { if (cambioElPlan(r)) recargarPlan() })
       revisarActualizacion(supabase, () => setActualizacionLista(true))
 
       // Suscribir push si ya tiene permiso
@@ -219,6 +222,12 @@ function AppInner() {
       if (document.visibilityState === 'visible' && permisosPedidosRef.current) {
         verificarPermisos()
         revisarActualizacion(supabase, () => setActualizacionLista(true))
+        // Compras: un pago que Google aprobó mientras tanto, o una renovación, aparece enseguida
+        // (como mucho una vez por minuto)
+        if (Date.now() - ultimaRevisionCompras > 60000) {
+          ultimaRevisionCompras = Date.now()
+          sincronizarCompras(supabase).then(r => { if (cambioElPlan(r)) window.dispatchEvent(new Event('recargarPlan')) }, () => {})
+        }
         // De vuelta del ajuste de No molestar (o de cualquier ajuste): el sonido de las alertas queda
         // listo con los permisos que haya ahora
         sincronizarSonido(supabase, sesionGuardada()?.user?.id).catch(() => {})
