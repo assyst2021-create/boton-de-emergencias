@@ -65,6 +65,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [rcForm, setRcForm] = useState({ clave: '', password: '' })
   const [rcMsg, setRcMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [rcCargando, setRcCargando] = useState(false)
+  // Ojito para ver la contraseña escrita en Recuperar celular (versión 95)
+  const [verRcClave, setVerRcClave] = useState(false)
   // Paso de escoger quién ve la ubicación del celular (versión 95): { familiares: [{ id, nombre, este }], fuera: [ids] }
   const [rcElegir, setRcElegir] = useState(null)
   // Interruptor "Permitir recuperar mi celular": autorización al activarlo, contraseña al apagarlo
@@ -583,7 +585,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 ⚠️ {t('recFaltaFondoCorto')}
               </button>
             )}
-            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcElegir(null); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
+            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcElegir(null); setVerRcClave(false); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
               🔒 {t('recMenu')}
             </button>
             <button className={styles.opcionEliminar} onClick={abrirEliminar}>
@@ -820,10 +822,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                   placeholder={t('recUsuarioPh')} value={rcForm.clave}
                   onChange={e => setRcForm(f => ({ ...f, clave: e.target.value }))}
                 />
-                <input
-                  type="password" placeholder={t('recPassPh')} value={rcForm.password}
-                  onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
-                />
+                <div className={styles.passwordWrap}>
+                  <input
+                    type={verRcClave ? 'text' : 'password'} placeholder={t('recPassPh')} value={rcForm.password}
+                    onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
+                  />
+                  <button type="button" className={styles.eyeBtn} onClick={() => setVerRcClave(v => !v)}>{verRcClave ? '🙈' : '👁️'}</button>
+                </div>
                 {rcMsg && (
                   <p style={{ margin: '4px 0', fontSize: '0.85rem', fontWeight: 600, color: rcMsg.tipo === 'ok' ? '#1E8449' : '#C0392B' }}>
                     {rcMsg.tipo === 'ok' ? '✓ ' : '⚠️ '}{rcMsg.texto}

@@ -13,6 +13,8 @@ export default function NuevaContrasena({ onListo }) {
   const [nueva, setNueva] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [ver, setVer] = useState(false)
+  // Cada campo con su propio ojito (versión 95: el de confirmar no tenía)
+  const [verConfirmar, setVerConfirmar] = useState(false)
   const [error, setError] = useState('')
   const [listo, setListo] = useState(false)
   const [cargando, setCargando] = useState(false)
@@ -59,8 +61,11 @@ export default function NuevaContrasena({ onListo }) {
               </div>
               <div className={styles.field}>
                 <label>{t('confirmarContrasena')}</label>
-                <input type={ver ? 'text' : 'password'} placeholder={t('confirmarPh')} value={confirmar}
-                  onChange={e => setConfirmar(e.target.value)} autoComplete="new-password" />
+                <div className={styles.passwordWrap}>
+                  <input type={verConfirmar ? 'text' : 'password'} placeholder={t('confirmarPh')} value={confirmar}
+                    onChange={e => setConfirmar(e.target.value)} autoComplete="new-password" />
+                  <button type="button" className={styles.eyeBtn} onClick={() => setVerConfirmar(v => !v)}>{verConfirmar ? '🙈' : '👁️'}</button>
+                </div>
               </div>
               {error && <div className={styles.error}>{error}</div>}
               <button type="submit" className={styles.btn} disabled={cargando}>
