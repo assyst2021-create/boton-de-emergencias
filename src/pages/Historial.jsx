@@ -58,6 +58,8 @@ export default function Historial() {
         (payload) => {
           const a = payload.new
           if (!familyIdsRef.current.has(a.sender_id)) return
+          // Doble revisión (versión 95): una alerta que el familiar mandó solo a otros nunca se muestra aquí
+          if (Array.isArray(a.destinatarios) && a.destinatarios.length && !a.destinatarios.includes(userIdRef.current)) return
           const dismissed = JSON.parse(localStorage.getItem(`dismissed_${userIdRef.current}`) || '{}')
           if (dismissed[a.id] || ocultasRef.current.has(a.id)) return
           const enriquecida = { ...a, users: { full_name: nombresRef.current[a.sender_id] || t('familiar'), phone_number: telefonosRef.current[a.sender_id] } }

@@ -1,3 +1,15 @@
+/**
+ * Edge Function: send-push-alert — notificaciones de la PÁGINA WEB (Web Push, en el navegador del
+ * computador o del celular). La llama la base de datos cuando se crea una alerta. Las de la app las
+ * manda enviar-notificacion-fcm.
+ *
+ * Versión 95: antes le avisaba a TODOS los que tienen al emisor como familiar, sin mirar a quién
+ * escogió con 👥 (la app sí lo respetaba, pero el navegador no). Ahora, igual que la de la app:
+ *  - La alerta se confirma en la base: lo que diga la petición no se cree (nadie puede inventar una
+ *    alerta llamando esta función directamente).
+ *  - Solo a los familiares escogidos (null = todo el grupo) y solo a quien está en la lista del emisor.
+ *  - En el idioma de cada familiar.
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'https://esm.sh/web-push@3.6.7'
 
@@ -13,78 +25,97 @@ const supabase = createClient(
 )
 
 const EMOJI: Record<string, string> = { red: '🔴', orange: '🟠', green: '🟢' }
-const ESTADO: Record<string, string> = {
-  red: 'EN PELIGRO',
-  orange: 'HERIDO / NECESITO AYUDA',
-  green: 'ESTOY BIEN / A SALVO',
+// En el idioma de quien la recibe (las mismas palabras de las notificaciones de la app)
+const TEXTOS: Record<string, Record<string, string>> = {
+  es: {
+    red: 'EN PELIGRO', orange: 'HERIDO / NECESITO AYUDA', green: 'ESTOY BIEN / A SALVO',
+    conUbi: 'Toca para ver su ubicación en el mapa.', sinUbi: 'Abre el Historial de alertas para contactarle.',
+    unFamiliar: 'Un familiar', ver: '📍 Ver ubicación', ok: '✓ Entendido',
+  },
+  en: {
+    red: 'IN DANGER', orange: 'INJURED / NEED HELP', green: 'I AM SAFE',
+    conUbi: 'Tap to see their location on the map.', sinUbi: 'Open the Alert history to contact them.',
+    unFamiliar: 'A family member', ver: '📍 See location', ok: '✓ Got it',
+  },
+  pt: {
+    red: 'EM PERIGO', orange: 'FERIDO / PRECISO DE AJUDA', green: 'ESTOU BEM',
+    conUbi: 'Toque para ver a localização no mapa.', sinUbi: 'Abra o Histórico de alertas para entrar em contato.',
+    unFamiliar: 'Um familiar', ver: '📍 Ver localização', ok: '✓ Entendi',
+  },
 }
+
+const responder = (texto: string, status = 200) => new Response(texto, { status })
 
 Deno.serve(async (req) => {
   try {
-    const { record } = await req.json()
-    const alerta = record
+    const body = await req.json().catch(() => ({}))
+    const pedida = body?.record || {}
+    if (!pedida.id) return responder('sin datos')
 
-    // Nombre del remitente
-    const { data: sender } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', alerta.sender_id)
+    // La alerta como está en la base (no la que diga la petición)
+    const { data: alerta } = await supabase
+      .from('alerts')
+      .select('id, sender_id, status_type, latitude, longitude, expires_at, destinatarios')
+      .eq('id', pedida.id)
       .maybeSingle()
+    const vigente = !!alerta && (!alerta.expires_at || new Date(alerta.expires_at) > new Date())
+    if (!vigente || (pedida.sender_id && pedida.sender_id !== alerta.sender_id)) return responder('no confirmada')
+    const emisorId = alerta.sender_id
 
-    const nombre = sender?.full_name || 'Un familiar'
-    const emoji  = EMOJI[alerta.status_type] || '🔴'
-    const estado = ESTADO[alerta.status_type] || 'EN PELIGRO'
-
-    // Buscar todos los usuarios que tienen al remitente como familiar
-    const { data: links } = await supabase
-      .from('family_links')
-      .select('user_id')
-      .eq('linked_user_id', alerta.sender_id)
-      .eq('status', 'accepted')
-
-    if (!links || links.length === 0) {
-      return new Response('sin destinatarios', { status: 200 })
+    const [{ data: emisor }, { data: links }, { data: listaEmisor, error: errLista }] = await Promise.all([
+      supabase.from('users').select('full_name').eq('id', emisorId).maybeSingle(),
+      // Quienes tienen al emisor como familiar
+      supabase.from('family_links').select('user_id').eq('linked_user_id', emisorId).eq('status', 'accepted'),
+      // La lista del emisor (la que ve en su app): solo ellos reciben sus alertas
+      supabase.from('family_links').select('linked_user_id').eq('user_id', emisorId).eq('status', 'accepted'),
+    ])
+    let ids = (links || []).map(l => l.user_id as string)
+    // Si justo esa consulta fallara, la alerta igual sale (en una emergencia, que llegue va primero)
+    if (!errLista && listaEmisor) {
+      const enLista = new Set(listaEmisor.map(l => l.linked_user_id as string))
+      ids = ids.filter(id => enLista.has(id))
     }
+    // Solo a los familiares escogidos con 👥 (vacío o null = todo el grupo familiar)
+    const elegidos: string[] | null = Array.isArray(alerta.destinatarios) && alerta.destinatarios.length ? alerta.destinatarios : null
+    if (elegidos) ids = ids.filter(id => elegidos.includes(id))
+    if (ids.length === 0) return responder('sin destinatarios')
 
-    const destinatarios = links.map(l => l.user_id)
+    const [{ data: subs }, { data: perfiles }] = await Promise.all([
+      supabase.from('push_subscriptions').select('user_id, endpoint, p256dh, auth').in('user_id', ids),
+      supabase.from('users').select('id, idioma').in('id', ids),
+    ])
+    if (!subs || subs.length === 0) return responder('sin suscripciones')
 
-    // Obtener suscripciones push de esos usuarios
-    const { data: subs } = await supabase
-      .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .in('user_id', destinatarios)
+    const idiomaDe: Record<string, string> = Object.fromEntries((perfiles || []).map(p => [p.id, TEXTOS[p.idioma] ? p.idioma : 'es']))
+    const conUbicacion = alerta.latitude != null && alerta.longitude != null
 
-    if (!subs || subs.length === 0) {
-      return new Response('sin suscripciones', { status: 200 })
-    }
-
-    const payload = JSON.stringify({
-      titulo: `${emoji} ${nombre} — ${estado}`,
-      cuerpo: alerta.latitude && alerta.longitude
-        ? `Toca para ver su ubicación en el mapa.`
-        : `Activa ahora el historial para contactarle.`,
-      tipo: alerta.status_type,
-      alertaId: alerta.id,
-      url: '/?tab=historial',
-    })
-
-    const envios = subs.map(sub =>
-      webpush.sendNotification(
+    const envios = subs.map(sub => {
+      const tx = TEXTOS[idiomaDe[sub.user_id] || 'es']
+      const payload = JSON.stringify({
+        titulo: `${EMOJI[alerta.status_type] || '🔴'} ${emisor?.full_name || tx.unFamiliar} — ${tx[alerta.status_type] || tx.red}`,
+        cuerpo: conUbicacion ? tx.conUbi : tx.sinUbi,
+        tipo: alerta.status_type,
+        alertaId: alerta.id,
+        url: '/historial',
+        ver: tx.ver,
+        ok: tx.ok,
+      })
+      return webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload,
         { urgency: 'high', TTL: 86400 },
-      ).catch(err => {
-        // Si la suscripción expiró (410) la borramos
-        if (err.statusCode === 410) {
-          supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+      ).catch(async (err: { statusCode?: number }) => {
+        // Suscripción vencida (410) o que ya no existe (404): se borra
+        if (err?.statusCode === 410 || err?.statusCode === 404) {
+          await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
         }
       })
-    )
+    })
 
     await Promise.allSettled(envios)
-    return new Response('ok', { status: 200 })
+    return responder('ok')
   } catch (e) {
     console.error('[send-push-alert]', e)
-    return new Response('error', { status: 500 })
+    return responder('error', 500)
   }
 })

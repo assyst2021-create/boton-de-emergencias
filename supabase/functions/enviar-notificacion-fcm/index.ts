@@ -90,21 +90,21 @@ const TEXTOS: Record<string, Record<string, string>> = {
     auto: 'Alerta automática', conUbi: '📍 Toca para ver su ubicación', sinUbi: '📍 Sin ubicación por ahora',
     ubiDe: '📍 Ubicación de', verMapa: 'Toca para verla en el mapa',
     vivoTitulo: '📍 Ubicación en vivo', vivo: 'está compartiendo su ubicación contigo',
-    mov: 'Se está moviendo · Míralo en En vivo', unFamiliar: 'Un familiar',
+    mov: 'Se está moviendo · Míralo en el Mapa', unFamiliar: 'Un familiar',
   },
   en: {
     red: 'IN DANGER', orange: 'INJURED / NEED HELP', green: 'I AM SAFE',
     auto: 'Automatic alert', conUbi: '📍 Tap to see their location', sinUbi: '📍 No location yet',
     ubiDe: '📍 Location of', verMapa: 'Tap to see it on the map',
     vivoTitulo: '📍 Live location', vivo: 'is sharing their location with you',
-    mov: 'Is on the move · See it in Live', unFamiliar: 'A family member',
+    mov: 'Is on the move · See it on the Map', unFamiliar: 'A family member',
   },
   pt: {
     red: 'EM PERIGO', orange: 'FERIDO / PRECISO DE AJUDA', green: 'ESTOU BEM',
     auto: 'Alerta automático', conUbi: '📍 Toque para ver a localização', sinUbi: '📍 Sem localização por enquanto',
     ubiDe: '📍 Localização de', verMapa: 'Toque para ver no mapa',
     vivoTitulo: '📍 Localização ao vivo', vivo: 'está compartilhando a localização com você',
-    mov: 'Está em movimento · Veja em Ao vivo', unFamiliar: 'Um familiar',
+    mov: 'Está em movimento · Veja no Mapa', unFamiliar: 'Um familiar',
   },
 }
 const LOCALES: Record<string, string> = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' }

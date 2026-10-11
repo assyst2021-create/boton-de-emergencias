@@ -81,10 +81,11 @@ self.addEventListener('push', evento => {
     silent: false,
     tag: `alerta-${datos.alertaId || Date.now()}`,
     renotify: true,
-    data: { url: datos.url || '/?tab=historial', alertaId: datos.alertaId },
+    data: { url: datos.url || '/historial', alertaId: datos.alertaId },
     actions: [
-      { action: 'ver', title: '📍 Ver ubicación' },
-      { action: 'ok',  title: '✓ Entendido' },
+      // En el idioma de quien la recibe (lo manda el servidor desde la versión 95)
+      { action: 'ver', title: datos.ver || '📍 Ver ubicación' },
+      { action: 'ok',  title: datos.ok || '✓ Entendido' },
     ],
   }
 
