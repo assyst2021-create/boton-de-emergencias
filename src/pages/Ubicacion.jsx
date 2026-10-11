@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { supabase, obtenerSesion } from '../supabase'
+import { supabase, obtenerSesion, sesionGuardada } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { puedeUbicacionEnVivo } from '../plan'
@@ -118,6 +118,38 @@ function sirvePunto(p) {
   return !(p.precision > 150 && prev.precision <= 50 && Date.now() - (prev.ts || 0) < 60000)
 }
 
+/**
+ * Lo último que se vio en el Mapa, guardado en este celular (versión 95): al volver a abrirlo se
+ * dibuja al instante, sin esperar a internet, y enseguida se actualiza. Solo se muestran las
+ * ubicaciones que siguen vigentes (lo que ya se dejó de compartir no vuelve a aparecer).
+ */
+const claveMapa = uid => `mapaCache_${uid}`
+function leerCacheMapa(uid) {
+  if (!uid) return null
+  try {
+    const c = JSON.parse(localStorage.getItem(claveMapa(uid)) || 'null')
+    if (!c || !Array.isArray(c.familiares)) return null
+    const ahora = Date.now()
+    const vigente = u => !!u && u.activo && u.latitude != null && (!u.expires_at || new Date(u.expires_at).getTime() > ahora)
+    return {
+      familiares: c.familiares.map(f => ({ id: f.id, nombre: f.nombre, ubicacion: vigente(f.ubicacion) ? f.ubicacion : null })),
+      centro: Array.isArray(c.centro) && c.centro.length === 2 ? c.centro : null,
+    }
+  } catch (_) { return null }
+}
+function guardarCacheMapa(uid, familiares) {
+  if (!uid) return
+  try {
+    const conPunto = familiares.find(f => f.ubicacion?.latitude != null)
+    const anterior = JSON.parse(localStorage.getItem(claveMapa(uid)) || 'null')
+    // Dónde abrir el mapa la próxima vez: donde está la familia, o este celular, o donde estaba
+    const centro = conPunto ? [conPunto.ubicacion.latitude, conPunto.ubicacion.longitude]
+      : ultimaPosGlobal ? [ultimaPosGlobal.lat, ultimaPosGlobal.lng]
+        : anterior?.centro || null
+    localStorage.setItem(claveMapa(uid), JSON.stringify({ familiares, centro }))
+  } catch (_) {}
+}
+
 /** Reverse geocoding con Nominatim (OSM, gratis, sin key) */
 async function geocodearDireccion(lat, lng, cerca = 'Cerca de', idioma = 'es') {
   try {
@@ -155,7 +187,9 @@ export default function Ubicacion() {
   const [centrarYo, setCentrarYo] = useState(0)
   const [reencuadrar, setReencuadrar] = useState(0)
   const [avisoOk, setAvisoOk] = useState('')
-  const [familiares, setFamiliares] = useState([])
+  // Al abrir: lo último que se vio en este celular (se actualiza enseguida con internet)
+  const [cacheMapa] = useState(() => leerCacheMapa(sesionGuardada()?.user?.id))
+  const [familiares, setFamiliares] = useState(() => cacheMapa?.familiares || [])
   const [error, setError] = useState('')
   const [enfocado, setEnfocado] = useState(null)
   const [mostrarTiempo, setMostrarTiempo] = useState(false)
@@ -186,6 +220,8 @@ export default function Ubicacion() {
   const ultimaRef = useRef(null)
   const canalRef = useRef(null)
   const linksRef = useRef([])   // cache de vínculos familiares (cambian poco)
+  // Ya llegaron los vínculos del servidor: antes de eso una lista vacía no significa "sin familia"
+  const linksCargadosRef = useRef(false)
   const uidGlobalRef = useRef(null)
 
   useEffect(() => {
@@ -248,6 +284,9 @@ export default function Ubicacion() {
     const user = session?.user
     if (!user) return
     uidGlobalRef.current = user.id
+    // En vivo desde ya (antes esperaba a que terminaran todas las consultas: mientras tanto los
+    // movimientos solo llegaban cada 4 s)
+    escuchar()
     // Mientras llega del servidor, el plan guardado en el celular (de la pantalla de alertas): con señal
     // lenta, «Compartir» mandaba a Planes a quien sí tiene plan (versión 94)
     try {
@@ -362,6 +401,9 @@ export default function Ubicacion() {
 
   /** Carga links Y ubicaciones — solo al inicio o cuando cambia el grupo familiar */
   async function cargarFamiliaresCompleto(uid) {
+    // Las ubicaciones se piden al mismo tiempo que los vínculos (antes, una después de la otra). La
+    // base solo devuelve las que esta persona puede ver; la propia se deja aparte
+    const pedirUbis = consultaUbicaciones().neq('user_id', uid).then(r => r, e => ({ error: e }))
     const { data: links, error } = await supabase
       .from('family_links')
       .select('user_id, users!family_links_user_id_fkey(id, full_name, username)')
@@ -371,6 +413,7 @@ export default function Ubicacion() {
     if (error || !links) return false
 
     linksRef.current = links
+    linksCargadosRef.current = true
     // Los nombres de una vez (la ubicación de cada uno llega después): la lista para escoger con quién
     // compartir queda completa aunque la consulta de ubicaciones tarde o falle
     setFamiliares(prev => links.map(l => ({
@@ -379,7 +422,8 @@ export default function Ubicacion() {
       ubicacion: prev.find(f => f.id === l.user_id)?.ubicacion || null,
     })))
     setFamiliaCargada(true)
-    const ok = await cargarUbicaciones()
+    const { data: ubis, error: errUbis } = await pedirUbis
+    const ok = !errUbis && ubis ? aplicarUbicaciones(links, ubis) : await cargarUbicaciones()
     cargarRecuperaciones()
     return ok
   }
@@ -408,26 +452,39 @@ export default function Ubicacion() {
 
   /** Solo recarga ubicaciones usando el caché de links — rápido, 1 sola query */
   async function cargarUbicaciones() {
+    // Todavía no han llegado los vínculos: no se toca lo que se está mostrando (lo guardado en el
+    // celular), aunque la revisión de cada 4 s o la de volver a la app lleguen antes
+    if (!linksCargadosRef.current) return false
     const links = linksRef.current
-    if (links.length === 0) { setFamiliares([]); return }
+    if (links.length === 0) { setFamiliares([]); guardarCacheMapa(uidGlobalRef.current, []); return }
 
     const ids = links.map(l => l.user_id)
-    const { data: ubis, error } = await supabase
-      .from('live_locations').select('*').in('user_id', ids).eq('activo', true)
-      // Cuando se acaba el tiempo que la persona eligió, deja de verse (aunque su celular se haya
-      // apagado antes de avisar que paró): se respeta lo que eligió
-      .gt('expires_at', new Date().toISOString())
+    const { data: ubis, error } = await consultaUbicaciones().in('user_id', ids)
     // Una consulta que falla por señal NO borra a nadie del mapa: se queda el último punto
     // conocido (y la ficha avisa "Sin señal desde las…" si pasa mucho tiempo). Antes, un solo
     // corte en la consulta de cada 4 s hacía desaparecer a la familia del mapa.
     if (error || !ubis) return false
+    return aplicarUbicaciones(links, ubis)
+  }
 
+  /** Las ubicaciones que se están compartiendo y siguen vigentes. */
+  function consultaUbicaciones() {
+    return supabase.from('live_locations').select('*').eq('activo', true)
+      // Cuando se acaba el tiempo que la persona eligió, deja de verse (aunque su celular se haya
+      // apagado antes de avisar que paró): se respeta lo que eligió
+      .gt('expires_at', new Date().toISOString())
+  }
+
+  /** Pone en el mapa las ubicaciones de la familia y las guarda en el celular para la próxima vez. */
+  function aplicarUbicaciones(links, ubis) {
     const porId = Object.fromEntries((ubis || []).map(u => [u.user_id, u]))
-    setFamiliares(links.map(l => ({
+    const lista = links.map(l => ({
       id: l.user_id,
       nombre: l.users?.full_name || l.users?.username || '—',
       ubicacion: porId[l.user_id] || null,
-    })))
+    }))
+    setFamiliares(lista)
+    guardarCacheMapa(uidGlobalRef.current, lista)
     return true
   }
 
@@ -952,6 +1009,7 @@ export default function Ubicacion() {
       {avisoOk && <p className={styles.avisoOk} role="status">{avisoOk}</p>}
 
       <Mapa
+        centroInicial={cacheMapa?.centro || (ultimaPosGlobal ? [ultimaPosGlobal.lat, ultimaPosGlobal.lng] : null)}
         yo={compartiendo || verMiPunto ? miPos : null}
         yoCompartiendo={compartiendo}
         familiares={enVivo}
@@ -1087,10 +1145,12 @@ function haceCuanto(iso, t) {
 
 const CAPA_OSM = {
   url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  opts: { subdomains: 'abc', maxZoom: 19 },
+  // keepBuffer: guarda más imágenes alrededor (al seguir a alguien no se vuelven a pedir);
+  // updateWhenIdle false: en el celular también se cargan mientras el mapa se desplaza
+  opts: { subdomains: 'abc', maxZoom: 19, keepBuffer: 4, updateWhenIdle: false },
 }
 
-function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuadrar, onVerMiPunto, buscandoYo }) {
+function Mapa({ centroInicial, yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuadrar, onVerMiPunto, buscandoYo }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const yoMarkerRef = useRef(null)
@@ -1142,8 +1202,10 @@ function Mapa({ yo, yoCompartiendo, familiares, enfocado, t, centrarYo, reencuad
     containerRef.current = node
     if (!node || initMap.current) return
     initMap.current = true
+    // Arranca donde estaba la familia la última vez: antes empezaba en Bogotá, bajaba esas imágenes
+    // del mapa y luego saltaba a la familia y bajaba otras (la mitad del trabajo se perdía)
     const map = L.map(node, { zoomControl: false, attributionControl: false })
-      .setView([4.711, -74.072], 13)
+      .setView(centroInicial || [4.711, -74.072], centroInicial ? 15 : 13)
     capaBaseRef.current = L.tileLayer(CAPA_OSM.url, CAPA_OSM.opts).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     mapRef.current = map
