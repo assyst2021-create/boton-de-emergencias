@@ -24,6 +24,22 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+/**
+ * Cada aviso sale una sola vez (versión 95). Con la llave pública cualquiera puede llamar esta
+ * función; lo que pide se confirma en la base, pero repetir la llamada volvía a mandar el mismo aviso
+ * (alguien podía inundar a una familia). Ahora cada aviso real se anota en avisos_enviados y uno
+ * repetido no sale. Si la tabla aún no existe o algo falla, el aviso sale igual: en una emergencia,
+ * que llegue va primero.
+ */
+async function primeraVez(clave: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('avisos_enviados').insert({ clave })
+    return error?.code !== '23505'
+  } catch (_) {
+    return true
+  }
+}
+
 const EMOJI: Record<string, string> = { red: '🔴', orange: '🟠', green: '🟢' }
 // En el idioma de quien la recibe (las mismas palabras de las notificaciones de la app)
 const TEXTOS: Record<string, Record<string, string>> = {
@@ -61,6 +77,8 @@ Deno.serve(async (req) => {
     const vigente = !!alerta && (!alerta.expires_at || new Date(alerta.expires_at) > new Date())
     if (!vigente || (pedida.sender_id && pedida.sender_id !== alerta.sender_id)) return responder('no confirmada')
     const emisorId = alerta.sender_id
+    // Cada alerta avisa una sola vez en la página web
+    if (!(await primeraVez(`web:${emisorId}:${alerta.id}`))) return responder('repetido')
 
     const [{ data: emisor }, { data: links }, { data: listaEmisor, error: errLista }] = await Promise.all([
       supabase.from('users').select('full_name').eq('id', emisorId).maybeSingle(),

@@ -11,6 +11,22 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+/**
+ * Cada aviso sale una sola vez (versión 95). Con la llave pública cualquiera puede llamar esta
+ * función; lo que pide se confirma en la base, pero repetir la llamada volvía a mandar el mismo aviso
+ * (alguien podía inundar a una familia). Ahora cada aviso real se anota en avisos_enviados y uno
+ * repetido no sale. Si la tabla aún no existe o algo falla, el aviso sale igual: en una emergencia,
+ * que llegue va primero.
+ */
+async function primeraVez(clave: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('avisos_enviados').insert({ clave })
+    return error?.code !== '23505'
+  } catch (_) {
+    return true
+  }
+}
+
 // JWT requiere base64URL (-, _, sin =), no base64 estándar (+, /, =)
 function toBase64Url(b64: string): string {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
@@ -207,6 +223,16 @@ Deno.serve(async (req) => {
         && (!esUbicacionAlerta || (alerta.latitude != null && alerta.longitude != null))
     if (!confirmada) {
       return new Response(JSON.stringify({ ok: false, msg: 'no confirmada en la base' }), { status: 200 })
+    }
+
+    // Cada aviso, una sola vez: la alerta por su id; el de la ubicación en vivo por la sesión
+    // (iniciado_at) y el de movimiento por su momento (aviso_mov_at), que la base fija al avisar
+    const marca = esUbicacion ? (body.tipo === 'movimiento' ? alerta.aviso_mov_at : alerta.iniciado_at) : alerta.id
+    if (marca) {
+      const tipoAviso = esUbicacion ? (body.tipo === 'movimiento' ? 'mov' : 'ubi') : (esUbicacionAlerta ? 'mapa' : 'alerta')
+      if (!(await primeraVez(`${tipoAviso}:${emisorId}:${marca}`))) {
+        return new Response(JSON.stringify({ ok: true, repetido: true }), { status: 200 })
+      }
     }
 
     // Solo a los familiares elegidos: destinatarios (alerta) o compartir_con (ubicación).
