@@ -44,6 +44,39 @@ const ESPERA_MAX_MS = 3000  // si una parte no aparece (no aplica a esta cuenta)
 const SEGUIR_MS = 1100      // tiempo en que la parte se mueve (desplazamiento, Opciones que sube)
 const BORDE = 14            // distancia mínima de la tarjeta a los bordes de la pantalla
 const SEPARACION = 14       // entre lo iluminado y la tarjeta
+const ALTURA_PARTE = 0.2    // la parte iluminada queda arriba (a un 20 % del borde), con la explicación debajo
+
+/**
+ * Sube la parte hasta la zona de arriba de la pantalla (versión 96: en el centro, en Opciones quedaba
+ * muy abajo). Mueve solo lo que se desplaza (la página o la ventana de Opciones); lo que está fijo
+ * en la pantalla, como las pestañas de abajo, se queda donde está.
+ */
+function llevarArriba(el, reducido) {
+  let caja = el.parentElement
+  while (caja && caja !== document.body) {
+    const estilo = getComputedStyle(caja)
+    if (estilo.position === 'fixed' && !/(auto|scroll)/.test(estilo.overflowY)) return
+    if (/(auto|scroll)/.test(estilo.overflowY) && caja.scrollHeight > caja.clientHeight) break
+    caja = caja.parentElement
+  }
+  if (!caja || caja === document.body) return
+  const delta = el.getBoundingClientRect().top - Math.max(BORDE, window.innerHeight * ALTURA_PARTE)
+  // Las últimas partes de una lista no podían subir (la lista se acaba): mientras dura el tour se le
+  // agrega espacio vacío al final, y al terminar vuelve a quedar como estaba
+  const libre = caja.scrollHeight - caja.clientHeight - caja.scrollTop
+  if (delta > libre) {
+    if (!rellenos.has(caja)) rellenos.set(caja, caja.style.paddingBottom)
+    const actual = parseFloat(getComputedStyle(caja).paddingBottom) || 0
+    caja.style.paddingBottom = `${Math.ceil(actual + delta - libre)}px`
+  }
+  caja.scrollBy({ top: delta, behavior: reducido ? 'auto' : 'smooth' })
+}
+// Espacio agregado al final de las listas durante el tour: contenedor → como estaba antes
+const rellenos = new Map()
+function quitarRellenos() {
+  rellenos.forEach((antes, caja) => { caja.style.paddingBottom = antes })
+  rellenos.clear()
+}
 
 export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
   const { lang } = useLanguage()
@@ -82,6 +115,9 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
     fx.current.onTerminar(true)
   }, [irA])
 
+  // Al cerrarse el tour, las listas vuelven a quedar como estaban
+  useEffect(() => quitarRellenos, [])
+
   // La persona tocó una notificación (puede ser una emergencia): el tour se quita de en medio
   useEffect(() => {
     const alNavegar = () => { if (!window.__tourNavega) fx.current.onTerminar(false) }
@@ -106,7 +142,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
       const el = document.querySelector(`[data-tour="${paso.objetivo}"]`)
       if (el && el.getClientRects().length) {
         objetivoRef.current = el
-        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: reducido ? 'auto' : 'smooth' })
+        llevarArriba(el, reducido)
         setHallado({ paso: i, encontrado: true })
         return
       }
@@ -232,6 +268,12 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
           <span>{titulo}</span>
         </h2>
         <p id="tour-texto" className={styles.texto}>{texto}</p>
+        {ultimo && tx.versiculo && (
+          <blockquote className={styles.versiculo}>
+            <span>“{tx.versiculo[0]}”</span>
+            <cite>{tx.versiculo[1]}</cite>
+          </blockquote>
+        )}
         <div className={styles.pie}>
           {!ultimo && <button type="button" className={styles.saltar} onClick={terminar}>{tx.ui.saltar}</button>}
           {i > 0 && <button type="button" className={styles.atras} onClick={atras}>{tx.ui.atras}</button>}
