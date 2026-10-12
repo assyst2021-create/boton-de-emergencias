@@ -277,12 +277,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
         <div id="tour-texto" className={styles.texto}>
           {texto.split('\n').map((parrafo, k) => <p key={k}>{parrafo}</p>)}
         </div>
-        {ultimo && tx.versiculo && (
-          <blockquote className={styles.versiculo}>
-            <span>“{tx.versiculo[0]}”</span>
-            <cite>{tx.versiculo[1]}</cite>
-          </blockquote>
-        )}
+        {ultimo && tx.destacado && <p className={styles.destacado}>{tx.destacado}</p>}
         <div className={styles.pie}>
           {!ultimo && <button type="button" className={styles.saltar} onClick={terminar}>{tx.ui.saltar}</button>}
           {i > 0 && <button type="button" className={styles.atras} onClick={atras}>{tx.ui.atras}</button>}
