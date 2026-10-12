@@ -1,0 +1,239 @@
+/* Tour de la app (versión 95). Por encima de todo (la ventana de Opciones está en 1100). */
+.capa {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+/* Recibe los toques: la app de abajo no se puede tocar mientras el tour está abierto */
+.bloqueo {
+  position: absolute;
+  inset: 0;
+}
+
+/* Pantalla oscurecida cuando no hay nada que iluminar (bienvenida) */
+.velo {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 10, 24, 0.74);
+  pointer-events: none;
+  animation: aparecer 0.25s ease both;
+}
+
+/* Lo iluminado: un hueco en la pantalla oscura, con borde blanco y brillo naranja */
+.foco {
+  position: absolute;
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 9999px rgba(6, 10, 24, 0.74),
+    0 0 0 3px rgba(255, 255, 255, 0.96),
+    0 0 26px 6px rgba(230, 126, 34, 0.55);
+  transition:
+    top 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+    left 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Un pulso suave alrededor, para que la vista vaya directo ahí */
+.foco::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 19px;
+  border: 2px solid rgba(230, 126, 34, 0.85);
+  animation: latido 1.8s ease-out infinite;
+}
+
+.tarjeta {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(380px, calc(100vw - 28px));
+  box-sizing: border-box;
+  max-height: calc(var(--alto, 100vh) - 28px);
+  overflow-y: auto;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 16px 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  animation: entrar 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Bienvenida: centrada y con el ícono grande */
+.centrada {
+  text-align: center;
+}
+.centrada .titulo {
+  flex-direction: column;
+  gap: 12px;
+  font-size: 1.2rem;
+}
+.centrada .icono {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  font-size: 2rem;
+}
+.centrada .pie {
+  justify-content: center;
+}
+
+.cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.paso {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+
+.cerrar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.barra {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+.barraLlena {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #c0392b, #e67e22);
+  transition: width 0.35s ease;
+}
+
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.icono {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  background: rgba(230, 126, 34, 0.15);
+  flex-shrink: 0;
+}
+
+.texto {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text2);
+}
+
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.saltar {
+  margin-right: auto;
+  background: none;
+  border: none;
+  padding: 8px 2px;
+  color: var(--text2);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.centrada .saltar {
+  margin-right: 0;
+}
+
+.atras {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.siguiente {
+  background: var(--rojo, #c0392b);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 800;
+  font-size: 0.92rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(192, 57, 43, 0.35);
+}
+
+.cerrar:focus-visible,
+.saltar:focus-visible,
+.atras:focus-visible,
+.siguiente:focus-visible {
+  outline: 3px solid #e67e22;
+  outline-offset: 2px;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes entrar {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes latido {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foco,
+  .barraLlena {
+    transition: none;
+  }
+  .foco::after,
+  .tarjeta,
+  .velo {
+    animation: none;
+  }
+}

@@ -241,6 +241,7 @@
     // Perfil
     opciones: '⚙️ Opciones',
     cambiarIdioma: '🌐 Cambiar idioma',
+    verTour: 'Ver tour de la app',
     cambiarContrasena: '🔑 Cambiar contraseña',
     cerrarSesion: '⏻ Cerrar sesión',
     seleccionarIdioma: 'Selecciona tu idioma preferido',
@@ -702,6 +703,7 @@
     solicitudEnviada: '✅ Request sent',
     opciones: '⚙️ Options',
     cambiarIdioma: '🌐 Change language',
+    verTour: 'See app tour',
     cambiarContrasena: '🔑 Change password',
     cerrarSesion: '⏻ Sign out',
     seleccionarIdioma: 'Select your preferred language',
@@ -1157,6 +1159,7 @@
     solicitudEnviada: '✅ Solicitação enviada',
     opciones: '⚙️ Opções',
     cambiarIdioma: '🌐 Alterar idioma',
+    verTour: 'Ver tour do app',
     cambiarContrasena: '🔑 Alterar senha',
     cerrarSesion: '⏻ Sair',
     seleccionarIdioma: 'Selecione seu idioma preferido',

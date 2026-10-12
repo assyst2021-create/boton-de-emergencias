@@ -12,6 +12,8 @@ const RUTAS_AVISO = { historial: '/historial', ubicacion: '/ubicacion' }
 function irA(ruta) {
   const destino = RUTAS_AVISO[ruta]
   if (!destino) return
+  // Se abrió por una notificación (puede ser una emergencia): el tour de la primera vez espera
+  window.__abiertaPorAviso = true
   window.__rutaPendiente = destino
   window.dispatchEvent(new Event('irARuta'))
 }

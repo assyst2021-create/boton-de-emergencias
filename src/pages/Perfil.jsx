@@ -9,6 +9,7 @@ import { IDIOMAS } from '../i18n/translations'
 import ElegirPlan, { URL_SUSCRIPCIONES } from './ElegirPlan'
 import { useTema } from '../ThemeContext'
 import { useAppActions } from '../AppActionsContext'
+import { useNavContext } from '../components/NavContext'
 import { esPremium, esFamiliar, esPlanPago } from '../plan'
 import { olvidarFCM } from '../fcmRegistro'
 import { VERSION_LEGAL, RESPONSABLE } from '../i18n/legalMeta'
@@ -21,6 +22,7 @@ const URL_ELIMINAR = 'https://boton-de-emergencia-privacidad.mefacil.com/'
 
 export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const { t, lang, cambiarIdioma } = useLanguage()
+  const { verTour } = useNavContext()
   const { tema, toggleTema } = useTema()
   const { verBienvenida, verTerminos, verPrivacidad, verContrato, bienvenidaLeida, avisoLeido, privacidadLeida, contratoLeido } = useAppActions()
   const [paso, setPaso] = useState(pasoInicial)
@@ -521,29 +523,33 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </div>
               </div>
             )}
-            <button className={styles.opcion} onClick={() => setPaso('plan')}>
+            {/* Tour de la app (versión 95): se puede volver a ver cuando se quiera */}
+            <button className={styles.opcion} data-tour="op-tour" onClick={() => { onCerrar(); verTour() }}>
+              🧭 {t('verTour')}
+            </button>
+            <button className={styles.opcion} data-tour="op-planes" onClick={() => setPaso('plan')}>
               <span>{t('verPlanes')}</span>
               <span className={esPlanPago(perfil) ? styles.planBadgePremium : styles.planBadgeGratis}>
                 {esPremium(perfil) ? t('planPremiumNombre') : esFamiliar(perfil) ? t('planFamiliarNombre') : t('planTrialNombre')}
               </span>
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('idioma')}>
+            <button className={styles.opcion} data-tour="op-idioma" onClick={() => setPaso('idioma')}>
               {t('cambiarIdioma')}
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('legal')}>
+            <button className={styles.opcion} data-tour="op-legal" onClick={() => setPaso('legal')}>
               <span>{t('infoDocLegales')}</span>
               <span className={styles.leido}>✅ {t('docsCardLeido')}</span>
             </button>
-            <button className={styles.opcion} onClick={() => { setVerAyudaClave(false); setPaso('contrasena') }}>
+            <button className={styles.opcion} data-tour="op-clave" onClick={() => { setVerAyudaClave(false); setPaso('contrasena') }}>
               {t('cambiarContrasena')}
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('creador')}>
+            <button className={styles.opcion} data-tour="op-creador" onClick={() => setPaso('creador')}>
               {t('btnPerfilCreador')}
             </button>
-            <button className={styles.opcion} onClick={() => setPaso('huellitas')}>
+            <button className={styles.opcion} data-tour="op-huellitas" onClick={() => setPaso('huellitas')}>
               {t('btnHuellitas')}
             </button>
-            <div className={styles.opcionToggle}>
+            <div className={styles.opcionToggle} data-tour="op-tema">
               <span>{t('modoPantalla')}</span>
               <button
                 className={tema === 'oscuro' ? styles.toggleOn : styles.toggleOff}
@@ -555,7 +561,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               </button>
             </div>
 
-            <div className={styles.opcionToggle}>
+            <div className={styles.opcionToggle} data-tour="op-auto">
               <span>
                 {t('autoAlertaLabel')}
                 {!esPlanPago(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 {t('autoSoloPago')}</span>}
@@ -583,11 +589,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 </button>
               )}
             </div>
-            <button className={styles.opcion} onClick={abrirSonido}>
+            <button className={styles.opcion} data-tour="op-sonido" onClick={abrirSonido}>
               🔔 {t('sonidoMenu')}
             </button>
             {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede buscar el celular) */}
-            <div className={styles.opcionToggle}>
+            <div className={styles.opcionToggle} data-tour="op-permitir">
               <span>
                 {t('recPermitir')}
                 {!esPremium(perfil) && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
@@ -611,13 +617,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 ⚠️ {t('recFaltaFondoCorto')}
               </button>
             )}
-            <button className={styles.opcion} onClick={() => { setRcMsg(null); setRcElegir(null); setVerRcClave(false); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
+            <button className={styles.opcion} data-tour="op-recuperar" onClick={() => { setRcMsg(null); setRcElegir(null); setVerRcClave(false); setRcForm({ clave: '', password: '' }); setPaso('recuperar') }}>
               🔒 {t('recMenu')}
             </button>
-            <button className={styles.opcionEliminar} onClick={abrirEliminar}>
+            <button className={styles.opcionEliminar} data-tour="op-eliminar" onClick={abrirEliminar}>
               🗑️ {t('elimMenu')}
             </button>
-            <button className={styles.opcionRojo} onClick={pedirCerrarSesion}>
+            <button className={styles.opcionRojo} data-tour="op-salir" onClick={pedirCerrarSesion}>
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>

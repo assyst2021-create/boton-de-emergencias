@@ -784,7 +784,7 @@ export default function PanicButtons() {
           <h1>{t('appNombre')}</h1>
           <div className={styles.headerBotones}>
             <button className={styles.salir} onClick={abrirDestinos} title={t('destBoton')} aria-label={t('destBoton')}>👥</button>
-            <button className={styles.salir} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+            <button className={styles.salir} data-tour="opciones" onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
           </div>
         </div>
         {user && <div className={styles.usuario}>{t('hola')} <strong>{user.full_name}</strong></div>}
@@ -792,7 +792,7 @@ export default function PanicButtons() {
 
       {/* Modal bienvenida — App Gratis */}
       {avisoPlan && user && (
-        <div className={styles.avisoOverlay}>
+        <div className={styles.avisoOverlay} data-bloquea-tour>
           <div className={styles.avisoModal}>
             <div className={styles.avisoModalIcono}>🆓</div>
             <h3 className={styles.avisoModalTitulo}>{t('bienvenidaGratisTitulo')}</h3>
@@ -818,7 +818,7 @@ export default function PanicButtons() {
 
       {/* Modal bienvenida — Plan Familiar */}
       {avisoFamiliar && user && (
-        <div className={styles.avisoOverlay}>
+        <div className={styles.avisoOverlay} data-bloquea-tour>
           <div className={styles.avisoModal}>
             <div className={styles.avisoModalIcono}>👨‍👩‍👧‍👦</div>
             <h3 className={styles.avisoModalTitulo}>{t('bienvenidaFamiliarTitulo')}</h3>
@@ -845,7 +845,7 @@ export default function PanicButtons() {
 
       {/* Modal bienvenida — Plan Premium */}
       {avisoPremium && user && (
-        <div className={styles.avisoOverlay}>
+        <div className={styles.avisoOverlay} data-bloquea-tour>
           <div className={styles.avisoModal}>
             <div className={styles.avisoModalIcono}>⭐</div>
             <h3 className={styles.avisoModalTitulo}>{t('bienvenidaPremiumTitulo')}</h3>
@@ -944,14 +944,14 @@ export default function PanicButtons() {
 
       {/* A quién le llega la alerta: siempre a la vista, para no olvidar que se desmarcó a alguien */}
       {familiares.length > 0 ? (
-        <button type="button" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={abrirDestinos}>
+        <button type="button" data-tour="destinos" className={todosElegidos ? styles.destChip : styles.destChipParcial} onClick={abrirDestinos}>
           👥 {todosElegidos
             ? t('destLlegaATodos')
             : `${t('destLlegaA')} ${destinosEfectivos.length} ${t('destDe')} ${familiares.length} ${t('destFamiliares')}`}
           {' · '}<u>{t('destCambiar')}</u>
         </button>
       ) : familiaresListos && (
-        <button type="button" className={styles.destChipParcial} onClick={abrirDestinos}>
+        <button type="button" data-tour="destinos" className={styles.destChipParcial} onClick={abrirDestinos}>
           👥 {t('destSinFamiliares')}{' · '}<u>{t('destAgregar')}</u>
         </button>
       )}
@@ -1034,6 +1034,7 @@ export default function PanicButtons() {
           <div key={b.tipo}>
             {/* Sin paso de confirmacion: un solo toque abre Mensajes. */}
             <button
+              data-tour={`boton-${b.tipo}`}
               className={styles.panico}
               style={{ background: b.color, '--hover': b.colorHover, opacity: gps === 'listo' ? 1 : 0.55 }}
               onClick={() => pulsarBoton(b)}

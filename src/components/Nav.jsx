@@ -35,7 +35,7 @@ export default function Nav() {
       <div className={styles.barra} ref={barraRef}>
         <nav className={styles.nav}>
           {tabs.map(tab => (
-            <NavLink key={tab.to} to={tab.to} end className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
+            <NavLink key={tab.to} to={tab.to} end data-tour={`tab-${tab.to}`} className={({ isActive }) => isActive ? `${styles.tab} ${styles.active}` : styles.tab}>
               <span className={styles.icon}>{tab.icon}</span>
               <span className={styles.label}>{tab.label}</span>
             </NavLink>

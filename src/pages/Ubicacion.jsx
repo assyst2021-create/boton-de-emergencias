@@ -872,7 +872,7 @@ export default function Ubicacion() {
               aria-label={t('ubiActualizar')}
               style={{ fontSize: '1.1rem', opacity: recargando ? 0.5 : 1, transition: recargando ? 'transform 0.4s' : 'none', transform: recargando ? 'rotate(360deg)' : 'none' }}
             >🔄</button>
-            <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+            <button className={styles.gear} data-tour="opciones" onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
           </div>
         </div>
         <p className={styles.sub}>{t('ubiSubtitulo')}</p>

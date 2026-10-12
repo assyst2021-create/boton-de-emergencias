@@ -275,7 +275,7 @@ export default function GrupoFamiliar() {
             aria-label={t('ubiActualizar')}
             style={{ fontSize: '1.1rem', opacity: recargando ? 0.5 : 1, transition: 'transform 0.4s', transform: recargando ? 'rotate(360deg)' : 'none' }}
           >🔄</button>
-          <button className={styles.gear} onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
+          <button className={styles.gear} data-tour="opciones" onClick={abrirOpciones} title={t('tituloOpciones')} aria-label={t('tituloOpciones')}>⚙️</button>
         </div>
       </header>
 
@@ -319,7 +319,7 @@ export default function GrupoFamiliar() {
         </section>
       )}
 
-      <section className={styles.seccion}>
+      <section className={styles.seccion} data-tour="familia-agregar">
         <h2>{t('agregarFamiliar')}</h2>
         <div className={styles.buscador}>
           <input

@@ -45,6 +45,8 @@ const NuevaContrasena = lazy(() => import('./pages/NuevaContrasena'))
 // Solo la web en /privacidad y quien quedó con el registro a medias: no se cargan al abrir la app
 const PrivacidadPublica = lazy(() => import('./pages/PrivacidadPublica'))
 const CompletarRegistro = lazy(() => import('./pages/CompletarRegistro'))
+// Tour de la app (versión 95): solo se descarga cuando se abre
+const Tour = lazy(() => import('./components/Tour'))
 
 export default function App() {
   if (window.location.pathname === '/privacidad') return <Suspense fallback={null}><PrivacidadPublica /></Suspense>
@@ -62,6 +64,7 @@ function AppInner() {
   const [initDone, setInitDone] = useState(false)
   const [perfilFalta, setPerfilFalta] = useState(false)
   const [mostrarPerfil, setMostrarPerfil] = useState(false)
+  const [tourAbierto, setTourAbierto] = useState(false)
   const [soloVerLegal, setSoloVerLegal] = useState(false)
   const [actualizacionLista, setActualizacionLista] = useState(false)
   const [faltanPermisos, setFaltanPermisos] = useState([])
@@ -336,7 +339,7 @@ function AppInner() {
   }
 
   return (
-    <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true), abrirPlanes: () => setMostrarPerfil('plan') }}>
+    <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true), abrirPlanes: () => setMostrarPerfil('plan'), verTour: () => setTourAbierto(true) }}>
     {actualizacionLista && (
       <div role="status" style={{
         position: 'fixed', left: 12, right: 12, zIndex: 9998,
@@ -385,12 +388,49 @@ function AppInner() {
         <SwipeRouter />
       </BrowserRouter>
       {mostrarPerfil && <Perfil pasoInicial={mostrarPerfil === 'plan' ? 'plan' : 'menu'} onCerrar={() => setMostrarPerfil(false)} />}
+      <TourInicial uid={session.user.id} onAbrir={setTourAbierto} />
+      {tourAbierto && (
+        <Suspense fallback={null}>
+          <Tour
+            abrirOpciones={() => setMostrarPerfil(true)}
+            cerrarOpciones={() => setMostrarPerfil(false)}
+            onTerminar={visto => {
+              setTourAbierto(false)
+              if (visto) { try { localStorage.setItem(`tourVisto_${session.user.id}`, '1') } catch (_) {} }
+            }}
+          />
+        </Suspense>
+      )}
     </AppActionsContext.Provider>
     </NavContext.Provider>
   )
 }
 
 const RUTAS = ['/', '/historial', '/familia', '/ubicacion']
+
+/**
+ * El tour sale solo la primera vez que la persona entra a la app en este celular (se salte o se
+ * termine, no vuelve a salir solo; se repite desde Opciones → Ver tour). Espera a que se cierren los
+ * avisos de bienvenida del plan (data-bloquea-tour). Si la app se abrió desde una notificación
+ * (puede ser una emergencia), no sale: queda para la próxima vez.
+ */
+function TourInicial({ uid, onAbrir }) {
+  useEffect(() => {
+    try { if (localStorage.getItem(`tourVisto_${uid}`)) return } catch (_) { return }
+    // En la página web, tocar una notificación la abre directo en otra pestaña (no en la de alerta)
+    if (window.location.pathname !== '/') return
+    let vivo = true, libres = 0, espera
+    const revisar = () => {
+      if (!vivo || window.__abiertaPorAviso) return
+      libres = document.querySelector('[data-bloquea-tour]') ? 0 : libres + 1
+      if (libres >= 2) { onAbrir(true); return }
+      espera = setTimeout(revisar, 700)
+    }
+    espera = setTimeout(revisar, 1200)
+    return () => { vivo = false; clearTimeout(espera) }
+  }, [uid, onAbrir])
+  return null
+}
 
 function SwipeRouter() {
   const navigate = useNavigate()
