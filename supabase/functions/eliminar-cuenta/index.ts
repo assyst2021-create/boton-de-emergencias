@@ -4,7 +4,8 @@
  *
  * 1. Quien llama está autenticado (Verify JWT ON) y escribe SU contraseña: así quien tenga el
  *    celular desbloqueado (por ejemplo, un ladrón) no puede borrar la cuenta ni "Recuperar celular".
- *    5 intentos fallidos → 30 minutos de espera.
+ *    5 intentos fallidos → 30 minutos de espera. Si pidió un código para cambiar la contraseña
+ *    hace menos de 24 h, no se puede (versión 95).
  * 2. Borra todos sus datos en una sola operación (eliminar_datos_cuenta: si algo falla, no se borra nada).
  * 3. Borra el usuario de inicio de sesión (correo y contraseña).
  * La suscripción de Google Play NO se cancela aquí: la app se lo advierte antes.
@@ -18,6 +19,7 @@ const clienteAuth = () => createClient(URL, Deno.env.get('SUPABASE_ANON_KEY')!, 
 
 const MAX_INTENTOS = 5
 const BLOQUEO_MIN = 30
+const HORAS_BLOQUEO_CODIGO = 24
 // La app (por dentro es un navegador) y la página web llaman desde otro dominio: sin estos permisos
 // (CORS) el navegador bloquea la llamada antes de que llegue aquí
 const CORS = {
@@ -33,6 +35,13 @@ Deno.serve(async (req) => {
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
     const { data: { user } } = await clienteAuth().auth.getUser(token)
     if (!user?.email) return json({ ok: false, error: 'SIN_SESION' }, 401)
+
+    // Versión 95: durante las 24 h siguientes a pedir un código para cambiar la contraseña no se
+    // puede eliminar la cuenta (quien tenga el celular y el correo abiertos, por ejemplo un ladrón,
+    // no puede borrarla ni con eso quitar "Recuperar celular"). Antes de la contraseña: no cuenta intentos.
+    const enviado = user.recovery_sent_at ? new Date(user.recovery_sent_at).getTime() : 0
+    const hasta = enviado + HORAS_BLOQUEO_CODIGO * 3600 * 1000
+    if (hasta > Date.now()) return json({ ok: false, error: 'CODIGO_RECIENTE', hasta: new Date(hasta).toISOString() })
 
     const body = await req.json().catch(() => ({}))
     const password = String(body.password || '')

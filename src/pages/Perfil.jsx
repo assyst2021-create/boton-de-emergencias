@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { supabase, clienteVerificacion, obtenerSesion } from '../supabase'
-import { validarClave, mensajeErrorClave } from '../clave'
+import { validarClave, mensajeErrorClave, bloqueoPorCodigo, finBloqueo, fechaBloqueo } from '../clave'
 import AyudaClave from '../components/AyudaClave'
 import { leerPreferencia, aplicarSonido, hayPluginSonidos, PREFERENCIA_INICIAL } from '../sonidoAlerta'
 import styles from './Perfil.module.css'
@@ -85,6 +85,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   const [verSalirClave, setVerSalirClave] = useState(false)
   const [salirError, setSalirError] = useState('')
   const [saliendo, setSaliendo] = useState(false)
+  // Se pidió un código para cambiar la contraseña hace menos de 24 h: hasta cuándo (Date) o null
+  const [bloqueoCodigo, setBloqueoCodigo] = useState(null)
   // Sonido de las alertas (lo escoge quien recibe)
   const [sonidoSel, setSonidoSel] = useState('normal')
   const [siempreSel, setSiempreSel] = useState(true)
@@ -153,8 +155,16 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   function toggleRecuperar() {
     setRecError(''); setRecAcepto(false); setRecClave(''); setVerRecClave(false); setVerAyudaClave(false)
     if (!recPermitir) revisarUbiFondo()
+    else revisarBloqueoCodigo()
     setPaso(recPermitir ? 'recApagar' : 'recAutorizar')
   }
+
+  /** ¿Se pidió un código hace menos de 24 h? (apagar Recuperar, salir con Recuperar y eliminar) */
+  function revisarBloqueoCodigo() {
+    setBloqueoCodigo(null)
+    bloqueoPorCodigo(supabase).then(setBloqueoCodigo)
+  }
+  const textoBloqueo = hasta => `🔒 ${hasta ? t('claveBloqueo24').replace('{fecha}', fechaBloqueo(hasta, lang)) : t('claveBloqueo24SinFecha')}`
 
   async function autorizarRecuperar() {
     if (!recAcepto || recGuardando) return
@@ -186,7 +196,15 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       const { data: enCurso } = await supabase.from('recuperacion_sesiones').select('id')
         .eq('owner_id', uid).eq('estado', 'activa').gt('vence_at', new Date().toISOString()).limit(1)
       const { error } = await supabase.rpc('set_recuperacion', { activa: false })
-      if (error) { setRecError(t('errorConexion')); return }
+      if (error) {
+        // El servidor no deja apagarla si se pidió un código hace menos de 24 h ("CODIGO_RECIENTE <hasta>")
+        if (/CODIGO_RECIENTE/.test(error.message || '')) {
+          const hasta = finBloqueo((error.message.match(/CODIGO_RECIENTE (\S+)/) || [])[1])
+          if (hasta) setBloqueoCodigo(hasta)
+          setRecError(textoBloqueo(hasta)); return
+        }
+        setRecError(t('errorConexion')); return
+      }
       setRecPermitir(false)
       try { localStorage.setItem(`recActiva_${uid}`, '0') } catch (_) {}
       if (enCurso?.length) {
@@ -314,6 +332,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
     }
     if (!activa) { cerrarSesion(); return }
     setSalirClave(''); setVerSalirClave(false); setSalirError(''); setVerAyudaClave(false)
+    revisarBloqueoCodigo()
     setPaso('salir')
   }
 
@@ -328,6 +347,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       if (!email) { await cerrarSesion(); return }
       const { error } = await clienteVerificacion().auth.signInWithPassword({ email, password: salirClave })
       if (error) { setSalirError(/fetch|network|failed/i.test(error.message || '') ? t('errorConexion') : t('errorClaveActual')); return }
+      // Se vuelve a preguntar justo antes de salir (el código pudo pedirse con esta pantalla abierta)
+      const hasta = await bloqueoPorCodigo(supabase)
+      if (hasta) { setBloqueoCodigo(hasta); setSalirError(textoBloqueo(hasta)); return }
       await cerrarSesion()
     } catch (_) {
       setSalirError(t('errorConexion'))
@@ -415,7 +437,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       // functions.invoke marca error en HTTP != 2xx; el cuerpo trae el detalle
       const res = data || (error?.context ? await error.context.json().catch(() => null) : null)
       if (!res?.ok) {
-        if (res?.error === 'CREDENCIALES') setElimError(t('errorClaveActual'))
+        if (res?.error === 'CODIGO_RECIENTE') {
+          const hasta = finBloqueo(res.hasta)
+          if (hasta) setBloqueoCodigo(hasta)
+          setElimError(textoBloqueo(hasta))
+        } else if (res?.error === 'CREDENCIALES') setElimError(t('errorClaveActual'))
         else if (res?.error === 'BLOQUEADO') setElimError(t('recErrBloqueado').replace('{min}', String(res.minutos || 30)))
         else setElimError(t('elimErrGenerico').replace('{correo}', RESPONSABLE.correo))
         return
@@ -665,12 +691,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 onChange={e => setSalirClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerSalirClave(v => !v)}>{verSalirClave ? '🙈' : '👁️'}</button>
             </div>
+            {bloqueoCodigo && !salirError && <div className={styles.error}>{textoBloqueo(bloqueoCodigo)}</div>}
             {salirError && <div className={styles.error}>{salirError}</div>}
-            <button type="submit" className={styles.btn} disabled={saliendo}>
+            <button type="submit" className={styles.btn} disabled={saliendo || !!bloqueoCodigo}>
               {saliendo ? t('procesando') : t('salirBtn')}
             </button>
             <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
-            {verAyudaClave && <AyudaClave email={miCorreo} />}
+            {verAyudaClave && <AyudaClave email={miCorreo} fijo aviso24 />}
             <button type="button" className={styles.volver} disabled={saliendo} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
           </form>
         )}
@@ -693,7 +720,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <a href={`${URL_ELIMINAR}?lang=${lang}#eliminar`} target="_blank" rel="noopener noreferrer" className={styles.enlace} style={{ textAlign: 'center' }}>
               {t('elimMasInfo')}
             </a>
-            <button type="button" className={styles.btn} onClick={() => { setElimError(''); setPaso('eliminar2') }}>{t('elimContinuar')}</button>
+            <button type="button" className={styles.btn} onClick={() => { setElimError(''); revisarBloqueoCodigo(); setPaso('eliminar2') }}>{t('elimContinuar')}</button>
             <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
           </div>
         )}
@@ -707,10 +734,11 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 onChange={e => setElimClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerElimClave(v => !v)}>{verElimClave ? '🙈' : '👁️'}</button>
             </div>
+            {bloqueoCodigo && !elimError && <div className={styles.error}>{textoBloqueo(bloqueoCodigo)}</div>}
             {elimError && <div className={styles.error}>{elimError}</div>}
             <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
-            {verAyudaClave && <AyudaClave email={miCorreo} />}
-            <button type="submit" className={styles.btn} disabled={elimCargando}>
+            {verAyudaClave && <AyudaClave email={miCorreo} fijo aviso24 />}
+            <button type="submit" className={styles.btn} disabled={elimCargando || !!bloqueoCodigo}>
               {elimCargando ? t('procesando') : t('elimBtn')}
             </button>
             <button type="button" className={styles.volver} disabled={elimCargando} onClick={() => setPaso('menu')}>{t('cancelar')}</button>
@@ -764,12 +792,13 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 onChange={e => setRecClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerRecClave(v => !v)}>{verRecClave ? '🙈' : '👁️'}</button>
             </div>
+            {bloqueoCodigo && !recError && <div className={styles.error}>{textoBloqueo(bloqueoCodigo)}</div>}
             {recError && <div className={styles.error}>{recError}</div>}
-            <button type="submit" className={styles.btn} disabled={recGuardando}>
+            <button type="submit" className={styles.btn} disabled={recGuardando || !!bloqueoCodigo}>
               {recGuardando ? t('procesando') : t('recApagarBtn')}
             </button>
             <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
-            {verAyudaClave && <AyudaClave email={miCorreo} />}
+            {verAyudaClave && <AyudaClave email={miCorreo} fijo aviso24 />}
             {error && <div className={styles.error}>{error}</div>}
             <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError('') }}>{t('cancelar')}</button>
           </form>
@@ -971,7 +1000,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               {cargando ? t('procesando') : t('cambiarBtn')}
             </button>
             <button type="button" className={styles.volver} onClick={() => setVerAyudaClave(v => !v)} aria-expanded={verAyudaClave}>{t('claveOlvideActual')}</button>
-            {verAyudaClave && <AyudaClave email={miCorreo} />}
+            {verAyudaClave && <AyudaClave email={miCorreo} fijo aviso24={recPermitir} />}
             <button type="button" className={styles.volver} onClick={() => { setPaso('menu'); setError(''); setVerAyudaClave(false) }}>
               {t('volver')}
             </button>

@@ -1,0 +1,18 @@
+<!--
+  Versión 95, punto 7: correo del código para cambiar la contraseña.
+  Va en Supabase → Authentication → Emails → Templates → "Reset password".
+  Asunto: Tu código para cambiar la contraseña · Botón de Emergencias
+  {{ .Token }} = el código de 6 números (vence según "Email OTP Expiration": 3600 s = 1 hora).
+  No nombra proveedores (regla de los textos de la app). Español primero; inglés y portugués abajo.
+-->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a2e">
+  <h2 style="margin:0 0 12px;color:#C0392B">Botón de Emergencias</h2>
+  <p style="margin:0 0 8px">Este es tu código para crear una contraseña nueva:</p>
+  <p style="font-size:34px;font-weight:bold;letter-spacing:8px;margin:16px 0;padding:14px;background:#f5f5f5;border-radius:10px;text-align:center">{{ .Token }}</p>
+  <p style="margin:0 0 8px">Escríbelo en la app. Vence en 1 hora.</p>
+  <p style="margin:0 0 8px;color:#6b7280;font-size:14px">Por seguridad, durante 24 horas no se podrá apagar "Permitir recuperar mi celular", cerrar sesión con esa opción activa ni eliminar la cuenta.</p>
+  <p style="margin:0 0 20px;color:#6b7280;font-size:14px">Si no lo pediste, no hagas nada: tu contraseña sigue igual. No compartas este código con nadie.</p>
+  <hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0">
+  <p style="margin:0 0 6px;color:#6b7280;font-size:13px"><b>English:</b> This is your code to create a new password. Type it in the app; it expires in 1 hour. If you did not request it, do nothing: your password stays the same. Do not share this code with anyone.</p>
+  <p style="margin:0;color:#6b7280;font-size:13px"><b>Português:</b> Este é o seu código para criar uma nova senha. Digite-o no app; vale por 1 hora. Se não foi você que pediu, não faça nada: sua senha continua a mesma. Não compartilhe este código com ninguém.</p>
+</div>
