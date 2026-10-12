@@ -11,6 +11,7 @@ import { useNavContext } from '../components/NavContext'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { nuevoUUID } from '../uuid'
 import { ultimaUbicacionNativa, ubicacionActualNativa } from '../ubicacionNativa'
+import { tieneUbicacionFondo, pedirUbicacionFondo, abrirAjustesApp } from '../ubicacionFondo'
 
 /** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
 const INTERVALO_MS = 1000
@@ -795,6 +796,22 @@ export default function Ubicacion() {
   }
 
   const premium = puedeUbicacionEnVivo(perfil)  // Familiar y Premium incluyen el mapa en vivo
+
+  // Falta "Permitir todo el tiempo": un recordatorio, y al tocarlo se vuelve a pedir (o se abren los ajustes)
+  const [sinFondo, setSinFondo] = useState(false)
+  useEffect(() => {
+    if (!EN_CAPACITOR) return
+    const revisar = () => tieneUbicacionFondo().then(v => setSinFondo(v === false))
+    revisar()
+    const alVolver = () => { if (document.visibilityState === 'visible') revisar() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
+  }, [])
+  async function arreglarFondo() {
+    const v = await pedirUbicacionFondo()
+    if (v === false) abrirAjustesApp()
+    else setSinFondo(false)
+  }
   const enVivo = familiares.filter(f => f.ubicacion)
 
   // Historial corto de posiciones por familiar para saber si se está moviendo
@@ -962,6 +979,14 @@ export default function Ubicacion() {
           </div>
         </div>,
         document.body,
+      )}
+
+      {/* Sin "Permitir todo el tiempo" la ubicación compartida se puede cortar (versión 95) */}
+      {premium && sinFondo && !miRecuperacion && (
+        <button type="button" className={styles.avisoFondo} onClick={arreglarFondo}>
+          <span>⚠️ {t('fondoMapa')}</span>
+          <strong>{t('fondoMapaBoton')} →</strong>
+        </button>
       )}
 
       <div className={styles.acciones}>

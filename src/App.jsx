@@ -7,6 +7,7 @@ import { sincronizarSonido } from './sonidoAlerta'
 import { escucharCompras, sincronizarCompras, cambioElPlan } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
 import { revisarPerfil } from './registro'
+import { tieneUbicacionFondo, pedirUbicacionFondo, abrirAjustesApp } from './ubicacionFondo'
 import { VERSION_LEGAL } from './i18n/legalMeta'
 
 /**
@@ -68,6 +69,8 @@ function AppInner() {
   const [soloVerLegal, setSoloVerLegal] = useState(false)
   const [actualizacionLista, setActualizacionLista] = useState(false)
   const [faltanPermisos, setFaltanPermisos] = useState([])
+  // Falta "Permitir todo el tiempo" en la ubicación: se explica y se vuelve a pedir (versión 95)
+  const [pedirFondo, setPedirFondo] = useState(false)
   const permisosPedidosRef = useRef(false)
   // Antes de que Android pida los permisos se explica para qué sirve cada uno (Google Play lo exige,
   // sobre todo para la ubicación en segundo plano). null = revisando; quien ya los tiene no la ve.
@@ -192,6 +195,7 @@ function AppInner() {
         // recuperación de celular) y el tiempo no se ha acabado, sigue sola, en cualquier pantalla
         window.Capacitor?.Plugins?.GpsShare?.reanudar?.().catch(() => {})
         verificarPermisos()
+        revisarUbicacionFondo()
       })
       // Renovaciones, cancelaciones y compras que no alcanzaron a activarse
       const recargarPlan = () => window.dispatchEvent(new Event('recargarPlan'))
@@ -208,6 +212,25 @@ function AppInner() {
       }
     }
   }, [initDone, perfilFalta, bienvenidaVista, avisoLegalAceptado, planElegido, permisosExplicados])
+
+  /**
+   * Sin "Permitir todo el tiempo", Android puede cortar la ubicación compartida con la pantalla apagada
+   * o la app cerrada. Si falta, se explica y se vuelve a pedir una vez al instalar y en cada
+   * actualización ("Ahora no" se respeta hasta la siguiente); el Mapa lo sigue recordando.
+   */
+  async function revisarUbicacionFondo() {
+    if (!EN_CAPACITOR || (await tieneUbicacionFondo()) !== false) return
+    let codigo = ''
+    try { codigo = String((await Permisos.version())?.codigo || '') } catch (_) {}
+    // Si no se pudiera leer la versión, "Ahora no" igual queda guardado
+    const marca = codigo || 'sin-version'
+    try { if (localStorage.getItem('fondoPedidoEn') === marca) return } catch (_) {}
+    setPedirFondo(marca)
+  }
+  function cerrarPantallaFondo() {
+    try { localStorage.setItem('fondoPedidoEn', String(pedirFondo)) } catch (_) {}
+    setPedirFondo(false)
+  }
 
   // SMS, ubicación y notificaciones son indispensables para el botón de emergencia
   async function verificarPermisos() {
@@ -337,6 +360,8 @@ function AppInner() {
       </div>
     )
   }
+
+  if (pedirFondo) return <PantallaFondo onCerrar={cerrarPantallaFondo} />
 
   return (
     <NavContext.Provider value={{ abrirOpciones: () => setMostrarPerfil(true), abrirPlanes: () => setMostrarPerfil('plan'), verTour: () => setTourAbierto(true) }}>
@@ -484,6 +509,57 @@ function SwipeRouter() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Un último paso: "Permitir todo el tiempo" (versión 95, punto 9b). Primero se pide otra vez (Android
+ * lleva a la ubicación de la app); si no quedó, el botón abre los ajustes de la app. Al volver con
+ * el permiso dado, se cierra sola.
+ */
+function PantallaFondo({ onCerrar }) {
+  const { t } = useLanguage()
+  const [intentado, setIntentado] = useState(false)
+  const [trabajando, setTrabajando] = useState(false)
+  const cerrar = useRef(onCerrar)
+  useEffect(() => { cerrar.current = onCerrar })
+
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState !== 'visible') return
+      tieneUbicacionFondo().then(v => { if (v !== false) cerrar.current() })
+    }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
+  }, [])
+
+  async function activar() {
+    if (trabajando) return
+    if (intentado) { abrirAjustesApp(); return }
+    setTrabajando(true)
+    const v = await pedirUbicacionFondo()
+    setTrabajando(false)
+    setIntentado(true)
+    if (v !== false) cerrar.current()
+  }
+
+  return (
+    <div style={{ minHeight: 'var(--alto)', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'calc(28px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px))', gap: 16, textAlign: 'center' }}>
+      <div style={{ fontSize: '2.8rem' }}>📍</div>
+      <h2 style={{ color: 'var(--text)', fontWeight: 800, margin: 0, fontSize: '1.25rem', textWrap: 'balance', maxWidth: 360 }}>{t('fondoTitulo')}</h2>
+      <p style={{ color: 'var(--text2)', lineHeight: 1.5, margin: 0, maxWidth: 360, fontSize: '0.92rem' }}>{t('fondoDesc')}</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', textAlign: 'left', width: '100%', maxWidth: 360, boxSizing: 'border-box' }}>
+        <span style={{ fontSize: '1.35rem', lineHeight: 1.2 }}>👉</span>
+        <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.86rem', lineHeight: 1.5 }}>{t('fondoPasos')}</p>
+      </div>
+      <button onClick={activar} disabled={trabajando} style={{ background: '#C0392B', color: '#fff', fontWeight: 800, fontSize: '1rem', padding: '15px 20px', borderRadius: 12, border: 'none', width: '100%', maxWidth: 360, cursor: 'pointer', opacity: trabajando ? 0.7 : 1 }}>
+        {intentado ? t('fondoAjustes') : t('fondoBoton')}
+      </button>
+      <p style={{ color: 'var(--text2)', fontSize: '0.75rem', margin: 0, maxWidth: 360, lineHeight: 1.45 }}>🔒 {t('fondoPrivacidad')}</p>
+      <button onClick={() => cerrar.current()} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'underline', cursor: 'pointer', padding: 8 }}>
+        {t('fondoAhoraNo')}
+      </button>
     </div>
   )
 }

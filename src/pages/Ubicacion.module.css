@@ -483,3 +483,27 @@
   font-weight: 600;
   line-height: 1.45;
 }
+
+/* Falta "Permitir todo el tiempo" (versión 95): recordatorio que se toca para arreglarlo */
+.avisoFondo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1.5px solid #e6a817;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+.avisoFondo strong {
+  color: var(--enlace);
+  font-weight: 800;
+}
