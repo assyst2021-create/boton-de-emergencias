@@ -151,10 +151,15 @@
 }
 
 .texto {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   font-size: 0.9rem;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text2);
+}
+.texto p {
+  margin: 0;
 }
 
 .pie {

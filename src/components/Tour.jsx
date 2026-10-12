@@ -51,7 +51,7 @@ const ALTURA_PARTE = 0.2    // la parte iluminada queda arriba (a un 20 % del bo
  * muy abajo). Mueve solo lo que se desplaza (la página o la ventana de Opciones); lo que está fijo
  * en la pantalla, como las pestañas de abajo, se queda donde está.
  */
-function llevarArriba(el, reducido) {
+function llevarArriba(el, reducido, altoTarjeta = 0) {
   let caja = el.parentElement
   while (caja && caja !== document.body) {
     const estilo = getComputedStyle(caja)
@@ -60,7 +60,12 @@ function llevarArriba(el, reducido) {
     caja = caja.parentElement
   }
   if (!caja || caja === document.body) return
-  const delta = el.getBoundingClientRect().top - Math.max(BORDE, window.innerHeight * ALTURA_PARTE)
+  const r = el.getBoundingClientRect()
+  let arriba = Math.max(BORDE, window.innerHeight * ALTURA_PARTE)
+  // Si la explicación es larga, la parte sube un poco más para que la explicación quepa completa debajo
+  const cabe = window.innerHeight - BORDE - altoTarjeta - SEPARACION - r.height - MARGEN
+  if (altoTarjeta && cabe < arriba) arriba = Math.max(BORDE + MARGEN, cabe)
+  const delta = r.top - arriba
   // Las últimas partes de una lista no podían subir (la lista se acaba): mientras dura el tour se le
   // agrega espacio vacío al final, y al terminar vuelve a quedar como estaba
   const libre = caja.scrollHeight - caja.clientHeight - caja.scrollTop
@@ -142,7 +147,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
       const el = document.querySelector(`[data-tour="${paso.objetivo}"]`)
       if (el && el.getClientRects().length) {
         objetivoRef.current = el
-        llevarArriba(el, reducido)
+        llevarArriba(el, reducido, tarjetaRef.current?.offsetHeight || 0)
         setHallado({ paso: i, encontrado: true })
         return
       }
@@ -239,7 +244,9 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
   const [icono, titulo, texto] = tx[paso.id]
   // Al pasar de una parte a otra, la luz se desliza desde la anterior hasta la nueva
   const conFoco = caja && !sinObjetivo
-  const progreso = `${Math.round(((i + 1) / PASOS.length) * 100)}%`
+  // 23 pasos y el mensaje final aparte (no cuenta como paso)
+  const TOTAL = PASOS.length - 1
+  const progreso = ultimo ? '100%' : `${Math.round(((i + 1) / TOTAL) * 100)}%`
 
   return createPortal(
     <div className={styles.capa}>
@@ -259,7 +266,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
         style={{ top: arriba ?? 0, visibility: listo && arriba !== null ? 'visible' : 'hidden' }}
       >
         <div className={styles.cabeza}>
-          <span className={styles.paso}>{tx.ui.paso.replace('{n}', String(i + 1)).replace('{total}', String(PASOS.length))}</span>
+          <span className={styles.paso}>{ultimo ? `✓ ${tx.ui.completo}` : tx.ui.paso.replace('{n}', String(i + 1)).replace('{total}', String(TOTAL))}</span>
           <button type="button" className={styles.cerrar} onClick={terminar} aria-label={tx.ui.cerrar}>✕</button>
         </div>
         <div className={styles.barra} aria-hidden="true"><div className={styles.barraLlena} style={{ width: progreso }} /></div>
@@ -267,7 +274,9 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
           <span className={styles.icono} aria-hidden="true">{icono}</span>
           <span>{titulo}</span>
         </h2>
-        <p id="tour-texto" className={styles.texto}>{texto}</p>
+        <div id="tour-texto" className={styles.texto}>
+          {texto.split('\n').map((parrafo, k) => <p key={k}>{parrafo}</p>)}
+        </div>
         {ultimo && tx.versiculo && (
           <blockquote className={styles.versiculo}>
             <span>“{tx.versiculo[0]}”</span>
