@@ -134,8 +134,11 @@ function quitarDeCola(id) {
 const ESPERA_COLA_MS = 15000
 
 let _procesandoCola = false
-/** Reenvía la cola; solo saca de la cola las alertas que la base confirmó. */
-async function procesarCola() {
+/**
+ * Reenvía la cola; solo saca de la cola las alertas que la base confirmó. App.jsx también la llama
+ * (versión 95), para que salga al volver la señal aunque la persona esté en otra pestaña.
+ */
+export async function procesarCola() {
   if (_procesandoCola) return
   let cola
   try { cola = JSON.parse(localStorage.getItem(COLA_KEY) || '[]') } catch (_) { return }

@@ -232,6 +232,22 @@ function AppInner() {
     setPedirFondo(false)
   }
 
+  // Alertas que se enviaron sin internet (versión 95): salen solas al volver la señal desde cualquier
+  // pestaña, no solo desde la de alerta (la cola vive en PanicButtons, que ya está cargada)
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const procesar = () => { import('./pages/PanicButtons').then(m => m.procesarCola?.()).catch(() => {}) }
+    const alVolver = () => { if (document.visibilityState === 'visible') procesar() }
+    window.addEventListener('online', procesar)
+    document.addEventListener('visibilitychange', alVolver)
+    const reintento = setInterval(procesar, 20000)
+    return () => {
+      window.removeEventListener('online', procesar)
+      document.removeEventListener('visibilitychange', alVolver)
+      clearInterval(reintento)
+    }
+  }, [session?.user?.id])
+
   // SMS, ubicación y notificaciones son indispensables para el botón de emergencia
   async function verificarPermisos() {
     if (!EN_CAPACITOR) return
