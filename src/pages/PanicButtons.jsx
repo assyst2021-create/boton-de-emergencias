@@ -9,6 +9,7 @@ import { puedeEnviarAlerta, esPremium, esFamiliar, esPlanPago, puedeSegundaAlert
 import { useNavContext } from '../components/NavContext'
 import { PAISES } from '../registro'
 import { nuevoUUID } from '../uuid'
+import { useAutoActualizar } from '../autoActualizar'
 import { ultimaUbicacionNativa, ubicacionActualNativa } from '../ubicacionNativa'
 
 const SilentSms = registerPlugin('SilentSms')
@@ -374,6 +375,10 @@ export default function PanicButtons() {
       }
     }
   }, [])
+
+  // Familiares y plan al día solos, cada 30 s mientras se ve y apenas vuelve la señal (versión 99):
+  // quien te acepta o te desvincula aparece sin tocar nada
+  useAutoActualizar(cargarDatos, 30000)
 
   /** Familiares, nombre y a quién avisar, guardados en el celular: disponibles al instante y sin internet. */
   function leerCopiaLocal(uid) {

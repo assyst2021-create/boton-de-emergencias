@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { registerPlugin } from '@capacitor/core'
 import { suscribirPush } from './pushSubscription'
 import { registrarFCM } from './fcmRegistro'
+import { revisarRecuperacionPendiente } from './recuperarPendiente'
 import { sincronizarSonido } from './sonidoAlerta'
 import { escucharCompras, sincronizarCompras, cambioElPlan } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
@@ -245,6 +246,24 @@ function AppInner() {
       window.removeEventListener('online', procesar)
       document.removeEventListener('visibilitychange', alVolver)
       clearInterval(reintento)
+    }
+  }, [session?.user?.id])
+
+  // Recuperar celular pedido con este celular apagado o sin señal (versión 99): si la orden no llegó,
+  // se pide de nuevo al abrir la app, al volver a ella y al volver la señal. Se espera un poco al
+  // abrir para que el celular alcance a registrarse para recibir avisos.
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid || !EN_CAPACITOR) return
+    const revisar = () => revisarRecuperacionPendiente(uid)
+    const alVolver = () => { if (document.visibilityState === 'visible') revisar() }
+    const inicio = setTimeout(revisar, 8000)
+    window.addEventListener('online', revisar)
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      clearTimeout(inicio)
+      window.removeEventListener('online', revisar)
+      document.removeEventListener('visibilitychange', alVolver)
     }
   }, [session?.user?.id])
 

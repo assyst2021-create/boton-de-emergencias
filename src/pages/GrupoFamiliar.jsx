@@ -5,6 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { limiteFamiliares, esPremium, esFamiliar } from '../plan'
 import { limpiarUsuario } from '../registro'
 import { useNavContext } from '../components/NavContext'
+import { useAutoActualizar } from '../autoActualizar'
 
 export default function GrupoFamiliar() {
   const { t } = useLanguage()
@@ -46,6 +47,10 @@ export default function GrupoFamiliar() {
       if (canal) supabase.removeChannel(canal)
     }
   }, [])
+
+  // Solicitudes nuevas, aceptadas o desvinculaciones aparecen solas cada 20 s mientras se ve y apenas
+  // vuelve la señal (versión 99), aunque la conexión en vivo se haya caído
+  useAutoActualizar(init, 20000)
 
   async function init() {
     const session = await obtenerSesion()

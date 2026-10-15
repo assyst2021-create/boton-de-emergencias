@@ -398,7 +398,8 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       } else if (res?.ok) {
         // (Si el servidor todavía es el de antes, "familiares" ya empieza para todo el grupo: se avisa igual)
         setRcElegir(null)
-        setRcMsg({ tipo: 'ok', texto: accion === 'detener' ? t('recDetenido') : t('recOk') })
+        // Apagado o sin señal (versión 99): la orden queda guardada y se dice así
+        setRcMsg({ tipo: 'ok', texto: accion === 'detener' ? t('recDetenido') : res.pendiente ? t('recPendiente') : t('recOk') })
         setRcForm({ clave: '', password: '' })
       } else {
         setRcMsg({ tipo: 'error', texto: textoErrorRec(res?.error, res?.minutos) })

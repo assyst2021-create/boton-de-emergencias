@@ -44,6 +44,7 @@ const ESPERA_MAX_MS = 3000  // si una parte no aparece (no aplica a esta cuenta)
 const SEGUIR_MS = 1100      // tiempo en que la parte se mueve (desplazamiento, Opciones que sube)
 const BORDE = 14            // distancia mínima de la tarjeta a los bordes de la pantalla
 const SEPARACION = 14       // entre lo iluminado y la tarjeta
+const MIN_TARJETA = 170     // menos que esto no se lee bien: entonces sí puede quedar encima
 const ALTURA_PARTE = 0.2    // la parte iluminada queda arriba (a un 20 % del borde), con la explicación debajo
 
 /**
@@ -91,6 +92,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
   const [hallado, setHallado] = useState({ paso: -1, encontrado: false })
   const [caja, setCaja] = useState(null)      // lo iluminado, en la pantalla
   const [arriba, setArriba] = useState(null)  // dónde va la tarjeta
+  const [maxAlto, setMaxAlto] = useState(null) // si no cabe completa, hasta dónde se acorta
   const [vista, setVista] = useState(0)        // cambia al girar el celular o cambiar el tamaño
   const tarjetaRef = useRef(null)
   const objetivoRef = useRef(null)
@@ -203,18 +205,29 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
     return () => window.removeEventListener('resize', alCambiar)
   }, [])
 
-  // La tarjeta va debajo de lo iluminado; si no cabe, encima; si tampoco, abajo de la pantalla
+  // La tarjeta va debajo de lo iluminado; si no cabe, encima. Si no cabe completa en ningún lado
+  // (versión 99: textos largos o letra grande, como en algunos Samsung), va en el lado con más espacio
+  // y se acorta: su contenido se desplaza adentro y nunca tapa lo iluminado
   useLayoutEffect(() => {
     const tarjeta = tarjetaRef.current
     if (!tarjeta || !listo) return
-    const alto = tarjeta.offsetHeight
+    // La altura completa, aunque en el paso anterior se haya acortado
+    const alto = tarjeta.scrollHeight
     const vh = window.innerHeight
-    let top
+    let top, max = null
     if (!caja || sinObjetivo) top = Math.max(BORDE, (vh - alto) / 2)
-    else if (caja.top + caja.height + SEPARACION + alto <= vh - BORDE) top = caja.top + caja.height + SEPARACION
-    else if (caja.top - SEPARACION - alto >= BORDE) top = caja.top - SEPARACION - alto
-    else top = Math.max(BORDE, vh - alto - BORDE)
+    else {
+      const abajo = vh - BORDE - (caja.top + caja.height + SEPARACION)
+      const encima = caja.top - SEPARACION - BORDE
+      if (alto <= abajo) top = caja.top + caja.height + SEPARACION
+      else if (alto <= encima) top = caja.top - SEPARACION - alto
+      else if (Math.max(abajo, encima) >= MIN_TARJETA) {
+        max = Math.max(abajo, encima)
+        top = abajo >= encima ? caja.top + caja.height + SEPARACION : BORDE
+      } else top = Math.max(BORDE, vh - alto - BORDE)
+    }
     setArriba(prev => (prev !== null && Math.abs(prev - top) < 1 ? prev : top))
+    setMaxAlto(prev => (prev === max ? prev : max))
   }, [caja, listo, sinObjetivo, i, lang, vista])
 
   // El botón principal recibe el foco (teclado y lectores de pantalla)
@@ -263,7 +276,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
         aria-labelledby="tour-titulo"
         aria-describedby="tour-texto"
         className={`${styles.tarjeta} ${paso.objetivo ? '' : styles.centrada}`}
-        style={{ top: arriba ?? 0, visibility: listo && arriba !== null ? 'visible' : 'hidden' }}
+        style={{ top: arriba ?? 0, maxHeight: maxAlto ?? undefined, visibility: listo && arriba !== null ? 'visible' : 'hidden' }}
       >
         <div className={styles.cabeza}>
           <span className={styles.paso}>{ultimo ? `✓ ${tx.ui.completo}` : tx.ui.paso.replace('{n}', String(i + 1)).replace('{total}', String(TOTAL))}</span>
@@ -278,6 +291,7 @@ export default function Tour({ onTerminar, abrirOpciones, cerrarOpciones }) {
           {texto.split('\n').map((parrafo, k) => <p key={k}>{parrafo}</p>)}
         </div>
         {ultimo && tx.destacado && <p className={styles.destacado}>{tx.destacado}</p>}
+        {ultimo && tx.permisos && <p className={styles.permisos}>🔐 {tx.permisos}</p>}
         <div className={styles.pie}>
           {!ultimo && <button type="button" className={styles.saltar} onClick={terminar}>{tx.ui.saltar}</button>}
           {i > 0 && <button type="button" className={styles.atras} onClick={atras}>{tx.ui.atras}</button>}

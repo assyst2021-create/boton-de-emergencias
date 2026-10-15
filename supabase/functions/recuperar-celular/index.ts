@@ -14,6 +14,11 @@
  *   ubicación. La base lo guarda en la sesión y lo aplica a cada punto que sube el celular. Sin
  *   compartir_con (versiones anteriores de la app): todo el grupo, como siempre.
  * accion 'detener': con la contraseña, cierra la sesión y manda la orden de parar.
+ * Celular apagado, sin señal o en modo avión (versión 99): la orden queda guardada 24 h y Google se la
+ *   entrega apenas se conecte. Ya no se responde "no disponible": se abre la sesión igual y se avisa
+ *   que quedó pendiente. accion 'pendiente': la manda la app del propio celular al abrirse con señal;
+ *   si su orden nunca salió (no tenía cómo recibir avisos, o Google no la recibió), se le manda ahora
+ *   con una llave nueva. Si la orden sí salió, no se repite: Google la guarda y la entrega sola.
  * Recuperar celular es del plan Premium: solo se puede pedir si el Premium del dueño está vigente
  * (detener siempre se puede).
  *
@@ -63,16 +68,31 @@ async function tokenFcm(): Promise<string> {
   tokenCache = { valor: data.access_token, vence: Date.now() + 50 * 60 * 1000 }
   return data.access_token
 }
-async function enviarDato(fcmToken: string, datos: Record<string, string>) {
-  const accessToken = await tokenFcm()
-  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${SA.project_id}/messages:send`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: { token: fcmToken, data: datos, android: { priority: 'high' } } }),
-  })
-  if (res.status === 401) tokenCache = null
-  return res.ok
+// ttl: si el celular está apagado o sin señal, Google guarda la orden y se la entrega apenas se
+// conecte (hasta que se acabe la recuperación). Si Google falla un momento, se intenta otra vez.
+async function enviarDato(fcmToken: string, datos: Record<string, string>, ttlSeg = 86400) {
+  for (let intento = 0; intento < 2; intento++) {
+    try {
+      const accessToken = await tokenFcm()
+      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${SA.project_id}/messages:send`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: { token: fcmToken, data: datos, android: { priority: 'high', ttl: `${ttlSeg}s` } } }),
+      })
+      if (res.ok) return true
+      if (res.status === 401) tokenCache = null
+      console.error('[recuperar-celular] Google respondió', res.status, (await res.text().catch(() => '')).slice(0, 300))
+      // Token del celular que ya no sirve (se borró la app o sus datos): no tiene caso repetir
+      if (res.status === 400 || res.status === 404) return false
+    } catch (e) {
+      console.error('[recuperar-celular] no se pudo hablar con Google:', e)
+    }
+    await new Promise(r => setTimeout(r, 1200))
+  }
+  return false
 }
+// Segundos que le quedan a la recuperación (para que Google guarde la orden ese tiempo)
+const segundosHasta = (fin: string) => Math.max(60, Math.min(86400, Math.floor((new Date(fin).getTime() - Date.now()) / 1000)))
 
 // Igual que set_recuperacion: Premium (Familiar no cuenta) y sin vencer
 // deno-lint-ignore no-explicit-any
@@ -99,6 +119,29 @@ Deno.serve(async (req) => {
     if (!quienLlama) return json({ ok: false, error: 'SIN_SESION' }, 401)
 
     const body = await req.json().catch(() => ({}))
+
+    // La app del celular perdido, al abrirse con señal: si su orden de recuperación no llegó, se manda
+    // de nuevo (solo si la recuperación sigue activa y el celular todavía no ha mandado su ubicación)
+    if (body.accion === 'pendiente') {
+      const llaveNueva = hex(crypto.getRandomValues(new Uint8Array(32)).buffer)
+      const { data: venceRe, error: errRe } = await admin.rpc('reenviar_recuperacion', {
+        p_owner: quienLlama.id, p_llave_hash: await sha256Hex(llaveNueva),
+      })
+      if (errRe) {
+        console.error('[recuperar-celular] reenviar_recuperacion:', errRe.message)
+        return json({ ok: false, error: 'ERROR_SERVIDOR' })
+      }
+      if (!venceRe) return json({ ok: true, reenviado: false })
+      const { data: yo } = await admin.from('users').select('fcm_token').eq('id', quienLlama.id).maybeSingle()
+      if (!yo?.fcm_token) return json({ ok: false, error: 'SIN_TOKEN' })
+      const reenviado = await enviarDato(yo.fcm_token, { tipo: 'recuperar', llave: llaveNueva, vence: String(venceRe) }, segundosHasta(String(venceRe)))
+      if (reenviado) {
+        await admin.from('recuperacion_sesiones').update({ orden_enviada: true })
+          .eq('owner_id', quienLlama.id).eq('estado', 'activa')
+      }
+      return json({ ok: reenviado, reenviado })
+    }
+
     const accion = body.accion === 'detener' ? 'detener' : body.accion === 'familiares' ? 'familiares' : 'solicitar'
     const clave = String(body.correo_o_usuario || '').trim().toLowerCase()
     const password = String(body.password || '')
@@ -158,14 +201,14 @@ Deno.serve(async (req) => {
     if (accion === 'detener') {
       // Detener no exige el interruptor: si el dueño lo apagó en medio, igual se puede parar
       await admin.rpc('cerrar_recuperacion', { p_owner: owner.id })
-      if (perfil?.fcm_token) await enviarDato(perfil.fcm_token, { tipo: 'detener-recuperar' }).catch(() => false)
+      if (perfil?.fcm_token) await enviarDato(perfil.fcm_token, { tipo: 'detener-recuperar' })
       return json({ ok: true, detenido: true })
     }
 
-    // Solicitar: Premium vigente, el dueño tiene que haber activado la recuperación y su celular poder recibir la orden
+    // Solicitar: Premium vigente y el dueño tiene que haber activado la recuperación. Si el celular no
+    // puede recibir la orden ahora (apagado, sin señal), igual se sigue: queda pendiente (versión 99)
     if (!premiumVigente(perfil)) return json({ ok: false, error: 'NO_PREMIUM' })
     if (!perfil?.recuperacion_activa) return json({ ok: false, error: 'NO_AUTORIZADO_DUENIO' })
-    if (!perfil?.fcm_token) return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
 
     // La lista del dueño: sus familiares aceptados
     const { data: lista, error: errLista } = await admin.from('family_links')
@@ -207,14 +250,20 @@ Deno.serve(async (req) => {
       if (errAbrir) console.error('[recuperar-celular] abrir_recuperacion:', errAbrir.message)
       return json({ ok: false, error: 'ERROR_SERVIDOR' })
     }
-    const enviado = await enviarDato(perfil.fcm_token, { tipo: 'recuperar', llave, vence: String(vence) }).catch(() => false)
-    // Si Google no pudo entregar la orden (celular dado de baja, token viejo), no se deja una sesión colgada
+    // Apagado, sin señal o en modo avión: Google guarda la orden y la entrega al conectarse. Si ni eso
+    // se pudo, la sesión queda abierta igual: la app del celular la pide sola al abrirse con señal
+    const enviado = perfil?.fcm_token
+      ? await enviarDato(perfil.fcm_token, { tipo: 'recuperar', llave, vence: String(vence) }, segundosHasta(String(vence)))
+      : false
     if (!enviado) {
-      await admin.rpc('cerrar_recuperacion', { p_owner: owner.id })
-      return json({ ok: false, error: 'CELULAR_NO_DISPONIBLE' })
+      console.warn('[recuperar-celular] orden pendiente: se manda cuando el celular abra la app con señal')
+      // Marca para que la app del celular la pida (si la base aún no tiene la columna, no pasa nada)
+      const { error: errMarca } = await admin.from('recuperacion_sesiones').update({ orden_enviada: false })
+        .eq('owner_id', owner.id).eq('estado', 'activa')
+      if (errMarca) console.error('[recuperar-celular] orden_enviada:', errMarca.message)
     }
 
-    return json({ ok: true, vence, nombre: perfil.full_name || '' })
+    return json({ ok: true, vence, nombre: perfil?.full_name || '', pendiente: !enviado })
   } catch (e) {
     console.error('[recuperar-celular]', e)
     return json({ ok: false, error: 'ERROR_SERVIDOR' }, 500)

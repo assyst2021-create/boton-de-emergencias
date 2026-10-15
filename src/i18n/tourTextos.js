@@ -13,6 +13,8 @@ export const TOUR = {
     },
     // Al final, en el recuadro destacado (versión 98, pedido de Michael: en vez del versículo)
     destacado: 'Recuerda: en una emergencia, un solo toque puede marcar la diferencia y ayudar a salvar vidas.',
+    // Debajo del recuadro final (versión 99, pedido de Michael)
+    permisos: 'Recuerda activar todos los permisos.',
     inicio: ['🧭', 'Te damos la bienvenida', '¡Bienvenido a Botón de Emergencias!\nEn este recorrido descubrirás cómo funciona la aplicación y cómo utilizar sus principales herramientas para mantenerte conectado con tu familia ante una emergencia.\nPuedes saltarte esta exploración en cualquier momento y volver a realizarla cuando quieras desde la opción “Explorar app”.'],
     alerta: ['🆘', 'Envío de alertas', 'Esta es la pantalla principal de la aplicación. Desde aquí puedes avisar a tu familia en cuestión de segundos cuando necesites ayuda o quieras informarles que estás bien.\nSi tienes poca señal o una conexión a internet inestable, las alertas pendientes se guardan y se envían automáticamente cuando se restablece la conexión. El sistema prioriza el envío de las alertas para facilitar su entrega.'],
     rojo: ['🔴', 'Estoy en peligro', 'Presiona este botón para avisar a tu familia cuando estés en peligro y necesites ayuda urgente.\nCon un solo toque, podrás generar una alerta con la fecha, la hora y tu ubicación. Tus familiares vinculados recibirán el aviso mediante las notificaciones y los mensajes de texto habilitados por la aplicación.'],
@@ -44,6 +46,7 @@ export const TOUR = {
       empezar: 'Start', terminar: 'Finish', cerrar: 'Close the exploration', completo: 'Exploration complete',
     },
     destacado: 'Remember: in an emergency, a single tap can make a difference and help save lives.',
+    permisos: 'Remember to turn on all the permissions.',
     inicio: ['🧭', 'Welcome', 'Welcome to Botón de Emergencias!\nOn this walkthrough you will discover how the app works and how to use its main tools to stay connected with your family in an emergency.\nYou can skip this exploration at any time and take it again whenever you want from the “Explore app” option.'],
     alerta: ['🆘', 'Sending alerts', 'This is the app’s main screen. From here you can alert your family in seconds when you need help or want to let them know you are okay.\nIf you have a weak signal or an unstable internet connection, pending alerts are saved and sent automatically when the connection is restored. The system gives priority to sending alerts to help them get through.'],
     rojo: ['🔴', 'I am in danger', 'Press this button to alert your family when you are in danger and need urgent help.\nWith a single tap, you can create an alert with the date, the time and your location. Your linked family members will receive it through the notifications and text messages enabled by the app.'],
@@ -75,6 +78,7 @@ export const TOUR = {
       empezar: 'Começar', terminar: 'Concluir', cerrar: 'Fechar a exploração', completo: 'Exploração concluída',
     },
     destacado: 'Lembre-se: numa emergência, um só toque pode fazer a diferença e ajudar a salvar vidas.',
+    permisos: 'Lembre-se de ativar todas as permissões.',
     inicio: ['🧭', 'Boas-vindas', 'Boas-vindas ao Botón de Emergencias!\nNeste percurso você vai descobrir como o app funciona e como usar suas principais ferramentas para se manter conectado com sua família em uma emergência.\nVocê pode pular esta exploração a qualquer momento e refazê-la quando quiser pela opção “Explorar app”.'],
     alerta: ['🆘', 'Envio de alertas', 'Esta é a tela principal do app. Daqui você pode avisar sua família em segundos quando precisar de ajuda ou quiser informar que está bem.\nSe o sinal estiver fraco ou a conexão com a internet instável, os alertas pendentes ficam guardados e são enviados automaticamente quando a conexão voltar. O sistema prioriza o envio dos alertas para facilitar a entrega.'],
     rojo: ['🔴', 'Estou em perigo', 'Pressione este botão para avisar sua família quando estiver em perigo e precisar de ajuda urgente.\nCom um só toque, você pode gerar um alerta com a data, a hora e sua localização. Seus familiares vinculados vão receber o aviso pelas notificações e mensagens de texto habilitadas pelo app.'],

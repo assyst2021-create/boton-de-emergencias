@@ -3,6 +3,7 @@ import { supabase, obtenerSesion } from '../supabase'
 import styles from './Historial.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
 import { useNavContext } from '../components/NavContext'
+import { useAutoActualizar, canalCaido } from '../autoActualizar'
 
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
@@ -118,6 +119,13 @@ export default function Historial() {
       clearInterval(podar)
     }
   }, [])
+
+  // Se actualiza sola cada 15 s mientras se ve y apenas vuelve la señal (versión 99): antes, si la
+  // conexión en vivo se caía sin avisar, una alerta nueva solo aparecía tocando 🔄
+  useAutoActualizar(() => {
+    if (canalCaido(canalRef.current)) conectarVivo()
+    return cargar()
+  }, 15000)
 
   async function cargar() {
     const session = await obtenerSesion()

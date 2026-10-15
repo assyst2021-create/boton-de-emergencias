@@ -6,11 +6,12 @@
 export const VERSION_LEGAL = '2026-10-03'
 
 // Datos del responsable (los exige la Ley 1581). Se muestran en los 3 idiomas.
-// La ley pide nombre, domicilio, dirección, correo y teléfono (la cédula no se publica)
+// La ley pide nombre, domicilio, dirección, correo y teléfono (la cédula no se publica). Por seguridad,
+// Michael pidió no publicar su dirección exacta: solo ciudad y barrio (versión 99)
 export const RESPONSABLE = {
   nombre: 'Michael Esteven Caldon Achipis (ASSYST)',
   domicilio: 'Cali, Colombia',
-  direccion: 'Carrera 83 E # 54-58',
+  direccion: 'Cali / Las Vegas de Comfandi',
   telefono: '+57 305 923 4214',
   correo: 'assyst2021@ssthechofacil.com',
 }

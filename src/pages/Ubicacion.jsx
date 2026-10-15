@@ -12,6 +12,7 @@ import { LocalNotifications } from '@capacitor/local-notifications'
 import { nuevoUUID } from '../uuid'
 import { ultimaUbicacionNativa, ubicacionActualNativa } from '../ubicacionNativa'
 import { tieneUbicacionFondo, pedirUbicacionFondo, abrirAjustesApp } from '../ubicacionFondo'
+import { useAutoActualizar, canalCaido } from '../autoActualizar'
 
 /** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
 const INTERVALO_MS = 1000
@@ -112,11 +113,34 @@ function posicionRapidaNavegador() {
   })
 }
 
-/** Un punto de antenas (>150 m) no reemplaza uno bueno de GPS de hace menos de 1 minuto. */
+/**
+ * Un punto aproximado de antenas o wifi (>150 m) no reemplaza uno más preciso y reciente: de GPS de
+ * hace menos de 1 minuto, o cualquiera de hace menos de 30 s (versión 99: así no brinca mientras el
+ * celular pasa de antenas a GPS).
+ */
+function puntoPeor(precision, precisionAntes, msDesde) {
+  if (precision == null || precisionAntes == null) return false
+  return precision > 150 && precision > precisionAntes && msDesde < (precisionAntes <= 50 ? 60000 : 30000)
+}
 function sirvePunto(p) {
   const prev = ultimaPosGlobal
-  if (!prev || p.precision == null || prev.precision == null) return true
-  return !(p.precision > 150 && prev.precision <= 50 && Date.now() - (prev.ts || 0) < 60000)
+  if (!prev) return true
+  return !puntoPeor(p.precision, prev.precision, Date.now() - (prev.ts || 0))
+}
+
+/**
+ * En el mapa de quien mira (versión 99): si llega un punto mucho menos preciso que el que se está
+ * mostrando (por ejemplo, de un celular con la app de antes), se sigue mostrando el de antes; la hora
+ * y lo demás sí se actualizan, para no decir "sin señal" cuando sí la hay.
+ */
+function ubicacionEstable(antes, nueva) {
+  if (!antes || !nueva || antes.latitude == null || nueva.latitude == null) return nueva
+  const desde = antes._puntoAt || antes.updated_at
+  const ms = new Date(nueva.updated_at).getTime() - new Date(desde).getTime()
+  const pa = antes.precision_m == null ? null : Number(antes.precision_m)
+  const pn = nueva.precision_m == null ? null : Number(nueva.precision_m)
+  if (!Number.isFinite(ms) || !puntoPeor(pn, pa, ms)) return nueva
+  return { ...nueva, latitude: antes.latitude, longitude: antes.longitude, precision_m: antes.precision_m, _puntoAt: desde }
 }
 
 /**
@@ -238,15 +262,19 @@ export default function Ubicacion() {
 
     obtenerSesion().then(session => { uidGlobalRef.current = session?.user?.id })
 
-    // Polling de respaldo: solo recarga ubicaciones (links en caché) cada 4s
+    // Polling de respaldo: solo recarga ubicaciones (links en caché) cada 4s. Con la app en segundo
+    // plano no se gasta (al volver se actualiza todo); si la conexión en vivo se cayó, se rehace
     pollingRef.current = setInterval(() => {
-      if (uidGlobalRef.current) cargarUbicaciones()
+      if (!uidGlobalRef.current || document.visibilityState !== 'visible') return
+      if (canalCaido(canalRef.current)) reconectarVivo()
+      cargarUbicaciones()
     }, 4000)
 
     const onVisible = () => {
       if (document.visibilityState === 'visible' && uidGlobalRef.current) {
         reconectarVivo()
-        cargarUbicaciones()
+        // Al volver, también quién está en el grupo (versión 99: antes solo las ubicaciones)
+        cargarFamiliaresCompleto(uidGlobalRef.current)
         resincronizarTokenNativo()
       }
     }
@@ -259,7 +287,7 @@ export default function Ubicacion() {
         App.addListener('appStateChange', ({ isActive }) => {
           if (isActive && uidGlobalRef.current) {
             reconectarVivo()
-            cargarUbicaciones()
+            cargarFamiliaresCompleto(uidGlobalRef.current)
             resincronizarTokenNativo()
           }
         }).then(l => { appListener = l })
@@ -279,6 +307,14 @@ export default function Ubicacion() {
       if (cuentaRef.current) clearInterval(cuentaRef.current)
     }
   }, [])
+
+  // Quién está en el grupo y quién tiene Recuperar celular activo, cada 30 s mientras se ve y apenas
+  // vuelve la señal (versión 99): antes un familiar recién aceptado solo aparecía tocando 🔄
+  useAutoActualizar(() => {
+    if (!uidGlobalRef.current) return
+    if (canalCaido(canalRef.current)) reconectarVivo()
+    return cargarFamiliaresCompleto(uidGlobalRef.current)
+  }, 30000)
 
   async function init() {
     const session = await obtenerSesion()
@@ -479,13 +515,17 @@ export default function Ubicacion() {
   /** Pone en el mapa las ubicaciones de la familia y las guarda en el celular para la próxima vez. */
   function aplicarUbicaciones(links, ubis) {
     const porId = Object.fromEntries((ubis || []).map(u => [u.user_id, u]))
-    const lista = links.map(l => ({
-      id: l.user_id,
-      nombre: l.users?.full_name || l.users?.username || '—',
-      ubicacion: porId[l.user_id] || null,
-    }))
-    setFamiliares(lista)
-    guardarCacheMapa(uidGlobalRef.current, lista)
+    const uid = uidGlobalRef.current
+    setFamiliares(prev => {
+      const antes = Object.fromEntries(prev.map(f => [f.id, f.ubicacion]))
+      const lista = links.map(l => ({
+        id: l.user_id,
+        nombre: l.users?.full_name || l.users?.username || '—',
+        ubicacion: porId[l.user_id] ? ubicacionEstable(antes[l.user_id], porId[l.user_id]) : null,
+      }))
+      guardarCacheMapa(uid, lista)
+      return lista
+    })
     return true
   }
 
@@ -504,7 +544,7 @@ export default function Ubicacion() {
 
           setFamiliares(prev => prev.map(f =>
             f.id === uid
-              ? { ...f, ubicacion: u.activo && (!u.expires_at || new Date(u.expires_at) > new Date()) ? u : null }
+              ? { ...f, ubicacion: u.activo && (!u.expires_at || new Date(u.expires_at) > new Date()) ? ubicacionEstable(f.ubicacion, u) : null }
               : f
           ))
         })
@@ -813,6 +853,9 @@ export default function Ubicacion() {
     else setSinFondo(false)
   }
   const enVivo = familiares.filter(f => f.ubicacion)
+  // Recuperar celular pedido con el celular apagado o sin señal (versión 99): todavía no hay ubicación,
+  // pero se muestra que la orden está esperando
+  const esperandoRec = familiares.filter(f => !f.ubicacion && recuperandoIds.has(f.id))
 
   // Historial corto de posiciones por familiar para saber si se está moviendo
   const histRef = useRef({})
@@ -1048,8 +1091,20 @@ export default function Ubicacion() {
 
       <section className={styles.lista}>
         <h2>{t('ubiFamiliaresEnVivo')} ({enVivo.length})</h2>
+        {esperandoRec.map(f => (
+          <div key={`rec-${f.id}`} className={styles.fila}>
+            <span className={styles.puntoViejo} />
+            <div className={styles.filaInfo}>
+              <strong>{f.nombre}</strong>
+              <span style={{ display: 'inline-block', width: 'fit-content', marginTop: 2, padding: '1px 8px', borderRadius: 999, background: 'rgba(192,57,43,0.12)', border: '1px solid #C0392B', color: '#C0392B', fontSize: '0.7rem', fontWeight: 800 }}>
+                🔒 {t('recActiva')}
+              </span>
+              <span className={styles.hace}>⏳ {t('recEsperandoSenal')}</span>
+            </div>
+          </div>
+        ))}
         {enVivo.length === 0 ? (
-          <p className={styles.gris}>{t('ubiNadieEnVivo')}</p>
+          esperandoRec.length === 0 && <p className={styles.gris}>{t('ubiNadieEnVivo')}</p>
         ) : enVivo.map(f => {
           // El celular manda al menos cada 10 s aunque la persona esté quieta: 2 min sin
           // recibir nada ya es un problema real (sin señal, GPS apagado o celular apagado)
