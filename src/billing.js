@@ -27,6 +27,20 @@ export async function tokenSuscripcionActual(productIdNuevo) {
   return otra?.token || null
 }
 
+/**
+ * Huella del usuario que compra (versión 101): se le pasa a Google con la compra y el servidor solo
+ * la activa para ese usuario. Es la misma que calcula el servidor (SHA-256 del id, en hexadecimal).
+ */
+export async function huellaCuenta(userId) {
+  try {
+    if (!userId || !window.crypto?.subtle) return null
+    const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(userId))
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+  } catch (_) {
+    return null
+  }
+}
+
 /** El servidor verifica el pago con Google y activa el plan del usuario de la sesión. */
 export async function activarCompra(supabase, token) {
   const { data, error } = await supabase.functions.invoke('activar-premium', { body: { token } })

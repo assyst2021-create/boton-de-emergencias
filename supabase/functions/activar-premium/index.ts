@@ -14,6 +14,16 @@
  *    comprar. Así el plan se pone y se quita a tiempo aunque la persona no abra la app.
  *  - Una compra que Google aún no confirma (pago pendiente o error de Google) queda anotada en
  *    compras_pendientes: nunca se pierde.
+ *
+ * Versión 101 (cada compra para quien la hizo): Google da la compra a la CUENTA DE GOOGLE del
+ * celular, no al usuario de la app, y la app reporta todas las compras de esa cuenta de Google al
+ * abrirse. Si otro usuario de la app estaba abierto con la misma cuenta de Google (otro celular,
+ * tablet o emulador), se quedaba con la compra (pasó el 15-10 con @caldon y michael1617).
+ *  - Desde la app 101, al comprar se le pasa a Google la huella del usuario que compra
+ *    (obfuscatedAccountId = SHA-256 de su id). Esa compra solo se activa para ese usuario; si quedó
+ *    en otro, se le quita y pasa a su dueño.
+ *  - Compras sin huella (apps de antes): la que ya está anotada como pendiente de un usuario no se
+ *    la puede quedar otro, y la primera anotación no se cambia.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -92,9 +102,37 @@ async function consultarGoogle(acceso: string, token: string): Promise<{ ok: boo
   return { ok: r.ok, status: r.status, sub }
 }
 
-/** Anota (o borra) una compra que Google todavía no confirma. Si la tabla aún no existe, no pasa nada. */
+/** Huella del usuario que se le pasa a Google al comprar (la misma que calcula la app). */
+async function huellaUsuario(userId: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userId))
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+/** El usuario que hizo la compra, si la app le dejó su huella a Google (app 101 en adelante). */
+const huellaDeCompra = (sub: Suscripcion): string | null =>
+  sub?.externalAccountIdentifiers?.obfuscatedExternalAccountId || null
+
+/**
+ * Una compra que quedó en otro usuario (antes de la 101 podía pasar): se le quita. Si ese usuario
+ * tiene Premium regalado vigente, lo conserva.
+ */
+async function soltarCompraDe(supabase: SupabaseClient, otroId: string, token: string) {
+  const { data: u } = await supabase.from('users').select('premium_regalo_hasta').eq('id', otroId).maybeSingle()
+  const regalo: string | null = u?.premium_regalo_hasta || null
+  const conRegalo = !!regalo && new Date(regalo).getTime() > Date.now()
+  await supabase.from('users').update(conRegalo
+    ? { plan: 'premium', is_premium: true, premium_hasta: regalo, play_purchase_token: null }
+    : { plan: 'basico', is_premium: false, play_purchase_token: null })
+    .eq('id', otroId).eq('play_purchase_token', token)
+}
+
+/**
+ * Anota (o borra) una compra que Google todavía no confirma. Si la tabla aún no existe, no pasa nada.
+ * La primera anotación se respeta: la hace la pantalla de pago apenas se compra (versión 101: antes
+ * otro usuario abierto con la misma cuenta de Google podía cambiarla a su nombre).
+ */
 async function anotarPendiente(supabase: SupabaseClient, token: string, userId: string, estado: string) {
-  const { data: previa } = await supabase.from('compras_pendientes').select('intentos').eq('token', token).maybeSingle()
+  const { data: previa } = await supabase.from('compras_pendientes').select('intentos, user_id').eq('token', token).maybeSingle()
+  if (previa && previa.user_id !== userId) return
   await supabase.from('compras_pendientes').upsert({
     token, user_id: userId, intentos: (previa?.intentos || 0) + 1, ultimo_estado: estado,
   }, { onConflict: 'token' })
@@ -169,13 +207,27 @@ async function aplicarSuscripcion(supabase: SupabaseClient, acceso: string, user
 
 /** Una compra desde la app (o la sincronización al abrirla): la persona de la sesión. */
 async function activarDesdeApp(supabase: SupabaseClient, userId: string, token: string) {
-  // Un mismo pago no puede activar dos cuentas
-  const { data: otro } = await supabase.from('users').select('id')
-    .eq('play_purchase_token', token).neq('id', userId).maybeSingle()
-  if (otro) return json({ error: 'compra_de_otra_cuenta' }, 409)
+  const [{ data: otro }, { data: anotada }] = await Promise.all([
+    supabase.from('users').select('id').eq('play_purchase_token', token).neq('id', userId).maybeSingle(),
+    supabase.from('compras_pendientes').select('user_id').eq('token', token).maybeSingle(),
+  ])
 
   const acceso = await tokenGooglePlay()
   const g = await consultarGoogle(acceso, token)
+
+  // ¿De quién es? Con la huella que la app 101 le deja a Google, se sabe con certeza
+  const huella = g.ok ? huellaDeCompra(g.sub) : null
+  if (huella) {
+    if (huella !== await huellaUsuario(userId)) return json({ error: 'compra_de_otra_cuenta' }, 409)
+    // Es de quien llama: si había quedado en otro usuario, se le quita
+    if (otro) await soltarCompraDe(supabase, otro.id, token)
+  } else {
+    // Sin huella (compras de apps anteriores): un mismo pago no puede activar dos cuentas, y la que
+    // ya está anotada como pendiente de un usuario no se la puede quedar otro
+    if (otro) return json({ error: 'compra_de_otra_cuenta' }, 409)
+    if (anotada && anotada.user_id !== userId) return json({ error: 'compra_de_otra_cuenta' }, 409)
+  }
+
   if (!g.ok) {
     console.error('[activar-premium] Google respondió', g.status, JSON.stringify(g.sub))
     // Se anota: la revisión automática la vuelve a intentar cada 5 minutos (aunque cierre la app)
@@ -215,8 +267,14 @@ async function revisarSuscripciones(supabase: SupabaseClient) {
     try {
       const { data: otro } = await supabase.from('users').select('id')
         .eq('play_purchase_token', p.token).neq('id', p.user_id).maybeSingle()
-      if (otro) { await quitarPendiente(supabase, p.token); continue }
       const g = await consultarGoogle(acceso, p.token)
+      // Con huella (app 101): solo para su dueño; si quedó en otro usuario, pasa a su dueño
+      const huella = g.ok ? huellaDeCompra(g.sub) : null
+      if (huella && huella !== await huellaUsuario(p.user_id)) { await quitarPendiente(supabase, p.token); continue }
+      if (otro) {
+        if (!huella) { await quitarPendiente(supabase, p.token); continue }
+        await soltarCompraDe(supabase, otro.id, p.token)
+      }
       if (!g.ok) {
         if (viejaMs > PENDIENTE_MAX_MS) await quitarPendiente(supabase, p.token)
         else await anotarPendiente(supabase, p.token, p.user_id, `google_${g.status}`)

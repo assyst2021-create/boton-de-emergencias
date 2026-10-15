@@ -4,7 +4,7 @@ import styles from './ElegirPlan.module.css'
 import { esPremium, esFamiliar } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
 import { RESPONSABLE } from '../i18n/legalMeta'
-import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual } from '../billing'
+import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual, huellaCuenta } from '../billing'
 
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play
 const URL_PLAY = 'https://play.google.com/store/apps/details?id=com.ssthechofacil.botonemergencias'
@@ -154,7 +154,11 @@ export default function ElegirPlan({ onElegido, conX = false }) {
     try {
       // Si ya paga otro plan o ciclo, el nuevo lo reemplaza (Google abona lo que no usó)
       const tokenAnterior = await tokenSuscripcionActual(productId)
-      const resultado = await Billing.iniciarSuscripcion({ productId, ...(tokenAnterior ? { tokenAnterior } : {}) })
+      // La compra queda marcada con el usuario que compra (versión 101): solo se activa para él
+      const cuenta = await huellaCuenta((await obtenerSesion())?.user?.id)
+      const resultado = await Billing.iniciarSuscripcion({
+        productId, ...(tokenAnterior ? { tokenAnterior } : {}), ...(cuenta ? { cuenta } : {}),
+      })
       if (resultado.error === 'cancelado') return
       // Ya pagó antes con esta cuenta de Google: se reactiva sin cobrar de nuevo
       if (resultado.error === 'ya_tiene') { await restaurar(); return }
