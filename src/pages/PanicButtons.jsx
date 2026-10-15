@@ -28,6 +28,20 @@ const ES_IOS = typeof navigator !== 'undefined'
 const SEP_SMS = ES_IOS ? '&' : '?'
 
 const COLA_KEY = 'alertasCola_v1'
+// Versión 100: para una alerta o un SMS solo sirve una ubicación de los últimos 2 minutos. Antes podía
+// salir una de hasta 10 minutos, o la de la última vez que la app estuvo abierta (en otro sitio)
+const FRESCO_MS = 2 * 60 * 1000
+// Ubicación exacta (GPS). Si la alerta salió con una más aproximada, se cambia por la exacta al llegar
+const PRECISO_M = 50
+/**
+ * Cuándo se tomó un punto del navegador. Si el celular da una hora absurda (reloj mal puesto), se toma
+ * como de ahora: el navegador ya garantiza que no es más viejo que lo que se le pidió.
+ */
+function tsDe(p) {
+  const ts = p?.timestamp
+  const ahora = Date.now()
+  return Number.isFinite(ts) && ts > ahora - 86400000 && ts < ahora + 60000 ? Math.min(ts, ahora) : ahora
+}
 const LOCALES = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' }
 
 // Alfabeto GSM-7 del SMS. Con solo estos caracteres un SMS lleva 160 letras; una sola
@@ -272,7 +286,26 @@ export default function PanicButtons() {
   // La ubicacion se mantiene lista de antemano: al pulsar hay que abrir
   // Mensajes en el mismo instante del toque, sin esperar nada, o iOS pide
   // confirmacion para salir de la pagina.
+  // { lat, lng, precision (metros), ts (cuándo se tomó) }
   const posRef = useRef(null)
+
+  /** El punto guardado, solo si es de los últimos 2 minutos. */
+  function puntoFresco() {
+    const p = posRef.current
+    return p && Date.now() - (p.ts || 0) < FRESCO_MS ? p : null
+  }
+  /**
+   * Guarda un punto nuevo, salvo que sea viejo o mucho peor que uno bueno y reciente (uno de antenas
+   * o wifi no reemplaza al de GPS de hace menos de 1 minuto). Devuelve si se guardó.
+   */
+  function ponerPunto(lat, lng, precision, ts = Date.now()) {
+    if (lat == null || lng == null || Date.now() - ts >= FRESCO_MS) return false
+    const antes = puntoFresco()
+    if (antes && precision != null && antes.precision != null && precision > 150 && precision > antes.precision
+      && Date.now() - antes.ts < (antes.precision <= PRECISO_M ? 60000 : 30000)) return false
+    posRef.current = { lat, lng, precision: precision ?? null, ts }
+    return true
+  }
 
   const vigilanteRef = useRef(null)
   const ultimoToqueRef = useRef({ tipo: null, ms: 0 })
@@ -284,17 +317,27 @@ export default function PanicButtons() {
    */
   function ubicacionDelCelular() {
     ultimaUbicacionNativa().then(p => {
-      if (p && p.edadMs < 10 * 60 * 1000 && !posRef.current) {
-        posRef.current = { lat: p.lat, lng: p.lng }
-        setGps('listo')
-      }
+      if (p && !puntoFresco() && ponerPunto(p.lat, p.lng, p.precision, Date.now() - p.edadMs)) setGps('listo')
     })
     ubicacionActualNativa(10000).then(p => {
-      if (p) {
-        posRef.current = { lat: p.lat, lng: p.lng }
-        setGps('listo')
-      }
+      if (p && ponerPunto(p.lat, p.lng, p.precision, Date.now() - (p.edadMs || 0))) setGps('listo')
     })
+  }
+
+  /**
+   * Mientras se ve la pantalla, el punto se mantiene al día (versión 100): si el GPS deja de dar puntos
+   * (por ejemplo, con la persona quieta), se pide uno nuevo. Así, al tocar un botón siempre hay uno
+   * de hace menos de un minuto.
+   */
+  function refrescarPunto() {
+    const p = posRef.current
+    if (p && Date.now() - p.ts < 60000) return
+    ubicacionDelCelular()
+    navigator.geolocation?.getCurrentPosition(
+      q => { if (ponerPunto(q.coords.latitude, q.coords.longitude, q.coords.accuracy, tsDe(q))) setGps('listo') },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+    )
   }
 
   function iniciarWatch() {
@@ -303,17 +346,14 @@ export default function PanicButtons() {
     // Ubicación rápida (antenas/wifi o última conocida) mientras llega la de GPS preciso
     navigator.geolocation.getCurrentPosition(
       p => {
-        if (!posRef.current) {
-          posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
-          setGps('listo')
-        }
+        if (!puntoFresco() && ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p))) setGps('listo')
       },
       () => {},
-      { enableHighAccuracy: false, maximumAge: 600000, timeout: 4000 },
+      { enableHighAccuracy: false, maximumAge: FRESCO_MS, timeout: 4000 },
     )
     vigilanteRef.current = navigator.geolocation.watchPosition(
       p => {
-        posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
+        ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p))
         setGps('listo')
       },
       err => setGps(err.code === err.PERMISSION_DENIED ? 'denegado' : 'error'),
@@ -331,6 +371,9 @@ export default function PanicButtons() {
     document.addEventListener('visibilitychange', onVisible)
     const reintentoCola = setInterval(procesarCola, 20000)
     procesarCola()
+    const refrescoPunto = setInterval(() => {
+      if (document.visibilityState === 'visible' && vigilanteRef.current !== null) refrescarPunto()
+    }, 30000)
 
     let canal = null
     cargarDatos().then(uid => {
@@ -366,6 +409,7 @@ export default function PanicButtons() {
       window.removeEventListener('online', procesarCola)
       document.removeEventListener('visibilitychange', onVisible)
       clearInterval(reintentoCola)
+      clearInterval(refrescoPunto)
       clearInterval(intervalo)
       window.removeEventListener('recargarPlan', onRecargarPlan)
       if (canal) supabase.removeChannel(canal)
@@ -445,7 +489,7 @@ export default function PanicButtons() {
   function construirCuerpo(boton) {
     const idioma = LOCALES[lang] || 'es-CO'
     const fecha = new Date().toLocaleDateString(idioma)
-    const p = posRef.current
+    const p = puntoFresco()
     const mapsLink = p ? linkMapa(p) : t('gpsNoDisponible')
     // Separado con guiones: la barra | cuenta doble en el SMS
     return textoSms(`${t(boton.mensajeKey)} - ${user?.full_name || ''} - ${t(boton.estadoKey)} - ${mapsLink} - ${horaSms(idioma)} ${fecha}`)
@@ -457,7 +501,7 @@ export default function PanicButtons() {
    */
   const esperaRef = useRef(null)
   function esperarUbicacion() {
-    if (posRef.current) return Promise.resolve(posRef.current)
+    if (puntoFresco()) return Promise.resolve(puntoFresco())
     if (!navigator.geolocation) return Promise.resolve(null)
     if (esperaRef.current) return esperaRef.current
     esperaRef.current = new Promise(resolve => {
@@ -473,13 +517,13 @@ export default function PanicButtons() {
         resolve(p)
       }
       // El vigilante de la pantalla puede tener el punto primero
-      const revisar = setInterval(() => { if (posRef.current) terminar(posRef.current) }, 2000)
+      const revisar = setInterval(() => { const f = puntoFresco(); if (f) terminar(f) }, 2000)
       const tope = setTimeout(() => terminar(null), 180000)
       vigia = navigator.geolocation.watchPosition(
         p => {
-          posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }
+          ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p))
           setGps('listo')
-          terminar(posRef.current)
+          terminar(puntoFresco() || { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: tsDe(p) })
         },
         () => {},
         { enableHighAccuracy: true, maximumAge: 0, timeout: 180000 },
@@ -493,12 +537,73 @@ export default function PanicButtons() {
    * salió sin ubicación. Apenas llegue un punto, dentro de 3 minutos, se manda otro SMS
    * solo con la ubicación.
    */
-  function enviarUbicacionCuandoLlegue(numeros) {
+  function enviarUbicacionCuandoLlegue(numeros, precisa = false) {
     const idioma = LOCALES[lang] || 'es-CO'
     const encabezado = `${t('smsUbicacionDe')} ${user?.full_name || ''}`
-    esperarUbicacion().then(p => {
+    // precisa: el SMS salió con una ubicación aproximada; este lleva la exacta del GPS (versión 100)
+    ;(precisa ? esperarPrecisa() : esperarUbicacion()).then(p => {
       if (p) SilentSms.enviar({ numeros, cuerpo: textoSms(`${encabezado}: ${linkMapa(p)} - ${horaSms(idioma)}`) }).catch(() => {})
     })
+  }
+
+  /**
+   * Espera una ubicación exacta de GPS (máximo 3 minutos), con el servicio de ubicación del celular y
+   * con el del navegador a la vez. Devuelve null si no llega.
+   */
+  const esperaPrecisaRef = useRef(null)
+  function esperarPrecisa(maxMs = 180000) {
+    // Una sola búsqueda a la vez: la comparten el SMS y la alerta
+    if (esperaPrecisaRef.current) return esperaPrecisaRef.current
+    esperaPrecisaRef.current = new Promise(resolve => {
+      const exacta = q => q && q.precision != null && q.precision <= PRECISO_M
+      if (exacta(puntoFresco())) return resolve(puntoFresco())
+      let listo = false
+      let vigia = null
+      const fin = p => {
+        if (listo) return
+        listo = true
+        clearTimeout(tope)
+        clearInterval(revisar)
+        if (vigia !== null) navigator.geolocation.clearWatch(vigia)
+        resolve(p)
+      }
+      const tope = setTimeout(() => fin(null), maxMs)
+      const revisar = setInterval(() => { if (exacta(puntoFresco())) fin(puntoFresco()) }, 2000)
+      if (navigator.geolocation) {
+        vigia = navigator.geolocation.watchPosition(
+          p => {
+            ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p))
+            if (p.coords.accuracy <= PRECISO_M) fin({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: tsDe(p) })
+          },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 0, timeout: maxMs },
+        )
+      }
+      ubicacionActualNativa(20000).then(q => {
+        if (q && ponerPunto(q.lat, q.lng, q.precision, Date.now() - (q.edadMs || 0)) && exacta(q)) fin(puntoFresco())
+      })
+    }).finally(() => { esperaPrecisaRef.current = null })
+    return esperaPrecisaRef.current
+  }
+
+  /**
+   * La alerta salió con una ubicación aproximada (antenas o wifi): apenas el GPS da la exacta, se
+   * cambia en la alerta (la familia la ve en el Historial). Si todavía está en la cola sin señal, sale
+   * ya con la exacta. (Versión 100: antes se quedaba la aproximada, a veces a cientos de metros.)
+   */
+  async function afinarUbicacion(id, usado) {
+    if (usado?.precision != null && usado.precision <= PRECISO_M) return
+    const p = await esperarPrecisa()
+    if (!p) return
+    actualizarEnCola(id, { latitude: p.lat, longitude: p.lng })
+    for (let intento = 0; intento < 4; intento++) {
+      const { data, error } = await supabase.rpc('mejorar_ubicacion_alerta', { p_id: id, p_lat: p.lat, p_lng: p.lng })
+        .then(r => r, e => ({ error: e }))
+      if (data) return
+      // El servidor todavía no tiene la función (falta el SQL de la 100): no hay nada que reintentar
+      if (error?.code === 'PGRST202' || error?.code === '42883') return
+      await new Promise(r => setTimeout(r, 5000))
+    }
   }
 
   /** Pitido y vibración corta: confirman el toque aunque no se esté mirando la pantalla. */
@@ -580,7 +685,10 @@ export default function PanicButtons() {
           // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
           window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
         })
-        if (!posRef.current) enviarUbicacionCuandoLlegue(numeros)
+        // Sin ubicación reciente: otro SMS apenas llegue. Con una aproximada: otro con la exacta
+        const usado = puntoFresco()
+        if (!usado) enviarUbicacionCuandoLlegue(numeros)
+        else if (usado.precision == null || usado.precision > 100) enviarUbicacionCuandoLlegue(numeros, true)
       } else if (ES_IOS && numeros.length > 1) {
         setRespaldo({ numeros, cuerpo, contactos: elegidos, boton })
         // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
@@ -602,35 +710,34 @@ export default function PanicButtons() {
     guardarEnHistorial(boton, destinatarios)
   }
 
-  /** Intenta obtener posición actualizada; devuelve posRef.current si falla. */
+  /** La ubicación para la alerta: solo una de los últimos 2 minutos (si no hay, null). */
   function obtenerPosicion() {
     return new Promise(resolve => {
-      if (!navigator.geolocation) return resolve(posRef.current)
-      if (posRef.current) {
-        // Tenemos posición en caché — usarla de inmediato y refrescar en segundo plano
-        const cached = posRef.current
-        navigator.geolocation.getCurrentPosition(
-          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude } },
+      const fresco = puntoFresco()
+      if (fresco) {
+        // Una reciente: se usa de inmediato y se refresca por detrás
+        if (navigator.geolocation) navigator.geolocation.getCurrentPosition(
+          p => { ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p)) },
           () => {},
-          { timeout: 5000, maximumAge: 30000 }
+          { timeout: 5000, maximumAge: 30000, enableHighAccuracy: true },
         )
-        resolve(cached)
-      } else {
-        // Sin posición: la última que el celular ya conoce (al instante) o la del navegador, hasta
-        // 10 min, esperando máximo 0,8 s (versión 94; antes 1,5 s). La alerta no se demora esperando
-        // el GPS: si no alcanza, sale ya y la familia recibe después un segundo aviso con el mapa.
-        let listo = false
-        const fin = p => { if (!listo) { listo = true; resolve(p) } }
-        ultimaUbicacionNativa().then(p => {
-          if (p && p.edadMs < 10 * 60 * 1000) { posRef.current = { lat: p.lat, lng: p.lng }; fin(posRef.current) }
-        })
-        navigator.geolocation.getCurrentPosition(
-          p => { posRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; fin(posRef.current) },
-          () => {},
-          { timeout: 800, maximumAge: 600000, enableHighAccuracy: false }
-        )
-        setTimeout(() => fin(posRef.current), 800)
+        return resolve(fresco)
       }
+      // Sin una reciente: la última que el celular ya conoce (al instante) o la del navegador, SOLO si
+      // es de los últimos 2 minutos (antes servía una de 10), esperando máximo 0,8 s. La alerta no se
+      // demora esperando el GPS: si no alcanza, sale ya y la familia recibe después un segundo aviso
+      // con el mapa.
+      let listo = false
+      const fin = p => { if (!listo) { listo = true; resolve(p) } }
+      ultimaUbicacionNativa().then(p => {
+        if (p && ponerPunto(p.lat, p.lng, p.precision, Date.now() - p.edadMs)) fin(puntoFresco())
+      })
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(
+        p => { if (ponerPunto(p.coords.latitude, p.coords.longitude, p.coords.accuracy, tsDe(p))) fin(puntoFresco()) },
+        () => {},
+        { timeout: 800, maximumAge: FRESCO_MS, enableHighAccuracy: false },
+      )
+      setTimeout(() => fin(puntoFresco()), 800)
     })
   }
 
@@ -659,7 +766,8 @@ export default function PanicButtons() {
       } catch (_) {}
       const { data: puesta, error } = await supabase.rpc('ubicar_alerta', { p_id: id, p_lat: p.lat, p_lng: p.lng })
         .then(r => r, e => ({ error: e }))
-      if (puesta) return
+      // Si la que llegó es aproximada, después se cambia por la exacta
+      if (puesta) { afinarUbicacion(id, p); return }
       // El servidor todavía no tiene esta función (falta el SQL): no hay nada que reintentar
       if (error?.code === 'PGRST202' || error?.code === '42883') return
       await new Promise(r => setTimeout(r, 5000))
@@ -674,8 +782,8 @@ export default function PanicButtons() {
       // ID único desde el celular: si un reintento llega dos veces, la base rechaza la copia
       id: nuevoUUID(),
       status_type: boton.tipo,
-      latitude: posRef.current?.lat ?? null,
-      longitude: posRef.current?.lng ?? null,
+      latitude: puntoFresco()?.lat ?? null,
+      longitude: puntoFresco()?.lng ?? null,
       sent_at: ahora.toISOString(),
       expires_at: expiresAt.toISOString(),
       is_auto: false,
@@ -693,8 +801,10 @@ export default function PanicButtons() {
     if (p) actualizarEnCola(id, { latitude: p.lat, longitude: p.lng })
 
     // Sin ubicación al guardar: apenas llegue el GPS se le agrega a la alerta (y a la que esté
-    // en la cola sin señal). La familia recibe un segundo aviso con el mapa.
+    // en la cola sin señal). La familia recibe un segundo aviso con el mapa. Con una aproximada:
+    // se cambia por la exacta apenas llegue (versión 100)
     if (!p) completarUbicacion(id)
+    else afinarUbicacion(id, p)
 
     // Sin internet, sin sesión o si falla: ya está en la cola y sale sola al volver la señal
     const dejarEnCola = () => { actualizarEnCola(id, { _creadoMs: 0 }); setSinNube(true) }
@@ -747,7 +857,10 @@ export default function PanicButtons() {
     const { data: { session } } = await supabase.auth.getSession()
     const authUser = session?.user
     if (!authUser) return
-    const pos = posRef.current
+    // Solo una ubicación reciente y exacta (versión 100: antes iba la que hubiera, aunque fuera de
+    // horas antes). Sin ella, el servidor le pide al celular la de este momento
+    const fresco = puntoFresco()
+    const pos = fresco && fresco.precision != null && fresco.precision <= 100 ? fresco : null
     const { error: errRpc } = await supabase.rpc('disparar_mis_alertas_auto', { p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null })
       .then(r => r, e => ({ error: e }))
     // Con la función del servidor ya está; si la base aún no la tiene, se hace como antes
@@ -893,7 +1006,7 @@ export default function PanicButtons() {
         // El texto se vuelve a armar aquí: si al tocar aún no había GPS, el mensaje salía sin el
         // mapa; cuando el punto llega (setGps('listo') repinta), el link de WhatsApp ya lo incluye.
         const cuerpoActual = respaldo.boton ? construirCuerpo(respaldo.boton) : respaldo.cuerpo
-        const faltaUbicacion = !posRef.current
+        const faltaUbicacion = !puntoFresco()
         return (
         <div className={styles.respaldo}>
           <strong>📤 {t('envioManualTitulo')}</strong>

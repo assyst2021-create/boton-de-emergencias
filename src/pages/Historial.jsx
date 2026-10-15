@@ -306,7 +306,7 @@ export default function Historial() {
               </div>
 
               <div className={styles.alertaAcciones}>
-                {a.latitude && a.longitude ? (
+                {a.latitude != null && a.longitude != null ? (
                   <a
                     href={`https://maps.google.com/?q=${a.latitude},${a.longitude}`}
                     target="_blank"

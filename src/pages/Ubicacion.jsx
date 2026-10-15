@@ -84,15 +84,26 @@ function distanciaMetros(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/** Un punto que se manda como "en vivo" tiene que ser de los últimos 2 minutos (versión 100). */
+const VIGENTE_MS = 2 * 60 * 1000
+
 /**
- * Punto inmediato (wifi/antenas o uno de hace menos de 2 min) para que la familia vea
+ * El nombre de cada familiar lo escribe esa persona: en el marcador del mapa va como texto, nunca como
+ * código (versión 100: antes, un nombre con código se habría ejecutado en el celular de su familia).
+ */
+const textoSeguro = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
+/**
+ * Punto inmediato (wifi/antenas o uno de hace menos de 30 s) para que la familia vea
  * algo de una vez mientras el GPS fino responde. Si es muy impreciso no se usa.
  */
 async function posicionRapida() {
   // Versión 93: primero el servicio de ubicación del celular (la última conocida, si es reciente,
-  // o una de ahora en máximo 4 s); si no hay (página web) o falla, la del navegador como antes
+  // o una de ahora en máximo 4 s); si no hay (página web) o falla, la del navegador como antes.
+  // Versión 100: la última conocida solo de hace menos de 30 s (antes 2 min: yendo en carro, eso
+  // puede ser a más de un kilómetro)
   const ultima = await ultimaUbicacionNativa()
-  if (ultima && ultima.edadMs < 120000 && ultima.precision <= 300) {
+  if (ultima && ultima.edadMs < 30000 && ultima.precision <= 300) {
     return { lat: ultima.lat, lng: ultima.lng, precision: ultima.precision, ts: Date.now() - ultima.edadMs }
   }
   const actual = await ubicacionActualNativa(4000)
@@ -108,7 +119,7 @@ function posicionRapidaNavegador() {
         ? { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, ts: Date.now() }
         : null),
       () => resolve(null),
-      { enableHighAccuracy: false, maximumAge: 120000, timeout: 5000 },
+      { enableHighAccuracy: false, maximumAge: 30000, timeout: 5000 },
     )
   })
 }
@@ -747,6 +758,10 @@ export default function Ubicacion() {
     // desmontado y sus refs ya no sirven.
     const p = ultimaPosGlobal || ultimaRef.current
     if (!p || enviandoPosicion) return
+    // Un punto viejo no se manda como si fuera de ahora (versión 100): con la página web en segundo
+    // plano el navegador deja de dar puntos y se seguía mandando el último cada segundo; la familia
+    // veía "ahora mismo" donde la persona ya no estaba. Ahora ve "sin actualizar" y desde cuándo
+    if (p.ts && Date.now() - p.ts > VIGENTE_MS) return
     // Si ya paso el tiempo elegido, se apaga solo y no se envia mas.
     if (tiempoFinGlobal && Date.now() >= tiempoFinGlobal) {
       soltarTemporizadores()
@@ -1235,6 +1250,8 @@ function Mapa({ centroInicial, yo, yoCompartiendo, familiares, enfocado, t, cent
   const mapRef = useRef(null)
   const yoMarkerRef = useRef(null)
   const famMarkersRef = useRef({})
+  // Cómo se dibujó cada marcador (nombre y si estaba al día), para cambiarlo solo cuando cambie
+  const famIconosRef = useRef({})
   const fittedRef = useRef(false)
   const capaBaseRef = useRef(null)
   // Cambia cada vez que se crea el mapa: los marcadores se dibujan aunque lleguen antes que él
@@ -1270,6 +1287,7 @@ function Mapa({ centroInicial, yo, yoCompartiendo, familiares, enfocado, t, cent
       .lf-yo{width:18px;height:18px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);animation:lfpulse 2s ease-out infinite}
       .lf-yo-local{width:18px;height:18px;border-radius:50%;background:#2471A3;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)}
       .lf-fam{width:44px;height:44px;border-radius:50%;background:#1E8449;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;font-family:system-ui,sans-serif;animation:lfpulse 2.5s ease-out infinite}
+      .lf-fam-viejo{background:#8a8f94;animation:none}
       .lf-fam-label{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.72);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;padding:2px 7px;border-radius:6px;font-family:system-ui,sans-serif;pointer-events:none}
     `
     document.head.appendChild(s)
@@ -1350,23 +1368,30 @@ function Mapa({ centroInicial, yo, yoCompartiendo, familiares, enfocado, t, cent
     if (!map) return
     const activeIds = new Set(familiares.filter(f => f.ubicacion).map(f => f.id))
     Object.keys(famMarkersRef.current).forEach(id => {
-      if (!activeIds.has(id)) { map.removeLayer(famMarkersRef.current[id]); delete famMarkersRef.current[id] }
+      if (!activeIds.has(id)) { map.removeLayer(famMarkersRef.current[id]); delete famMarkersRef.current[id]; delete famIconosRef.current[id] }
     })
     familiares.forEach(f => {
       if (!f.ubicacion) return
       const nombre = f.nombre || '?'
       const partes = nombre.trim().split(/\s+/)
       const iniciales = (partes[0]?.[0] || '') + (partes[1]?.[0] || '')
+      // Más de 2 minutos sin ubicación nueva: el muñeco se ve gris y quieto (versión 100), para que no
+      // parezca en vivo un punto donde la persona quizá ya no está (la lista dice desde cuándo)
+      const viejo = Date.now() - new Date(f.ubicacion.updated_at).getTime() > VIGENTE_MS
+      const clave = `${iniciales}|${nombre}|${viejo}`
       const icon = L.divIcon({
         className: '',
-        html: `<div style="position:relative"><div class="lf-fam">${iniciales.toUpperCase()}</div><div class="lf-fam-label">${nombre}</div></div>`,
+        html: `<div style="position:relative"><div class="lf-fam${viejo ? ' lf-fam-viejo' : ''}">${textoSeguro(iniciales.toUpperCase())}</div><div class="lf-fam-label">${textoSeguro(nombre)}</div></div>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       })
       const pos = [f.ubicacion.latitude, f.ubicacion.longitude]
       if (famMarkersRef.current[f.id]) {
         famMarkersRef.current[f.id].setLatLng(pos)
+        if (famIconosRef.current[f.id] !== clave) famMarkersRef.current[f.id].setIcon(icon)
+        famIconosRef.current[f.id] = clave
       } else {
+        famIconosRef.current[f.id] = clave
         famMarkersRef.current[f.id] = L.marker(pos, { icon })
           .addTo(map)
         if (!fittedRef.current) { map.setView(pos, 15); fittedRef.current = true }

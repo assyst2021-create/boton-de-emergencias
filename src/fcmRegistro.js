@@ -56,6 +56,8 @@ export async function registrarFCM(supabase, userId) {
       // Con la app abierta Android no pinta la notificación FCM: se muestra como local, con sonido
       await PushNotifications.addListener('pushNotificationReceived', async n => {
         if (!LocalNotifications) return
+        // Las órdenes internas del servidor (sin título ni texto) no son avisos: no se muestra nada
+        if (!n.title && !n.body) return
         await LocalNotifications.schedule({
           notifications: [{
             id: Math.floor(Math.random() * 2147483647),

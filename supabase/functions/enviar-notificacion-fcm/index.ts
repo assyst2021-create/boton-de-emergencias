@@ -3,6 +3,9 @@
  * Se llama desde un Database Webhook cuando se inserta una nueva alerta.
  * Busca los familiares vinculados y les envía una notificación FCM push,
  * en el idioma y con la hora de cada familiar (versión 89).
+ * Versión 100: si es una alerta automática que salió sin ubicación (la app estaba cerrada y no se
+ * estaba compartiendo), además se le pide al celular de quien la envía la ubicación de ESTE momento.
+ * El celular responde solo, con una llave de un solo uso, y la familia recibe el aviso con el mapa.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -24,6 +27,34 @@ async function primeraVez(clave: string): Promise<boolean> {
     return error?.code !== '23505'
   } catch (_) {
     return true
+  }
+}
+
+const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+
+/**
+ * Pide al celular de quien envió la alerta automática su ubicación de este momento (versión 100).
+ * Antes la alerta automática salía con la ubicación de cuando se programó (de hasta 2 horas antes).
+ * Si algo falla, la alerta ya salió igual: solo se queda sin el mapa.
+ */
+async function pedirUbicacionAlCelular(alertaId: string, fcmToken: string, accessToken: string) {
+  try {
+    const llave = hex(crypto.getRandomValues(new Uint8Array(32)).buffer)
+    const huella = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(llave)))
+    const { error } = await supabase.from('alertas_ubicar').upsert({
+      alert_id: alertaId, llave_hash: huella, valida_hasta: new Date(Date.now() + 15 * 60000).toISOString(),
+    }, { onConflict: 'alert_id' })
+    // Sin la tabla (falta el SQL de la 100) no se pide nada
+    if (error) { console.warn('[fcm] alertas_ubicar:', error.message); return }
+    const res = await fetch(`https://fcm.googleapis.com/v1/projects/${SA.project_id}/messages:send`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      // 10 minutos: si el celular está sin señal un momento, la recibe al conectarse
+      body: JSON.stringify({ message: { token: fcmToken, data: { tipo: 'ubicar-alerta', llave }, android: { priority: 'high', ttl: '600s' } } }),
+    })
+    if (!res.ok) console.warn('[fcm] ubicar-alerta:', JSON.stringify(await res.json().catch(() => ({}))))
+  } catch (e) {
+    console.warn('[fcm] ubicar-alerta:', e)
   }
 }
 
@@ -205,7 +236,7 @@ Deno.serve(async (req) => {
       pedirFamilia(),
       supabase
         .from('users')
-        .select('full_name')
+        .select('full_name, fcm_token')
         .eq('id', emisorId)
         .maybeSingle(),
       tokenFcm(),
@@ -235,6 +266,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Alerta automática sin ubicación: se le pide al celular la de este momento (sale a la vez que los avisos)
+    const pedidoUbicacion = (!esUbicacion && !esUbicacionAlerta && alerta.is_auto
+      && (alerta.latitude == null || alerta.longitude == null) && emisor?.fcm_token)
+      ? pedirUbicacionAlCelular(alerta.id, emisor.fcm_token, accessToken)
+      : Promise.resolve()
+
     // Solo a los familiares elegidos: destinatarios (alerta) o compartir_con (ubicación).
     // Vacío o null = todo el grupo familiar, como siempre.
     const elegidos: string[] | null = esUbicacion ? alerta.compartir_con : alerta.destinatarios
@@ -243,6 +280,7 @@ Deno.serve(async (req) => {
       : (links || [])
 
     if (destino.length === 0) {
+      await pedidoUbicacion
       return new Response(JSON.stringify({ ok: true, enviadas: 0 }), { status: 200 })
     }
 
@@ -328,6 +366,7 @@ Deno.serve(async (req) => {
       return fcmRes.ok
     }))
     const enviadas = resultados.filter(Boolean).length
+    await pedidoUbicacion
 
     return new Response(JSON.stringify({ ok: true, enviadas }), { status: 200 })
   } catch (e) {
