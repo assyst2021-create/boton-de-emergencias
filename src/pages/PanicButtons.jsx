@@ -671,15 +671,32 @@ export default function PanicButtons() {
       if (EN_CAPACITOR) {
         // Android: SMS silencioso — sin abrir la app de mensajes. UN SOLO SMS por toque y siempre con
         // la ubicación (versión 102): si en este instante el celular no tiene una de los últimos
-        // 2 minutos, espera máximo 15 s a que llegue; si no llega, sale con la última que conozca
+        // 2 minutos, espera máximo 15 s a que llegue; si no llega, sale con la última que conozca.
+        // Si mientras espera la app se va al fondo o se cierra, sale en ese mismo instante.
         setRespaldo({ numeros, cuerpo, contactos: elegidos, boton, smsSilencioso: true })
-        const enviarSms = texto => SilentSms.enviar({ numeros, cuerpo: texto }).catch(() => {
-          // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
-          window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(texto)}`
-        })
+        let smsSalio = false
+        const enviarSms = texto => {
+          if (smsSalio) return
+          smsSalio = true
+          SilentSms.enviar({ numeros, cuerpo: texto }).catch(() => {
+            // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
+            window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(texto)}`
+          })
+        }
         if (puntoFresco()) enviarSms(cuerpo)
-        else Promise.race([esperarUbicacion(), new Promise(r => setTimeout(r, 15000))])
-          .then(() => enviarSms(construirCuerpo(boton)), () => enviarSms(construirCuerpo(boton)))
+        else {
+          const ahoraMismo = () => {
+            if (document.visibilityState !== 'hidden') return
+            document.removeEventListener('visibilitychange', ahoraMismo)
+            enviarSms(construirCuerpo(boton))
+          }
+          document.addEventListener('visibilitychange', ahoraMismo)
+          const cuandoLlegue = () => {
+            document.removeEventListener('visibilitychange', ahoraMismo)
+            enviarSms(construirCuerpo(boton))
+          }
+          Promise.race([esperarUbicacion(), new Promise(r => setTimeout(r, 15000))]).then(cuandoLlegue, cuandoLlegue)
+        }
       } else if (ES_IOS && numeros.length > 1) {
         setRespaldo({ numeros, cuerpo, contactos: elegidos, boton })
         // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
