@@ -485,19 +485,23 @@ export default function PanicButtons() {
     return authUser.id
   }
 
-  /** Arma el texto del SMS: sin emoji ni tildes, para que quepa en el menor número de SMS. */
+  /**
+   * Arma el texto del SMS: sin emoji ni tildes, para que quepa en el menor número de SMS. Lleva la
+   * ubicación de los últimos 2 minutos o, si no hay, la última que conozca el celular (versión 102:
+   * el SMS siempre sale con ubicación, como antes)
+   */
   function construirCuerpo(boton) {
     const idioma = LOCALES[lang] || 'es-CO'
     const fecha = new Date().toLocaleDateString(idioma)
-    const p = puntoFresco()
+    const p = puntoFresco() || posRef.current
     const mapsLink = p ? linkMapa(p) : t('gpsNoDisponible')
     // Separado con guiones: la barra | cuenta doble en el SMS
     return textoSms(`${t(boton.mensajeKey)} - ${user?.full_name || ''} - ${t(boton.estadoKey)} - ${mapsLink} - ${horaSms(idioma)} ${fecha}`)
   }
 
   /**
-   * Espera el primer punto de GPS (máximo 3 minutos). Lo comparten el SMS de seguimiento y
-   * la alerta guardada, y sigue funcionando aunque se cambie de pestaña.
+   * Espera el primer punto de GPS (máximo 3 minutos). Lo usan la alerta guardada y el SMS (este espera
+   * máximo 15 s), y sigue funcionando aunque se cambie de pestaña.
    */
   const esperaRef = useRef(null)
   function esperarUbicacion() {
@@ -533,26 +537,12 @@ export default function PanicButtons() {
   }
 
   /**
-   * Si al pulsar todavía no había GPS (sin datos el primer punto puede tardar), el SMS
-   * salió sin ubicación. Apenas llegue un punto, dentro de 3 minutos, se manda otro SMS
-   * solo con la ubicación.
-   */
-  function enviarUbicacionCuandoLlegue(numeros, precisa = false) {
-    const idioma = LOCALES[lang] || 'es-CO'
-    const encabezado = `${t('smsUbicacionDe')} ${user?.full_name || ''}`
-    // precisa: el SMS salió con una ubicación aproximada; este lleva la exacta del GPS (versión 100)
-    ;(precisa ? esperarPrecisa() : esperarUbicacion()).then(p => {
-      if (p) SilentSms.enviar({ numeros, cuerpo: textoSms(`${encabezado}: ${linkMapa(p)} - ${horaSms(idioma)}`) }).catch(() => {})
-    })
-  }
-
-  /**
    * Espera una ubicación exacta de GPS (máximo 3 minutos), con el servicio de ubicación del celular y
    * con el del navegador a la vez. Devuelve null si no llega.
    */
   const esperaPrecisaRef = useRef(null)
   function esperarPrecisa(maxMs = 180000) {
-    // Una sola búsqueda a la vez: la comparten el SMS y la alerta
+    // Una sola búsqueda a la vez
     if (esperaPrecisaRef.current) return esperaPrecisaRef.current
     esperaPrecisaRef.current = new Promise(resolve => {
       const exacta = q => q && q.precision != null && q.precision <= PRECISO_M
@@ -679,16 +669,17 @@ export default function PanicButtons() {
 
     if (numeros.length > 0) {
       if (EN_CAPACITOR) {
-        // Android: SMS silencioso — sin abrir la app de mensajes
+        // Android: SMS silencioso — sin abrir la app de mensajes. UN SOLO SMS por toque y siempre con
+        // la ubicación (versión 102): si en este instante el celular no tiene una de los últimos
+        // 2 minutos, espera máximo 15 s a que llegue; si no llega, sale con la última que conozca
         setRespaldo({ numeros, cuerpo, contactos: elegidos, boton, smsSilencioso: true })
-        SilentSms.enviar({ numeros, cuerpo }).catch(() => {
+        const enviarSms = texto => SilentSms.enviar({ numeros, cuerpo: texto }).catch(() => {
           // Si el plugin falla (permiso denegado, etc.), fallback a URL scheme
-          window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(cuerpo)}`
+          window.location.href = `sms:${numeros.join(',')}?body=${encodeURIComponent(texto)}`
         })
-        // Sin ubicación reciente: otro SMS apenas llegue. Con una aproximada: otro con la exacta
-        const usado = puntoFresco()
-        if (!usado) enviarUbicacionCuandoLlegue(numeros)
-        else if (usado.precision == null || usado.precision > 100) enviarUbicacionCuandoLlegue(numeros, true)
+        if (puntoFresco()) enviarSms(cuerpo)
+        else Promise.race([esperarUbicacion(), new Promise(r => setTimeout(r, 15000))])
+          .then(() => enviarSms(construirCuerpo(boton)), () => enviarSms(construirCuerpo(boton)))
       } else if (ES_IOS && numeros.length > 1) {
         setRespaldo({ numeros, cuerpo, contactos: elegidos, boton })
         // iOS no soporta múltiples destinatarios en un solo sms: — abre uno por uno
@@ -1006,7 +997,7 @@ export default function PanicButtons() {
         // El texto se vuelve a armar aquí: si al tocar aún no había GPS, el mensaje salía sin el
         // mapa; cuando el punto llega (setGps('listo') repinta), el link de WhatsApp ya lo incluye.
         const cuerpoActual = respaldo.boton ? construirCuerpo(respaldo.boton) : respaldo.cuerpo
-        const faltaUbicacion = !puntoFresco()
+        const faltaUbicacion = !puntoFresco() && !posRef.current
         return (
         <div className={styles.respaldo}>
           <strong>📤 {t('envioManualTitulo')}</strong>
