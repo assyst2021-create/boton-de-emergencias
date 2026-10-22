@@ -77,7 +77,11 @@ async function enviarDato(fcmToken: string, datos: Record<string, string>, ttlSe
       const res = await fetch(`https://fcm.googleapis.com/v1/projects/${SA.project_id}/messages:send`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: { token: fcmToken, data: datos, android: { priority: 'high', ttl: `${ttlSeg}s` } } }),
+        body: JSON.stringify({ message: {
+          token: fcmToken, data: datos, android: { priority: 'high', ttl: `${ttlSeg}s` },
+          // iPhone (22-10): orden escondida, se entrega en segundo plano (Android ignora este bloque)
+          apns: { headers: { 'apns-priority': '5', 'apns-push-type': 'background' }, payload: { aps: { 'content-available': 1 } } },
+        } }),
       })
       if (res.ok) return true
       if (res.status === 401) tokenCache = null

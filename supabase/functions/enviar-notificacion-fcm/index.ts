@@ -6,6 +6,9 @@
  * Versión 100: si es una alerta automática que salió sin ubicación (la app estaba cerrada y no se
  * estaba compartiendo), además se le pide al celular de quien la envía la ubicación de ESTE momento.
  * El celular responde solo, con una llave de un solo uso, y la familia recibe el aviso con el mapa.
+ * iPhone (22-10): los avisos y el mensaje escondido 'ubicar-alerta' llevan también su bloque apns
+ * (Android lo ignora). Los avisos salen con prioridad alta y sonido; el escondido, en segundo plano.
+ * 'sonar' es solo de Android y no lo lleva.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -50,7 +53,11 @@ async function pedirUbicacionAlCelular(alertaId: string, fcmToken: string, acces
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       // 10 minutos: si el celular está sin señal un momento, la recibe al conectarse
-      body: JSON.stringify({ message: { token: fcmToken, data: { tipo: 'ubicar-alerta', llave }, android: { priority: 'high', ttl: '600s' } } }),
+      body: JSON.stringify({ message: {
+        token: fcmToken, data: { tipo: 'ubicar-alerta', llave }, android: { priority: 'high', ttl: '600s' },
+        // iPhone: mensaje escondido, se entrega en segundo plano
+        apns: { headers: { 'apns-priority': '5', 'apns-push-type': 'background' }, payload: { aps: { 'content-available': 1 } } },
+      } }),
     })
     if (!res.ok) console.warn('[fcm] ubicar-alerta:', JSON.stringify(await res.json().catch(() => ({}))))
   } catch (e) {
@@ -354,6 +361,11 @@ Deno.serve(async (req) => {
                   notification_priority: 'PRIORITY_MAX',
                   visibility: 'PUBLIC',
                 },
+              },
+              // iPhone: aviso con prioridad alta y sonido; las alertas, como urgentes (time-sensitive)
+              apns: {
+                headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+                payload: { aps: { sound: 'default', 'interruption-level': esUbicacion ? 'active' : 'time-sensitive' } },
               },
             },
           }),
