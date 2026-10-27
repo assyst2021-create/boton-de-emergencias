@@ -4,6 +4,7 @@ import { registerPlugin } from '@capacitor/core'
 import { suscribirPush } from './pushSubscription'
 import { registrarFCM } from './fcmRegistro'
 import { revisarRecuperacionPendiente } from './recuperarPendiente'
+import { revisarEdadBrasil } from './edad'
 import { sincronizarSonido } from './sonidoAlerta'
 import { escucharCompras, sincronizarCompras, cambioElPlan } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
@@ -449,6 +450,7 @@ function AppInner() {
       </BrowserRouter>
       {mostrarPerfil && <Perfil pasoInicial={mostrarPerfil === 'plan' ? 'plan' : 'menu'} onCerrar={() => setMostrarPerfil(false)} />}
       <TourInicial uid={session.user.id} onAbrir={setTourAbierto} />
+      <AvisoEdad uid={session.user.id} tourAbierto={tourAbierto} />
       {tourAbierto && (
         <Suspense fallback={null}>
           <Tour
@@ -467,6 +469,48 @@ function AppInner() {
 }
 
 const RUTAS = ['/', '/historial', '/familia', '/ubicacion']
+
+/**
+ * Verificación de edad (versión 104, solo Brasil, ley ECA Digital): si la persona es menor de 18 años
+ * y sus padres no supervisan su cuenta, un aviso UNA vez: necesita la autorización de sus padres. No
+ * bloquea nada (los botones de alerta siempre funcionan). Sale después del tour y nunca si la app se
+ * abrió desde una notificación (puede ser una emergencia).
+ */
+function AvisoEdad({ uid, tourAbierto }) {
+  const { t } = useLanguage()
+  const [ver, setVer] = useState(false)
+  useEffect(() => {
+    if (tourAbierto) return
+    try { if (!localStorage.getItem(`tourVisto_${uid}`)) return } catch (_) { return }
+    let vivo = true
+    const espera = setTimeout(() => {
+      if (!vivo || window.__abiertaPorAviso) return
+      revisarEdadBrasil(uid).then(menor => { if (vivo && menor) setVer(true) }, () => {})
+    }, 4000)
+    return () => { vivo = false; clearTimeout(espera) }
+  }, [uid, tourAbierto])
+  if (!ver) return null
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="aviso-edad-titulo" data-bloquea-tour style={{
+      position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(6,10,24,0.72)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div style={{
+        background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 18,
+        padding: '22px 20px', width: 'min(380px, 100%)', boxSizing: 'border-box', textAlign: 'center',
+        display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 18px 50px rgba(0,0,0,0.38)',
+      }}>
+        <div style={{ fontSize: '2.4rem' }} aria-hidden="true">👨‍👩‍👧</div>
+        <h2 id="aviso-edad-titulo" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, textWrap: 'balance' }}>{t('edadTitulo')}</h2>
+        <p style={{ margin: 0, color: 'var(--text2)', lineHeight: 1.55, fontSize: '0.92rem' }}>{t('edadTexto')}</p>
+        <button onClick={() => setVer(false)} style={{
+          background: '#C0392B', color: '#fff', fontWeight: 800, fontSize: '1rem', padding: '13px 20px',
+          borderRadius: 12, border: 'none', cursor: 'pointer', marginTop: 4,
+        }}>{t('edadBoton')}</button>
+      </div>
+    </div>
+  )
+}
 
 /**
  * El tour sale solo la primera vez que la persona entra a la app en este celular (se salte o se

@@ -6,6 +6,8 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { RESPONSABLE } from '../i18n/legalMeta'
 import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual, huellaCuenta } from '../billing'
 
+const LOCALES = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' }
+
 // En la página web no hay pagos: los planes se compran en la app instalada desde Google Play
 const URL_PLAY = 'https://play.google.com/store/apps/details?id=com.ssthechofacil.botonemergencias'
 // Donde la persona ve, cambia o cancela su suscripción (Google Play)
@@ -13,7 +15,7 @@ export const URL_SUSCRIPCIONES = 'https://play.google.com/store/account/subscrip
 
 // conX: después de registrarse, una X arriba para cerrar (queda en Gratis, igual que Continuar gratis)
 export default function ElegirPlan({ onElegido, conX = false }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [ciclo, setCiclo] = useState('anual')
   const [precios, setPrecios] = useState({})
   const [preciosListos, setPreciosListos] = useState(false)
@@ -105,6 +107,19 @@ export default function ElegirPlan({ onElegido, conX = false }) {
     return () => { montadaRef.current = false }
   }, [])
 
+  /** Hasta cuándo tiene Premium regalado, si sigue vigente (null si no tiene). */
+  async function regaloVigente() {
+    try {
+      const uid = (await obtenerSesion())?.user?.id
+      if (!uid) return null
+      const { data } = await supabase.from('users').select('premium_regalo_hasta').eq('id', uid).maybeSingle()
+      const hasta = data?.premium_regalo_hasta ? new Date(data.premium_regalo_hasta) : null
+      return hasta && hasta.getTime() > Date.now() ? hasta : null
+    } catch (_) {
+      return null
+    }
+  }
+
   async function restaurar() {
     setRestaurando(true)
     setErrorPago(null)
@@ -190,8 +205,16 @@ export default function ElegirPlan({ onElegido, conX = false }) {
         seguirIntentando(resultado.token, seleccionado)
         return
       }
-      setPlanActual(seleccionado)
       window.dispatchEvent(new Event('recargarPlan'))
+      // Ya tenía Premium regalado (versión 104): la compra quedó activa, pero en pantalla no cambiaba
+      // nada y parecía que no había funcionado. Se le dice, y se mantiene el que dure más
+      const regalo = await regaloVigente()
+      if (regalo) {
+        setPlanActual('premium')
+        setAviso(t('billingConRegalo').replace('{fecha}', regalo.toLocaleDateString(LOCALES[lang] || 'es-CO')))
+        return
+      }
+      setPlanActual(seleccionado)
       onElegido()
     } catch (_) {
       setErrorPago(t('billingError'))
