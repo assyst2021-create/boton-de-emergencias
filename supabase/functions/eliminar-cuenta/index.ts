@@ -12,10 +12,33 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+/**
+ * La llave del servidor: la nueva de Supabase (SUPABASE_SECRET_KEYS) y, si el proyecto todavía no la
+ * tiene, la de antes (SUPABASE_SERVICE_ROLE_KEY, que Supabase retira a finales de 2026).
+ */
+function llaveServidor(): string {
+  try {
+    const llaves = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}')
+    const llave = llaves.default ?? Object.values(llaves)[0]
+    if (typeof llave === 'string' && llave) return llave
+  } catch (_) { /* sin llaves nuevas */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+}
+
+/** La llave pública: la nueva (SUPABASE_PUBLISHABLE_KEYS) y, si no la hay, la de antes (SUPABASE_ANON_KEY). */
+function llavePublica(): string {
+  try {
+    const llaves = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}')
+    const llave = llaves.default ?? Object.values(llaves)[0]
+    if (typeof llave === 'string' && llave) return llave
+  } catch (_) { /* sin llaves nuevas */ }
+  return Deno.env.get('SUPABASE_ANON_KEY')!
+}
+
 const URL = Deno.env.get('SUPABASE_URL')!
-const admin = createClient(URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+const admin = createClient(URL, llaveServidor())
 // Cliente aparte, sin guardar sesión: solo para comprobar quién llama y su contraseña
-const clienteAuth = () => createClient(URL, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } })
+const clienteAuth = () => createClient(URL, llavePublica(), { auth: { persistSession: false, autoRefreshToken: false } })
 
 const MAX_INTENTOS = 5
 const BLOQUEO_MIN = 30

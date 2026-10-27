@@ -27,6 +27,19 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+/**
+ * La llave del servidor: la nueva de Supabase (SUPABASE_SECRET_KEYS) y, si el proyecto todavía no la
+ * tiene, la de antes (SUPABASE_SERVICE_ROLE_KEY, que Supabase retira a finales de 2026).
+ */
+function llaveServidor(): string {
+  try {
+    const llaves = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}')
+    const llave = llaves.default ?? Object.values(llaves)[0]
+    if (typeof llave === 'string' && llave) return llave
+  } catch (_) { /* sin llaves nuevas */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+}
+
 type SupabaseClient = ReturnType<typeof createClient>
 
 const PAQUETE = 'com.ssthechofacil.botonemergencias'
@@ -340,7 +353,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, llaveServidor())
     const body = await req.json().catch(() => ({}))
 
     // Revisión automática: deja la base igual a lo que dice Google (nada se activa sin que Google lo confirme)

@@ -13,6 +13,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'https://esm.sh/web-push@3.6.7'
 
+/**
+ * La llave del servidor: la nueva de Supabase (SUPABASE_SECRET_KEYS) y, si el proyecto todavía no la
+ * tiene, la de antes (SUPABASE_SERVICE_ROLE_KEY, que Supabase retira a finales de 2026).
+ */
+function llaveServidor(): string {
+  try {
+    const llaves = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}')
+    const llave = llaves.default ?? Object.values(llaves)[0]
+    if (typeof llave === 'string' && llave) return llave
+  } catch (_) { /* sin llaves nuevas */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+}
+
 const VAPID_PUBLIC  = 'BCI3dnwVQ3MoJAGxg3VcDHGkXQsB-3-RAVXOG8YRaFbSfpgrJ3QsiC6MzPnGW6ARqp86MobCsvjWw2mku6dL3LE'
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY')!
 const VAPID_EMAIL   = 'mailto:assyst2021@ssthechofacil.com'
@@ -21,7 +34,7 @@ webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE)
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  llaveServidor(),
 )
 
 /**
