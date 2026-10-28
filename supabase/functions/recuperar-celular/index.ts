@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
     // Correo o usuario. El @ de adelante se quita (versión 105): la app muestra los usuarios como
     // "@usuario" y, escrito así, se tomaba como un correo que no existe (cada intento contaba como fallido)
     let clave = String(body.correo_o_usuario || '').trim().toLowerCase()
-    if (/^@[^@s]+$/.test(clave)) clave = clave.slice(1)
+    if (/^@[^@\s]+$/.test(clave)) clave = clave.slice(1)
     const password = String(body.password || '')
     if (!clave || !password) return json({ ok: false, error: 'FALTAN_DATOS' })
 
