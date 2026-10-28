@@ -193,7 +193,7 @@ export default function Login() {
             <label>{t('contrasena')}</label>
             <div className={styles.passwordWrap}>
               <input
-                type={verPassword ? 'text' : 'password'}
+                type={verPassword ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 placeholder={modo === 'registro' ? t('contrasenaRegPh') : t('contrasenaPh')}
                 value={form.password}
                 onChange={set('password')}
@@ -220,7 +220,7 @@ export default function Login() {
               <label>{t('confirmarContrasena')}</label>
               <div className={styles.passwordWrap}>
                 <input
-                  type={verConfirmar ? 'text' : 'password'}
+                  type={verConfirmar ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false}
                   placeholder={t('confirmarPh')}
                   value={form.confirmar}
                   onChange={set('confirmar')}

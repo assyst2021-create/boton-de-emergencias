@@ -170,7 +170,10 @@ Deno.serve(async (req) => {
     }
 
     const accion = body.accion === 'detener' ? 'detener' : body.accion === 'familiares' ? 'familiares' : 'solicitar'
-    const clave = String(body.correo_o_usuario || '').trim().toLowerCase()
+    // Correo o usuario. El @ de adelante se quita (versión 105): la app muestra los usuarios como
+    // "@usuario" y, escrito así, se tomaba como un correo que no existe (cada intento contaba como fallido)
+    let clave = String(body.correo_o_usuario || '').trim().toLowerCase()
+    if (/^@[^@s]+$/.test(clave)) clave = clave.slice(1)
     const password = String(body.password || '')
     if (!clave || !password) return json({ ok: false, error: 'FALTAN_DATOS' })
 
@@ -200,6 +203,15 @@ Deno.serve(async (req) => {
     const owner = (verificado as any).data?.user
 
     if (!owner) {
+      // Solo cuenta como intento fallido si de verdad no coinciden (no existe o contraseña equivocada).
+      // Si Supabase no pudo responder (demasiadas peticiones, sin conexión), no se castiga: se pide
+      // intentar de nuevo (versión 105; antes sumaba intentos y podía bloquear 30 minutos sin culpa)
+      const errInicio = (verificado as any).error
+      const noCoincide = !email || errInicio?.code === 'invalid_credentials' || /invalid login credentials/i.test(errInicio?.message || '')
+      if (!noCoincide) {
+        console.error('[recuperar-celular] inicio de sesión:', errInicio?.status, errInicio?.code, errInicio?.message)
+        return json({ ok: false, error: 'ERROR_SERVIDOR' })
+      }
       // Fallo: sumar intento y, si pasa el tope, bloquear 30 min
       const intentos = (bloqueo?.intentos || 0) + 1
       const bloquear = intentos >= MAX_INTENTOS

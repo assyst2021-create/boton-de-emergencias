@@ -26,6 +26,13 @@ const OPCIONES_TIEMPO = [
 
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
+/** El atajo "Ubicación 24 h" pendiente (versión 105): se toma una sola vez y solo si es de hace menos de 2 min. */
+function tomarAtajoUbicacion() {
+  const ms = window.__atajoUbicacion
+  window.__atajoUbicacion = 0
+  return ms && Date.now() - ms < 120000 ? ms : 0
+}
+
 /**
  * Margen de vida de la sesion. No es un limite duro: cada envio lo empuja
  * hacia adelante, asi que mientras se este compartiendo nunca vence. Solo
@@ -259,13 +266,19 @@ export default function Ubicacion() {
   // Ya llegaron los vínculos del servidor: antes de eso una lista vacía no significa "sin familia"
   const linksCargadosRef = useRef(false)
   const uidGlobalRef = useRef(null)
+  // "Ubicación 24 h" desde un botón rápido de Android (versión 105): se empieza apenas se sepa el plan
+  // y con quién (los mismos marcados de la última vez)
+  const [pedido24h, setPedido24h] = useState(() => tomarAtajoUbicacion())
+  const [initListo, setInitListo] = useState(false)
 
   useEffect(() => {
     // Esta pantalla recibe los puntos del vigilante de GPS, aunque se haya creado en otra
     const recibir = (pos) => { ultimaRef.current = pos; setMiPos(pos) }
     alNuevaPosicion = recibir
     if (ultimaPosGlobal) recibir(ultimaPosGlobal)
-    init()
+    init().finally(() => setInitListo(true))
+    // Sin señal init puede tardar: el atajo de 24 h no espera más de 6 s
+    const initPaciencia = setTimeout(() => setInitListo(true), 6000)
 
     if (EN_CAPACITOR) {
       LocalNotifications.requestPermissions().catch(() => {})
@@ -316,8 +329,42 @@ export default function Ubicacion() {
       document.removeEventListener('visibilitychange', onVisible)
       if (appListener) appListener.remove()
       if (cuentaRef.current) clearInterval(cuentaRef.current)
+      clearTimeout(initPaciencia)
     }
   }, [])
+
+  // Un atajo que llega con el mapa ya abierto
+  useEffect(() => {
+    const llego = () => { const ms = tomarAtajoUbicacion(); if (ms) setPedido24h(ms) }
+    window.addEventListener('atajoUbicacion', llego)
+    return () => window.removeEventListener('atajoUbicacion', llego)
+  }, [])
+
+  // El atajo "Ubicación 24 h": igual que escoger 24 horas y tocar "Empezar a compartir" con los marcados
+  // de la última vez. Si ya se está compartiendo, no se cambia nada. Sin el plan, a Ver planes.
+  useEffect(() => {
+    if (!pedido24h || !initListo) return
+    if (vigilanteRef.current != null || envioRef.current || compartiendo) {
+      setPedido24h(0)
+      setAvisoOk(`📍 ${t('atajoYaCompartiendo')}`)
+      setTimeout(() => setAvisoOk(''), 3500)
+      return
+    }
+    if (!puedeUbicacionEnVivo(perfil)) { setPedido24h(0); abrirPlanes(); return }
+    let excluidos = []
+    try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
+    // Con algunos desmarcados hace falta la lista del grupo: si no llega en 8 s, se pregunta con quién
+    if (excluidos.length && !familiaCargada) {
+      const espera = setTimeout(() => { setPedido24h(0); elegirTiempo(1440) }, 8000)
+      return () => clearTimeout(espera)
+    }
+    setPedido24h(0)
+    const marcados = familiares.filter(f => !excluidos.includes(f.id))
+    const lista = excluidos.length && marcados.length && marcados.length < familiares.length ? marcados.map(f => f.id) : null
+    empezar(true, 1440, lista)
+    setAvisoOk(`📍 ${t('atajoCompartiendo24')}`)
+    setTimeout(() => setAvisoOk(''), 3500)
+  }, [pedido24h, initListo, perfil, familiaCargada])
 
   // Quién está en el grupo y quién tiene Recuperar celular activo, cada 30 s mientras se ve y apenas
   // vuelve la señal (versión 99): antes un familiar recién aceptado solo aparecía tocando 🔄

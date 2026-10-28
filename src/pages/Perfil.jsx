@@ -13,6 +13,7 @@ import { useNavContext } from '../components/NavContext'
 import { esPremium, esFamiliar, esPlanPago } from '../plan'
 import { olvidarFCM } from '../fcmRegistro'
 import { VERSION_LEGAL, RESPONSABLE } from '../i18n/legalMeta'
+import { HAY_ATAJOS, estadoAtajos, agregarAlPanel, agregarWidget } from '../atajos'
 
 export { AppActionsContext } from '../AppActionsContext'
 
@@ -97,6 +98,9 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
   // Nombre del tono escogido de la lista del celular ("tono")
   const [tonoNombre, setTonoNombre] = useState('')
   const [sonidoMsg, setSonidoMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
+  // Botones rápidos (versión 105): qué se puede agregar desde aquí y el resultado
+  const [atajosPuede, setAtajosPuede] = useState({ panel: false, widget: false })
+  const [atajosMsg, setAtajosMsg] = useState(null)   // { tipo: 'ok'|'error', texto }
   const [guardandoSonido, setGuardandoSonido] = useState(false)
   // Permiso de ubicación "Permitir todo el tiempo" (null = no se sabe, por ejemplo en la web)
   const [ubiFondo, setUbiFondo] = useState(null)
@@ -253,6 +257,23 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
       }
     } catch (_) {}
     return null
+  }
+  function abrirBotones() {
+    setAtajosMsg(null)
+    estadoAtajos().then(setAtajosPuede)
+    setPaso('botones')
+  }
+  async function ponerEnPanel(cual) {
+    setAtajosMsg(null)
+    const r = await agregarAlPanel(cual)
+    if (r === 'agregado') setAtajosMsg({ tipo: 'ok', texto: `✓ ${t('botonesPanelOk')}` })
+    else if (r === 'ya') setAtajosMsg({ tipo: 'ok', texto: `✓ ${t('botonesPanelYa')}` })
+    else if (r === 'no') setAtajosMsg({ tipo: 'error', texto: t('botonesPanelNo') })
+    else setAtajosMsg({ tipo: 'error', texto: t('botonesNoSePudo') })
+  }
+  async function ponerWidget() {
+    setAtajosMsg(null)
+    if (!(await agregarWidget())) setAtajosMsg({ tipo: 'error', texto: t('botonesNoSePudo') })
   }
   function abrirSonido() {
     const p = leerPreferencia() || PREFERENCIA_INICIAL
@@ -593,6 +614,12 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <button className={styles.opcion} data-tour="op-sonido" onClick={abrirSonido}>
               🔔 {t('sonidoMenu')}
             </button>
+            {/* Botones rápidos (versión 105): panel rápido, widget y atajos del ícono (son de Android) */}
+            {HAY_ATAJOS && (
+              <button className={styles.opcion} onClick={abrirBotones}>
+                ⚡ {t('botonesMenu')}
+              </button>
+            )}
             {/* Recuperar celular: en la app y en la página web (desde la web un familiar también puede buscar el celular) */}
             <div className={styles.opcionToggle} data-tour="op-permitir">
               <span>
@@ -628,6 +655,75 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
               {t('cerrarSesion')}
             </button>
             <div className={styles.version}>{t('appNombre')} · {t('versionApp')} {version}</div>
+          </div>
+        )}
+
+        {paso === 'botones' && (
+          <div className={styles.form}>
+            <h3 className={styles.recTitulo}>⚡ {t('botonesTitulo')}</h3>
+            <p className={styles.desc} style={{ margin: 0 }}>{t('botonesDesc')}</p>
+
+            <div className={styles.recDatos}>
+              <strong>🎛️ {t('botonesPanelTitulo')}</strong>
+              <span>{t('botonesPanelQue')}</span>
+              {atajosPuede.panel && (
+                <div className={styles.botonesAcciones}>
+                  <button type="button" className={styles.botonesAgregar} style={{ '--b-color': '#C0392B' }} onClick={() => ponerEnPanel('alerta')}>
+                    🚨 {t('botonesAgregarAlerta')}
+                  </button>
+                  <button type="button" className={styles.botonesAgregar} style={{ '--b-color': '#2E5C8A' }} onClick={() => ponerEnPanel('ubicacion')}>
+                    📍 {t('botonesAgregarUbicacion')}
+                  </button>
+                </div>
+              )}
+              <ol className={styles.botonesPasos}>
+                <li>{t('botonesPanelP1')}</li>
+                <li>{t('botonesPanelP2')}</li>
+                <li>{t('botonesPanelP3')}</li>
+              </ol>
+              <span>🔒 {t('botonesPanelBloqueo')}</span>
+            </div>
+
+            <div className={styles.recDatos}>
+              <strong>📱 {t('botonesWidgetTitulo')}</strong>
+              <span>{t('botonesWidgetQue')}</span>
+              <div className={styles.botonesVista} aria-hidden="true">
+                <span style={{ '--b-color': '#C0392B' }}>🚨<small>{t('botonesVistaRojo')}</small></span>
+                <span style={{ '--b-color': '#E67E22' }}>🩹<small>{t('botonesVistaNaranja')}</small></span>
+                <span style={{ '--b-color': '#1E8449' }}>🛡️<small>{t('botonesVistaVerde')}</small></span>
+                <span style={{ '--b-color': '#2E5C8A' }}>📍<small>{t('botonesVistaUbicacion')}</small></span>
+              </div>
+              {atajosPuede.widget && (
+                <button type="button" className={styles.botonesAgregar} style={{ '--b-color': '#1B2233' }} onClick={ponerWidget}>
+                  ➕ {t('botonesAgregarWidget')}
+                </button>
+              )}
+              <ol className={styles.botonesPasos}>
+                <li>{t('botonesWidgetP1')}</li>
+                <li>{t('botonesWidgetP2')}</li>
+                <li>{t('botonesWidgetP3')}</li>
+              </ol>
+            </div>
+
+            <div className={styles.recDatos}>
+              <strong>👆 {t('botonesIconoTitulo')}</strong>
+              <span>{t('botonesIconoQue')}</span>
+              <ol className={styles.botonesPasos}>
+                <li>{t('botonesIconoP1')}</li>
+                <li>{t('botonesIconoP2')}</li>
+                <li>{t('botonesIconoP3')}</li>
+              </ol>
+            </div>
+
+            <div className={styles.recDatos}>
+              <strong>⏱️ {t('botonesCuentaTitulo')}</strong>
+              <span>{t('botonesCuentaDesc')}</span>
+            </div>
+
+            {atajosMsg && (
+              <div className={atajosMsg.tipo === 'ok' ? styles.exito : styles.error} role="status">{atajosMsg.texto}</div>
+            )}
+            <button type="button" className={styles.volver} onClick={() => setPaso('menu')}>{t('volver')}</button>
           </div>
         )}
 
@@ -694,7 +790,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <h3 className={styles.recTitulo}>🔒 {t('salirTitulo')}</h3>
             <p className={styles.desc} style={{ margin: 0 }}>{t('salirDesc')}</p>
             <div className={styles.passwordWrap}>
-              <input type={verSalirClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={salirClave}
+              <input type={verSalirClave ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('claveActualPh')} value={salirClave}
                 onChange={e => setSalirClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerSalirClave(v => !v)}>{verSalirClave ? '🙈' : '👁️'}</button>
             </div>
@@ -737,7 +833,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <h3 className={styles.recTitulo}>⚠️ {t('elimConfirmaTitulo')}</h3>
             <p className={styles.desc} style={{ margin: 0 }}>{t('elimConfirmaDesc')}</p>
             <div className={styles.passwordWrap}>
-              <input type={verElimClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={elimClave}
+              <input type={verElimClave ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('claveActualPh')} value={elimClave}
                 onChange={e => setElimClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerElimClave(v => !v)}>{verElimClave ? '🙈' : '👁️'}</button>
             </div>
@@ -795,7 +891,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <h3 className={styles.recTitulo}>🔒 {t('recApagarTitulo')}</h3>
             <p className={styles.desc} style={{ margin: 0 }}>{t('recApagarDesc')}</p>
             <div className={styles.passwordWrap}>
-              <input type={verRecClave ? 'text' : 'password'} placeholder={t('claveActualPh')} value={recClave}
+              <input type={verRecClave ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('claveActualPh')} value={recClave}
                 onChange={e => setRecClave(e.target.value)} autoComplete="current-password" />
               <button type="button" className={styles.eyeBtn} onClick={() => setVerRecClave(v => !v)}>{verRecClave ? '🙈' : '👁️'}</button>
             </div>
@@ -860,7 +956,7 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
                 />
                 <div className={styles.passwordWrap}>
                   <input
-                    type={verRcClave ? 'text' : 'password'} placeholder={t('recPassPh')} value={rcForm.password}
+                    type={verRcClave ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('recPassPh')} value={rcForm.password}
                     onChange={e => setRcForm(f => ({ ...f, password: e.target.value }))}
                   />
                   <button type="button" className={styles.eyeBtn} onClick={() => setVerRcClave(v => !v)}>{verRcClave ? '🙈' : '👁️'}</button>
@@ -983,21 +1079,21 @@ export default function Perfil({ onCerrar, pasoInicial = 'menu' }) {
             <div className={styles.field}>
               <label>{t('claveActual')}</label>
               <div className={styles.passwordWrap}>
-                <input type={verActual ? 'text' : 'password'} placeholder={t('claveActualPh')} value={form.actual} onChange={set('actual')} autoComplete="current-password" />
+                <input type={verActual ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('claveActualPh')} value={form.actual} onChange={set('actual')} autoComplete="current-password" />
                 <button type="button" className={styles.eyeBtn} onClick={() => setVerActual(v => !v)}>{verActual ? '🙈' : '👁️'}</button>
               </div>
             </div>
             <div className={styles.field}>
               <label>{t('nuevaContrasena')}</label>
               <div className={styles.passwordWrap}>
-                <input type={verNueva ? 'text' : 'password'} placeholder={t('nuevaPh')} value={form.nueva} onChange={set('nueva')} autoComplete="new-password" />
+                <input type={verNueva ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('nuevaPh')} value={form.nueva} onChange={set('nueva')} autoComplete="new-password" />
                 <button type="button" className={styles.eyeBtn} onClick={() => setVerNueva(v => !v)}>{verNueva ? '🙈' : '👁️'}</button>
               </div>
             </div>
             <div className={styles.field}>
               <label>{t('confirmarContrasena')}</label>
               <div className={styles.passwordWrap}>
-                <input type={verConfirmar ? 'text' : 'password'} placeholder={t('confirmarPh')} value={form.confirmar} onChange={set('confirmar')} autoComplete="new-password" />
+                <input type={verConfirmar ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('confirmarPh')} value={form.confirmar} onChange={set('confirmar')} autoComplete="new-password" />
                 <button type="button" className={styles.eyeBtn} onClick={() => setVerConfirmar(v => !v)}>{verConfirmar ? '🙈' : '👁️'}</button>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { suscribirPush } from './pushSubscription'
 import { registrarFCM } from './fcmRegistro'
 import { revisarRecuperacionPendiente } from './recuperarPendiente'
 import { revisarEdadBrasil } from './edad'
+import { escucharAtajos } from './atajos'
 import { sincronizarSonido } from './sonidoAlerta'
 import { escucharCompras, sincronizarCompras, cambioElPlan } from './billing'
 import { revisarActualizacion, instalarActualizacion } from './actualizacion'
@@ -553,6 +554,20 @@ function SwipeRouter() {
     window.addEventListener('irARuta', ir)
     return () => window.removeEventListener('irARuta', ir)
   }, [navigate])
+
+  // Botones rápidos de Android (versión 105): la alerta va a la pantalla de los botones (con 5 segundos
+  // para cancelarla) y la ubicación de 24 horas al mapa. Cada pantalla hace lo mismo que su botón.
+  useEffect(() => escucharAtajos(accion => {
+    if (accion === 'ubicacion24') {
+      window.__atajoUbicacion = Date.now()
+      navigate('/ubicacion')
+      window.dispatchEvent(new Event('atajoUbicacion'))
+    } else {
+      window.__atajoAlerta = { tipo: accion, ms: Date.now() }
+      navigate('/')
+      window.dispatchEvent(new Event('atajoAlerta'))
+    }
+  }), [navigate])
 
   const onTouchStart = useCallback((e) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }

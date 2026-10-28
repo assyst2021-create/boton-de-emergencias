@@ -54,7 +54,7 @@ export default function NuevaContrasena({ onListo }) {
               <div className={styles.field}>
                 <label>{t('nuevaContrasena')}</label>
                 <div className={styles.passwordWrap}>
-                  <input type={ver ? 'text' : 'password'} placeholder={t('nuevaPh')} value={nueva}
+                  <input type={ver ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('nuevaPh')} value={nueva}
                     onChange={e => setNueva(e.target.value)} autoComplete="new-password" />
                   <button type="button" className={styles.eyeBtn} onClick={() => setVer(v => !v)}>{ver ? '🙈' : '👁️'}</button>
                 </div>
@@ -62,7 +62,7 @@ export default function NuevaContrasena({ onListo }) {
               <div className={styles.field}>
                 <label>{t('confirmarContrasena')}</label>
                 <div className={styles.passwordWrap}>
-                  <input type={verConfirmar ? 'text' : 'password'} placeholder={t('confirmarPh')} value={confirmar}
+                  <input type={verConfirmar ? 'text' : 'password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t('confirmarPh')} value={confirmar}
                     onChange={e => setConfirmar(e.target.value)} autoComplete="new-password" />
                   <button type="button" className={styles.eyeBtn} onClick={() => setVerConfirmar(v => !v)}>{verConfirmar ? '🙈' : '👁️'}</button>
                 </div>

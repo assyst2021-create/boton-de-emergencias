@@ -552,3 +552,60 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* Botones rápidos (versión 105) */
+.botonesAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.botonesAgregar {
+  flex: 1 1 140px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--b-color);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.botonesAgregar:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+.botonesPasos {
+  margin: 6px 0 2px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--text);
+}
+.botonesVista {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1B2233, #0F1420);
+}
+.botonesVista span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 2px;
+  border-radius: 12px;
+  background: var(--b-color);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.botonesVista small {
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

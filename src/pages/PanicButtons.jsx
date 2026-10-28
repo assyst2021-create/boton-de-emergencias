@@ -217,6 +217,56 @@ function conTiempoLimite(promesa, ms) {
   ])
 }
 
+const SEGUNDOS_ATAJO = 5
+
+/**
+ * Alerta desde un botón rápido de Android (versión 105: panel rápido, widget o atajo del ícono).
+ * 5 segundos para cancelarla si fue sin querer; después sale igual que si se tocara su botón.
+ */
+function CuentaAtajo({ boton, onEnviar, onCancelar }) {
+  const { t } = useLanguage()
+  const [restanteMs, setRestanteMs] = useState(SEGUNDOS_ATAJO * 1000)
+  const enviarRef = useRef(onEnviar)
+  enviarRef.current = onEnviar
+  useEffect(() => {
+    const fin = Date.now() + SEGUNDOS_ATAJO * 1000
+    let ultimoSegundo = SEGUNDOS_ATAJO
+    let listo = false
+    try { navigator.vibrate?.(60) } catch (_) {}
+    const id = setInterval(() => {
+      const quedan = Math.max(0, fin - Date.now())
+      setRestanteMs(quedan)
+      const segundo = Math.ceil(quedan / 1000)
+      // Un toquecito de vibración por segundo: se siente sin mirar la pantalla
+      if (segundo < ultimoSegundo && segundo > 0) { ultimoSegundo = segundo; try { navigator.vibrate?.(40) } catch (_) {} }
+      if (quedan === 0 && !listo) { listo = true; clearInterval(id); enviarRef.current() }
+    }, 100)
+    return () => clearInterval(id)
+  }, [])
+  const segundos = Math.ceil(restanteMs / 1000)
+  const RADIO = 88
+  const VUELTA = 2 * Math.PI * RADIO
+  return createPortal(
+    <div className={styles.atajoFondo} style={{ '--atajo-color': boton.color }} role="alertdialog" aria-modal="true"
+      aria-labelledby="atajo-titulo" aria-describedby="atajo-desc">
+      <p className={styles.atajoEtiqueta}>{boton.emoji} {t('atajoEnviando')}</p>
+      <div className={styles.atajoAnillo} aria-hidden="true">
+        <svg viewBox="0 0 200 200" width="200" height="200">
+          <circle cx="100" cy="100" r={RADIO} className={styles.atajoPista} />
+          <circle cx="100" cy="100" r={RADIO} className={styles.atajoAvance}
+            strokeDasharray={VUELTA} strokeDashoffset={VUELTA * (1 - restanteMs / (SEGUNDOS_ATAJO * 1000))} />
+        </svg>
+        <span className={styles.atajoNumero}>{segundos}</span>
+      </div>
+      <h2 id="atajo-titulo" className={styles.atajoTitulo}>{t(boton.tituloKey)}</h2>
+      <p id="atajo-desc" className={styles.atajoDesc}>{t('atajoDesc')}</p>
+      <button type="button" className={styles.atajoCancelar} onClick={onCancelar} autoFocus>✕ {t('atajoCancelar')}</button>
+      <button type="button" className={styles.atajoYa} onClick={() => enviarRef.current()}>{t('atajoEnviarYa')}</button>
+    </div>,
+    document.body,
+  )
+}
+
 export default function PanicButtons() {
   const { t, lang } = useLanguage()
   const { abrirOpciones, abrirPlanes } = useNavContext()
@@ -309,6 +359,27 @@ export default function PanicButtons() {
 
   const vigilanteRef = useRef(null)
   const ultimoToqueRef = useRef({ tipo: null, ms: 0 })
+  // Alerta pedida desde un botón rápido de Android (versión 105): { boton } mientras corre la cuenta
+  const [atajo, setAtajo] = useState(null)
+  const [atajoCancelado, setAtajoCancelado] = useState(false)
+  useEffect(() => {
+    const tomar = () => {
+      const pedido = window.__atajoAlerta
+      if (!pedido) return
+      window.__atajoAlerta = null
+      if (Date.now() - pedido.ms > 120000) return
+      const boton = BOTONES.find(b => b.tipo === pedido.tipo)
+      if (boton) { setAtajoCancelado(false); setAtajo({ boton, id: pedido.ms }) }
+    }
+    tomar()
+    window.addEventListener('atajoAlerta', tomar)
+    return () => window.removeEventListener('atajoAlerta', tomar)
+  }, [])
+  useEffect(() => {
+    if (!atajoCancelado) return
+    const id = setTimeout(() => setAtajoCancelado(false), 4000)
+    return () => clearTimeout(id)
+  }, [atajoCancelado])
 
   /**
    * Lo más rápido primero (versión 93): la última ubicación que el celular ya conoce, al instante,
@@ -1156,6 +1227,16 @@ export default function PanicButtons() {
           </div>
         </div>
       )}
+
+      {atajo && (
+        <CuentaAtajo
+          key={atajo.id}
+          boton={atajo.boton}
+          onEnviar={() => { const b = atajo.boton; setAtajo(null); pulsarBoton(b) }}
+          onCancelar={() => { setAtajo(null); setAtajoCancelado(true) }}
+        />
+      )}
+      {atajoCancelado && <p className={styles.atajoCanceladoAviso} role="status">✓ {t('atajoCancelada')}</p>}
 
       <div className={styles.botonesWrap}>
       <div className={styles.botones}>
