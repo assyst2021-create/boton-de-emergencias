@@ -200,7 +200,8 @@ async function aplicarSuscripcion(supabase: SupabaseClient, acceso: string, user
     return { ok: false, estado: sub.subscriptionState, pendiente: sub.subscriptionState === ESTADO_PENDIENTE }
   }
 
-  const planCompra = productId.includes('familiar') ? 'familiar' : 'premium'
+  // Versión 107 (21-11-2026): el plan Familiar ya no existe; quien lo pagó recibe Premium
+  const planCompra = 'premium'
   const venceMs = vence ? new Date(vence).getTime() : 0
   // Con regalo vigente: Premium hasta lo que dure más (el regalo o la compra Premium)
   const plan = regaloVigente ? 'premium' : planCompra

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, obtenerSesion } from '../supabase'
 import styles from './ElegirPlan.module.css'
-import { esPremium, esFamiliar } from '../plan'
+import { esPremium } from '../plan'
 import { useLanguage } from '../i18n/LanguageContext'
 import { RESPONSABLE } from '../i18n/legalMeta'
 import { Billing, PRODUCTOS, EN_ANDROID, obtenerPrecios, activarCompra, sincronizarCompras, tokenSuscripcionActual, huellaCuenta } from '../billing'
@@ -40,24 +40,7 @@ export default function ElegirPlan({ onElegido, conX = false }) {
         { icono: '📡', texto: t('elegirGratisF5') },
       ],
     },
-    familiar: {
-      id: 'familiar',
-      nombre: t('planFamiliarCorto'),
-      emoji: '👨‍👩‍👧‍👦',
-      color: '#1E8449',
-      precio: { mensual: precio(PRODUCTOS.familiar.mensual), anual: precio(PRODUCTOS.familiar.anual) },
-      productId: PRODUCTOS.familiar,
-      planTipo: 'familiar',
-      features: [
-        { icono: '👨‍👩‍👧‍👦', texto: t('elegirFamiliarF1') },
-        { icono: '🚨', texto: t('elegirFamiliarF2') },
-        { icono: '🔔', texto: t('elegirFamiliarF3') },
-        { icono: '📋', texto: t('elegirFamiliarF4') },
-        { icono: '📍', texto: t('elegirFamiliarF5') },
-        { icono: '⚡', texto: t('elegirFamiliarF6') },
-        { icono: '📡', texto: t('elegirFamiliarF7') },
-      ],
-    },
+    // Versión 107: el plan Familiar ya no se vende (quien lo tiene recibe Premium)
     premium: {
       id: 'premium',
       nombre: t('planPremiumCorto'),
@@ -72,13 +55,13 @@ export default function ElegirPlan({ onElegido, conX = false }) {
         { icono: '🔔', texto: t('elegirPremiumF3') },
         { icono: '📋', texto: t('elegirPremiumF4') },
         { icono: '📍', texto: t('elegirPremiumF5') },
-        { icono: '⚡', texto: t('elegirPremiumF6') },
         { icono: '📡', texto: t('elegirPremiumF7') },
+        { icono: '⚡', texto: t('elegirPremiumF6') },
         { icono: '🔒', texto: t('elegirPremiumF8') },
       ],
     },
   }
-  const [seleccionado, setSeleccionado] = useState('familiar')
+  const [seleccionado, setSeleccionado] = useState('premium')
   const [planActual, setPlanActual] = useState(null)
   const [cargando, setCargando] = useState(false)
   const [errorPago, setErrorPago] = useState(null)
@@ -92,7 +75,6 @@ export default function ElegirPlan({ onElegido, conX = false }) {
         .then(({ data }) => {
           if (!data) return
           if (esPremium(data)) { setPlanActual('premium'); setSeleccionado('premium') }
-          else if (esFamiliar(data)) { setPlanActual('familiar'); setSeleccionado('familiar') }
           else setPlanActual('gratis')
         })
     })

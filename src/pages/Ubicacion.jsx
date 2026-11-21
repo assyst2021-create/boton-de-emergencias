@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import { supabase, obtenerSesion, sesionGuardada } from '../supabase'
 import styles from './Ubicacion.module.css'
 import { useLanguage } from '../i18n/LanguageContext'
-import { puedeUbicacionEnVivo } from '../plan'
+import { puedeUbicacionEnVivo, horasMaxUbicacion } from '../plan'
 import { useNavContext } from '../components/NavContext'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { nuevoUUID } from '../uuid'
@@ -17,12 +17,17 @@ import { useAutoActualizar, canalCaido } from '../autoActualizar'
 /** Cada cuanto se envia la posicion mientras se comparte (web; en Android lo hace el servicio nativo). */
 const INTERVALO_MS = 1000
 
+// Versión 107: Gratis hasta 8 horas; 24 y 48 horas son de Premium (se ven con 👑 y llevan a Ver planes)
 const OPCIONES_TIEMPO = [
-  { clave: 'ubiT15', minutos: 15 },
   { clave: 'ubiT60', minutos: 60 },
   { clave: 'ubiT480', minutos: 480 },
   { clave: 'ubiT1440', minutos: 1440 },
+  { clave: 'ubiT2880', minutos: 2880 },
 ]
+/** Minutos que este plan permite compartir. */
+const minutosMax = perfil => horasMaxUbicacion(perfil) * 60
+/** El atajo "Ubicación 8 h" de los botones rápidos (desde la 107, igual para todos los planes). */
+const MINUTOS_ATAJO = 480
 
 const EN_CAPACITOR = typeof window !== 'undefined' && !!window.Capacitor?.isNativePlatform?.()
 
@@ -340,7 +345,7 @@ export default function Ubicacion() {
     return () => window.removeEventListener('atajoUbicacion', llego)
   }, [])
 
-  // El atajo "Ubicación 24 h": igual que escoger 24 horas y tocar "Empezar a compartir" con los marcados
+  // El atajo "Ubicación 8 h" (antes 24 h): igual que escoger 8 horas y tocar "Empezar a compartir" con los marcados
   // de la última vez. Si ya se está compartiendo, no se cambia nada. Sin el plan, a Ver planes.
   useEffect(() => {
     if (!pedido24h || !initListo) return
@@ -355,13 +360,13 @@ export default function Ubicacion() {
     try { excluidos = JSON.parse(localStorage.getItem(`compartirExcluidos_${uidGlobalRef.current}`) || '[]') } catch {}
     // Con algunos desmarcados hace falta la lista del grupo: si no llega en 8 s, se pregunta con quién
     if (excluidos.length && !familiaCargada) {
-      const espera = setTimeout(() => { setPedido24h(0); elegirTiempo(1440) }, 8000)
+      const espera = setTimeout(() => { setPedido24h(0); elegirTiempo(MINUTOS_ATAJO) }, 8000)
       return () => clearTimeout(espera)
     }
     setPedido24h(0)
     const marcados = familiares.filter(f => !excluidos.includes(f.id))
     const lista = excluidos.length && marcados.length && marcados.length < familiares.length ? marcados.map(f => f.id) : null
-    empezar(true, 1440, lista)
+    empezar(true, MINUTOS_ATAJO, lista)
     setAvisoOk(`📍 ${t('atajoCompartiendo24')}`)
     setTimeout(() => setAvisoOk(''), 3500)
   }, [pedido24h, initListo, perfil, familiaCargada])
@@ -620,7 +625,7 @@ export default function Ubicacion() {
   /** Paso 1 → paso 2: después del tiempo se elige con quién (siempre: con la familia que tenga). */
   function elegirTiempo(minutos) {
     setMostrarTiempo(false)
-    if (!puedeUbicacionEnVivo(perfil)) { abrirPlanes(); return }
+    if (!puedeUbicacionEnVivo(perfil) || (perfil && minutos > minutosMax(perfil))) { abrirPlanes(); return }
     setMinutosElegidos(minutos)
     leerExcluidosUbi(familiares)
     setAvisoMinimoUbi(false)
@@ -666,6 +671,8 @@ export default function Ubicacion() {
     if (vigilanteRef.current != null || envioRef.current) return
 
     if (manual && !puedeUbicacionEnVivo(perfil)) { abrirPlanes(); return }
+    // Nunca más de lo que permite el plan (Gratis 8 h, Premium 48 h)
+    if (perfil) minutos = Math.min(minutos, minutosMax(perfil))
 
     if (manual) {
       detenidoRef.current = false
@@ -704,7 +711,7 @@ export default function Ubicacion() {
           supabase.from('live_locations').update({ compartir_con: compartirConGlobal })
             .eq('user_id', user.id).then(() => {}, () => {}),
           llave
-            ? supabase.rpc('crear_llave_gps', { llave, horas: Math.min(26, Math.ceil(minutos / 60) + 2) })
+            ? supabase.rpc('crear_llave_gps', { llave, horas: Math.min(50, Math.ceil(minutos / 60) + 2) })
               .then(({ error }) => { if (!error) llaveGlobal = llave }, () => {})
             : null,
         ]),
@@ -1017,15 +1024,19 @@ export default function Ubicacion() {
             <h3 id="selector-tiempo-titulo" className={styles.selectorTitulo}>{t('ubiSelectorTitulo')}</h3>
             <p className={styles.selectorDesc}>{t('ubiSelectorDesc')}</p>
             <div className={styles.selectorOpciones}>
-              {OPCIONES_TIEMPO.map(op => (
-                <button
-                  key={op.minutos}
-                  className={styles.selectorOpcion}
-                  onClick={() => elegirTiempo(op.minutos)}
-                >
-                  <span aria-hidden="true">⏱</span> {t(op.clave)}
-                </button>
-              ))}
+              {OPCIONES_TIEMPO.map(op => {
+                const soloPremium = !!perfil && op.minutos > minutosMax(perfil)
+                return (
+                  <button
+                    key={op.minutos}
+                    className={styles.selectorOpcion}
+                    onClick={() => elegirTiempo(op.minutos)}
+                  >
+                    <span aria-hidden="true">⏱</span> {t(op.clave)}
+                    {soloPremium && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: '#e6a817', fontWeight: 700 }}>👑 Premium</span>}
+                  </button>
+                )
+              })}
             </div>
             <button className={styles.selectorCancelar} onClick={() => setMostrarTiempo(false)}>
               {t('cancelar')}

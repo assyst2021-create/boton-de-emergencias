@@ -546,11 +546,12 @@ export default function PanicButtons() {
       setAlertasMes(Math.max(delServidor || 0, leerContadorLocal(authUser.id)))
     }
 
-    if (!esPremium(perfil) && !esFamiliar(perfil) && !localStorage.getItem(`trialAviso_${authUser.id}`)) {
+    // Versión 107: claves nuevas para que todos vean una vez los beneficios nuevos de su plan
+    if (!esPremium(perfil) && !esFamiliar(perfil) && !localStorage.getItem(`trialAviso107_${authUser.id}`)) {
       setAvisoPlan(true)
     } else if (esFamiliar(perfil) && !localStorage.getItem(`familiarAviso_${authUser.id}`)) {
       setAvisoFamiliar(true)
-    } else if (esPremium(perfil) && !localStorage.getItem(`premiumAviso_${authUser.id}`)) {
+    } else if (esPremium(perfil) && !localStorage.getItem(`premiumAviso107_${authUser.id}`)) {
       setAvisoPremium(true)
     }
     return authUser.id
@@ -1008,7 +1009,7 @@ export default function PanicButtons() {
               className={styles.avisoModalBtn}
               style={{ background: '#4CAF50' }}
               onClick={() => {
-                localStorage.setItem(`trialAviso_${user.id}`, '1')
+                localStorage.setItem(`trialAviso107_${user.id}`, '1')
                 setAvisoPlan(false)
               }}
             >{t('bienvenidaGratisBtn')}</button>
@@ -1055,15 +1056,15 @@ export default function PanicButtons() {
               <li>{t('elegirPremiumF3')}</li>
               <li>{t('elegirPremiumF4')}</li>
               <li>{t('elegirPremiumF5')}</li>
-              <li>{t('elegirPremiumF6')}</li>
               <li>{t('elegirPremiumF7')}</li>
+              <li>{t('elegirPremiumF6')}</li>
               <li>{t('elegirPremiumF8')}</li>
             </ul>
             <button
               className={styles.avisoModalBtn}
               style={{ background: '#e6a817' }}
               onClick={() => {
-                localStorage.setItem(`premiumAviso_${user.id}`, '1')
+                localStorage.setItem(`premiumAviso107_${user.id}`, '1')
                 setAvisoPremium(false)
               }}
             >{t('bienvenidaPremiumBtn')}</button>
@@ -1185,14 +1186,9 @@ export default function PanicButtons() {
                 {t('destIrFamilia')}
               </button>
             ) : familiares.length === 1 && (
-              // Con un solo familiar no hay a quién escoger: en Gratis es el límite del plan
+              // Con un solo familiar no hay a quién escoger (desde la 107 el Gratis permite 5)
               <div className={styles.destNota}>
-                <span>{t(esPlanPago(user) ? 'destUnoPago' : 'destUnoGratis')}</span>
-                {!esPlanPago(user) && (
-                  <button type="button" className={styles.destTodos} onClick={() => { setMostrarDestinos(false); abrirPlanes() }}>
-                    {t('verPlanes')}
-                  </button>
-                )}
+                <span>{t('destUnoPago')}</span>
               </div>
             )}
             <button type="button" className={styles.destListo} onClick={() => setMostrarDestinos(false)}>{t('destListo')}</button>
