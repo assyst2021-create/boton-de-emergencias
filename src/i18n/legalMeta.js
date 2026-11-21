@@ -3,7 +3,7 @@
 
 // VERSION_LEGAL: al cambiar cualquier documento de forma importante, se cambia esta fecha y
 // todos los usuarios vuelven a ver y aceptar los documentos (la aceptación queda registrada).
-export const VERSION_LEGAL = '2026-10-03'
+export const VERSION_LEGAL = '2026-11-21'
 
 // Datos del responsable (los exige la Ley 1581). Se muestran en los 3 idiomas.
 // La ley pide nombre, domicilio, dirección, correo y teléfono (la cédula no se publica). Por seguridad,

@@ -13,7 +13,7 @@ const PAGINA = path.join(AQUI, '../../pagina-politica-privacidad/index.html')
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const titulo = s => s.charAt(0) + s.slice(1).toLowerCase().replace(/(^|\. )([a-záéíóúâêôãõç])/g, (m, a, b) => a + b.toUpperCase())
 
-const FECHA = { es: '3 de octubre de 2026', en: 'October 3, 2026', pt: '3 de outubro de 2026' }
+const FECHA = { es: '21 de noviembre de 2026', en: 'November 21, 2026', pt: '21 de novembro de 2026' }
 const NOMBRE_APP = { es: 'Botón de Emergencias', en: 'Botón de Emergencias (Emergency Button)', pt: 'Botón de Emergencias (Botão de Emergências)' }
 const T = {
   es: { sub: 'Documentos legales', resp: 'Responsable', app: 'Aplicación', contacto: 'Contacto', tel: 'Teléfono', vig: 'Vigente desde', plazo: 'Plazo',

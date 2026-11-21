@@ -7,7 +7,7 @@ export { VERSION_LEGAL, RESPONSABLE }
 
 const R = RESPONSABLE
 const APP = 'Botón de Emergencias'
-const FECHA = { es: '3 de octubre de 2026', en: 'October 3, 2026', pt: '3 de outubro de 2026' }
+const FECHA = { es: '21 de noviembre de 2026', en: 'November 21, 2026', pt: '21 de novembro de 2026' }
 
 export const LEGAL = {
   es: {
